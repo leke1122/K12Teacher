@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChapterTextByPages, getLessonContent, getLessonTitle, getChapterTitle } from '@/lib/historyData.server';
 import { setServerData } from '@/lib/serverStorage';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // 历史知识点类型定义
 export interface HistoryKnowledgePoint {
@@ -26,6 +27,37 @@ interface ExtractRequest {
   forceRefresh?: boolean;
 }
 
+// 从 Supabase 获取教材内容
+async function getTextbookContentFromSupabase(): Promise<{
+  fullText?: string;
+  pages?: { pageNumber: number; content: string }[];
+  chapters?: unknown[];
+} | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('textbook_cache')
+      .select('full_text, pages, chapters')
+      .eq('user_id', 'personal-user')
+      .eq('subject_id', 'history')
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      fullText: data.full_text,
+      pages: data.pages as { pageNumber: number; content: string }[] || [],
+      chapters: data.chapters as unknown[] || [],
+    };
+  } catch (err) {
+    console.warn('[API history/knowledge] Supabase读取失败:', err);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ExtractRequest & { apiKey?: string } = await request.json().catch(() => ({}));
@@ -48,17 +80,78 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 获取教材内容
-    // 判断是"课"还是"单元"，优先使用对应的获取函数
-    const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
+    // 获取教材内容 - 优先从 Supabase 获取（Vercel部署）
     let text: string | null = null;
-    
-    if (isLesson) {
-      text = getLessonContent(chapterId);
+    let textbookData: { pages?: { pageNumber: number; content: string }[]; chapters?: unknown[] } | null = null;
+
+    // 1. 首先尝试从 Supabase 获取
+    textbookData = await getTextbookContentFromSupabase();
+
+    if (textbookData?.pages?.length) {
+      const pages = textbookData.pages;
+      const chapters = textbookData.chapters;
+
+      // 判断是"课"还是"单元"
+      const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
+
+      if (isLesson && chapters) {
+        // 查找课
+        for (const chapter of chapters) {
+          const c = chapter as { sections?: { sectionIndex: string; sectionTitle: string; startPage: number; endPage: number }[] };
+          if (c.sections) {
+            const normalizedId = chapterId.replace(/第/g, '').replace(/课/g, '').trim();
+            const section = c.sections.find((s) => {
+              const sIndex = s.sectionIndex.replace(/第/g, '').replace(/课/g, '').trim();
+              return sIndex === normalizedId || s.sectionIndex.includes(chapterId) || s.sectionTitle.includes(chapterId);
+            });
+            if (section) {
+              text = pages
+                .filter((p) => p.pageNumber >= section.startPage && p.pageNumber <= section.endPage)
+                .map((p) => p.content)
+                .join('\n\n');
+              break;
+            }
+          }
+        }
+      }
+
+      // 如果没找到课，尝试按页数范围或返回全部
+      if (!text) {
+        if (startPage !== undefined && endPage !== undefined) {
+          text = pages
+            .filter((p) => p.pageNumber >= startPage && p.pageNumber <= endPage)
+            .map((p) => p.content)
+            .join('\n\n');
+        } else if (chapters) {
+          // 尝试匹配单元
+          for (const chapter of chapters) {
+            const c = chapter as { chapterIndex: string; chapterTitle: string; startPage: number; endPage: number };
+            if (c.chapterIndex === chapterId || c.chapterTitle.includes(chapterId)) {
+              text = pages
+                .filter((p) => p.pageNumber >= c.startPage && p.pageNumber <= c.endPage)
+                .map((p) => p.content)
+                .join('\n\n');
+              break;
+            }
+          }
+        }
+
+        // 如果还是没找到，返回前几页
+        if (!text && pages.length > 0) {
+          text = pages.slice(0, 5).map((p) => p.content).join('\n\n');
+        }
+      }
     }
-    
+
+    // 2. 如果 Supabase 没有，尝试本地 serverStorage
     if (!text) {
-      text = getChapterTextByPages(chapterId, startPage, endPage);
+      const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
+      if (isLesson) {
+        text = getLessonContent(chapterId);
+      }
+      if (!text) {
+        text = getChapterTextByPages(chapterId, startPage, endPage);
+      }
     }
 
     if (!text) {
@@ -68,6 +161,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
     const title = isLesson ? (getLessonTitle(chapterId) || chapterId) : getChapterTitle(chapterId);
 
     // 优先使用请求中的 Key，其次使用环境变量

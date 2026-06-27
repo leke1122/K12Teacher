@@ -215,3 +215,111 @@ export async function saveUserSettings(settings: Record<string, unknown>) {
     });
   return !error;
 }
+
+// ==================== 教材数据 (textbook_cache) ====================
+
+export interface TextbookCacheItem {
+  id?: string;
+  subject_id: string;
+  textbook_id: string;
+  textbook_name: string;
+  file_name?: string;
+  file_size?: number;
+  total_pages?: number;
+  chapters?: unknown[];
+  full_text?: string;
+  pages?: { pageNumber: number; content: string }[];
+  uploaded_at?: string;
+}
+
+/**
+ * 获取教材列表
+ */
+export async function getTextbooks(subjectId?: string) {
+  if (!supabase) return null;
+  let query = supabase
+    .from('textbook_cache')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .order('uploaded_at', { ascending: false });
+
+  if (subjectId) {
+    query = query.eq('subject_id', subjectId);
+  }
+
+  const { data, error } = await query;
+  if (error) return null;
+  return data;
+}
+
+/**
+ * 获取单个教材详情
+ */
+export async function getTextbook(textbookId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('textbook_cache')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('textbook_id', textbookId)
+    .single();
+  if (error) return null;
+  return data;
+}
+
+/**
+ * 保存教材数据到Supabase
+ */
+export async function saveTextbookCache(data: TextbookCacheItem) {
+  if (!supabase) return { success: false, error: 'Supabase未配置' };
+
+  const { error } = await supabase
+    .from('textbook_cache')
+    .upsert({
+      user_id: USER_ID,
+      subject_id: data.subject_id,
+      textbook_id: data.textbook_id,
+      textbook_name: data.textbook_name,
+      file_name: data.file_name,
+      file_size: data.file_size,
+      total_pages: data.total_pages,
+      chapters: data.chapters || [],
+      full_text: data.full_text || '',
+      pages: data.pages || [],
+      uploaded_at: data.uploaded_at || new Date().toISOString(),
+    }, {
+      onConflict: 'user_id,textbook_id',
+    });
+
+  if (error) {
+    console.error('[Supabase] saveTextbookCache error:', error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 删除教材
+ */
+export async function deleteTextbookCache(textbookId: string) {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('textbook_cache')
+    .delete()
+    .eq('user_id', USER_ID)
+    .eq('textbook_id', textbookId);
+  return !error;
+}
+
+/**
+ * 清空所有教材数据
+ */
+export async function clearAllTextbookCache() {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('textbook_cache')
+    .delete()
+    .eq('user_id', USER_ID);
+  return !error;
+}

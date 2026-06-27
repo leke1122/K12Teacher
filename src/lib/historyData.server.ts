@@ -1,7 +1,10 @@
 // 历史学科数据工具 - 服务端版本
-// 提供章节配置和教材内容获取，使用 serverStorage
+// 提供章节配置和教材内容获取
+// 优先从 Supabase 读取，本地 serverStorage 作为备用
 
 import { getActiveTextbook, getTextbookPDF, getTextbookChapters } from './textbookStorage.server';
+import { supabase, isSupabaseConfigured } from './supabase';
+import { TextbookCacheItem } from './supabase';
 
 // 历史章节配置
 export const HISTORY_CHAPTERS = {
@@ -16,6 +19,39 @@ export const HISTORY_CHAPTERS = {
 } as const;
 
 export type HistoryChapterId = keyof typeof HISTORY_CHAPTERS;
+
+// 从 Supabase 获取教材数据
+async function getTextbookFromSupabase(subjectId: string = 'history'): Promise<{
+  fullText?: string;
+  pages?: { pageNumber: number; content: string }[];
+  chapters?: unknown[];
+  textbookId?: string;
+} | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('textbook_cache')
+      .select('textbook_id, full_text, pages, chapters')
+      .eq('user_id', 'personal-user')
+      .eq('subject_id', subjectId)
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      textbookId: data.textbook_id,
+      fullText: data.full_text,
+      pages: data.pages as { pageNumber: number; content: string }[] || [],
+      chapters: data.chapters as unknown[] || [],
+    };
+  } catch (err) {
+    console.warn('[historyData.server] Supabase读取失败:', err);
+    return null;
+  }
+}
 
 // 获取章节标题
 export function getChapterTitle(chapterId: string): string {

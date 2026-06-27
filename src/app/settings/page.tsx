@@ -328,7 +328,24 @@ export default function SettingsPage() {
       for (const itemId of selectedDataItems) {
         const config = DATA_STORAGE_MAP[itemId];
         try {
+          // 1. 先清除本地 localStorage
           const result = clearLocalStorageData(itemId);
+
+          // 2. 如果是教材数据，同时清除服务端/Supabase
+          if (itemId === 'textbook') {
+            try {
+              const response = await fetch('/api/manage/textbook', {
+                method: 'DELETE',
+              });
+              const data = await response.json();
+              if (data.success) {
+                console.log('[数据清除] Supabase 教材数据已清空');
+              }
+            } catch (err) {
+              console.warn('[数据清除] Supabase 清空失败:', err);
+            }
+          }
+
           results.push({
             item: config.label,
             success: result.success,
