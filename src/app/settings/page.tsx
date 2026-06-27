@@ -149,9 +149,12 @@ function getDataStats(): Record<DataItemId, string | number> {
 }
 
 // 清除指定数据项的本地存储
-function clearLocalStorageData(itemId: DataItemId): { success: boolean; message: string } {
+function clearLocalStorageData(itemId: DataItemId): { success: boolean; message: string; removedCount: number } {
   const config = DATA_STORAGE_MAP[itemId];
   const removedKeys: string[] = [];
+
+  console.log(`[数据清除] 开始清除: ${config.label}`);
+  const startTime = Date.now();
 
   config.localStorageKeys.forEach(key => {
     // 尝试多种 key 格式
@@ -165,6 +168,7 @@ function clearLocalStorageData(itemId: DataItemId): { success: boolean; message:
       if (localStorage.getItem(variant) !== null) {
         localStorage.removeItem(variant);
         removedKeys.push(variant);
+        console.log(`[数据清除] 已移除: ${variant}`);
       }
     });
 
@@ -172,9 +176,13 @@ function clearLocalStorageData(itemId: DataItemId): { success: boolean; message:
     storage.remove(key);
   });
 
+  const elapsed = Date.now() - startTime;
+  console.log(`[数据清除] 完成: ${config.label}，移除了 ${removedKeys.length} 个 key，耗时 ${elapsed}ms`);
+
   return {
     success: true,
     message: `已清除 ${removedKeys.length} 个相关数据`,
+    removedCount: removedKeys.length,
   };
 }
 
@@ -249,7 +257,10 @@ export default function SettingsPage() {
     }
 
     setClearingSelected(true);
-    const results: Array<{ item: string; success: boolean; message: string }> = [];
+    const results: Array<{ item: string; success: boolean; message: string; removedCount: number }> = [];
+    const startTime = Date.now();
+
+    console.log(`[数据清除] 开始批量清除操作，选择了 ${selectedDataItems.size} 个数据项`);
 
     try {
       for (const itemId of selectedDataItems) {
@@ -260,12 +271,15 @@ export default function SettingsPage() {
             item: config.label,
             success: result.success,
             message: result.message,
+            removedCount: result.removedCount,
           });
         } catch (err) {
+          console.error(`[数据清除] 清除失败: ${config.label}`, err);
           results.push({
             item: config.label,
             success: false,
             message: err instanceof Error ? err.message : '未知错误',
+            removedCount: 0,
           });
         }
       }
@@ -273,6 +287,10 @@ export default function SettingsPage() {
       // 统计结果
       const successCount = results.filter(r => r.success).length;
       const failCount = results.filter(r => !r.success).length;
+      const totalRemoved = results.reduce((sum, r) => sum + r.removedCount, 0);
+      const elapsed = Date.now() - startTime;
+
+      console.log(`[数据清除] 操作完成: ${successCount} 成功, ${failCount} 失败, 共移除 ${totalRemoved} 个 key, 耗时 ${elapsed}ms`);
 
       // 关闭对话框
       setConfirmDialogOpen(false);
@@ -283,9 +301,10 @@ export default function SettingsPage() {
 
       // 显示结果
       if (failCount === 0) {
-        toast.success(`✅ 已成功清除 ${successCount} 项数据`);
+        toast.success(`✅ 已成功清除 ${successCount} 项数据 (${totalRemoved} 个存储项)`);
       } else {
-        toast.warning(`部分清除成功：${successCount} 项成功，${failCount} 项失败`);
+        const failedItems = results.filter(r => !r.success).map(r => r.item).join(', ');
+        toast.warning(`部分清除成功：${successCount} 项成功，${failCount} 项失败 (${failedItems})`);
       }
     } catch (error) {
       console.error('清除数据失败:', error);
