@@ -26,12 +26,77 @@ import {
   Database,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 import { storage, StorageKeys } from '@/lib/storage';
 import { useUserGradeStore, GRADE_LABELS, type Grade } from '@/stores/gradeStore';
 
 // 数据管理相关类型和常量
 type DataItemId = 'textbook' | 'learning' | 'dashboard' | 'wrongQuestions' | 'weakPoints';
+
+// 数据项与存储位置的映射关系
+const DATA_STORAGE_MAP: Record<DataItemId, {
+  label: string;
+  description: string;
+  localStorageKeys: string[];
+}> = {
+  textbook: {
+    label: 'PDF教材数据',
+    description: '已上传的教材和章节信息',
+    localStorageKeys: [
+      'textbookStorage', 'textbook_chapters', 'serverStorage',
+      // 学科相关的教材 key
+      ...['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'].flatMap(
+        s => [`pdf_${s}`, `chapters_${s}`, `edumind_fallback_pdf_${s}`, `edumind_fallback_chapters_${s}`, `subject-${s}`]
+      )
+    ],
+  },
+  learning: {
+    label: '学习记录',
+    description: '各学科学习进度和时长',
+    localStorageKeys: [
+      'learning_records', 'history_learning_progress', 'learning_progress',
+      // 学科相关的学习进度 key
+      ...['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'].flatMap(
+        s => [`progress_${s}`, `practice_${s}`, `stats_${s}`, `edumind_progress_${s}`, `edumind_practice_${s}`]
+      )
+    ],
+  },
+  dashboard: {
+    label: '仪表盘数据',
+    description: '首页统计和每日积累',
+    localStorageKeys: [
+      'dashboard_stats', 'daily_accumulation', 'edumind_dashboard_stats', 'edumind_daily_accumulation'
+    ],
+  },
+  wrongQuestions: {
+    label: '错题本',
+    description: '所有错题记录',
+    localStorageKeys: [
+      'wrong_questions', 'wrong_questions_stats',
+      // 学科相关的错题 key
+      ...['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'].flatMap(
+        s => [`wrong_${s}`, `edumind_wrong_${s}`]
+      )
+    ],
+  },
+  weakPoints: {
+    label: '薄弱项记录',
+    description: 'AI分析的知识薄弱点',
+    localStorageKeys: [
+      'weak_points', 'analysis_results', 'edumind_weak_points', 'edumind_analysis_results'
+    ],
+  },
+};
 
 const DATA_ITEMS: Array<{ id: DataItemId; label: string; description: string }> = [
   { id: 'textbook', label: 'PDF教材数据', description: '已上传的教材和章节信息' },
@@ -41,14 +106,77 @@ const DATA_ITEMS: Array<{ id: DataItemId; label: string; description: string }> 
   { id: 'weakPoints', label: '薄弱项记录', description: 'AI分析的知识薄弱点' },
 ];
 
-// 占位统计数据（硬编码示例）
-const DATA_STATS: Record<DataItemId, string | number> = {
-  textbook: 3,
-  learning: 45,
-  dashboard: '2.5h',
-  wrongQuestions: 12,
-  weakPoints: 5,
-};
+// 获取统计数据（从实际存储中读取）
+function getDataStats(): Record<DataItemId, string | number> {
+  // PDF教材数量 - 统计所有学科的教材
+  let textbookCount = 0;
+  const subjects = ['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'];
+  subjects.forEach(s => {
+    if (storage.exists(`pdf_${s}`)) textbookCount++;
+  });
+
+  // 学习记录数量 - 统计学习进度记录
+  let learningCount = 0;
+  subjects.forEach(s => {
+    const progress = storage.get(`progress_${s}`);
+    if (progress) learningCount++;
+  });
+
+  // 仪表盘数据 - 统计今日学习时长
+  const todayStats = storage.get<{ todayMinutes?: number }>('dashboard_stats');
+  const dashboardValue = todayStats?.todayMinutes
+    ? `${(todayStats.todayMinutes / 60).toFixed(1)}h`
+    : '0h';
+
+  // 错题数量
+  let wrongCount = 0;
+  subjects.forEach(s => {
+    const wrong = storage.get(`wrong_${s}`);
+    if (wrong && Array.isArray(wrong)) wrongCount += wrong.length;
+  });
+
+  // 薄弱项数量
+  const weakPoints = storage.get<unknown[]>('weak_points');
+  const weakCount = weakPoints?.length || 0;
+
+  return {
+    textbook: textbookCount || 0,
+    learning: learningCount || 0,
+    dashboard: dashboardValue,
+    wrongQuestions: wrongCount || 0,
+    weakPoints: weakCount || 0,
+  };
+}
+
+// 清除指定数据项的本地存储
+function clearLocalStorageData(itemId: DataItemId): { success: boolean; message: string } {
+  const config = DATA_STORAGE_MAP[itemId];
+  const removedKeys: string[] = [];
+
+  config.localStorageKeys.forEach(key => {
+    // 尝试多种 key 格式
+    const variants = [
+      key,
+      `edumind_${key}`,
+      key.replace('edumind_', ''),
+    ];
+
+    variants.forEach(variant => {
+      if (localStorage.getItem(variant) !== null) {
+        localStorage.removeItem(variant);
+        removedKeys.push(variant);
+      }
+    });
+
+    // 也使用统一存储层清除
+    storage.remove(key);
+  });
+
+  return {
+    success: true,
+    message: `已清除 ${removedKeys.length} 个相关数据`,
+  };
+}
 
 export default function SettingsPage() {
   const { grade, setGrade } = useUserGradeStore();
@@ -83,6 +211,15 @@ export default function SettingsPage() {
 
   // 数据管理状态
   const [selectedDataItems, setSelectedDataItems] = useState<Set<DataItemId>>(new Set());
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmInput, setConfirmInput] = useState('');
+  const [clearingSelected, setClearingSelected] = useState(false);
+  const [dataStats, setDataStats] = useState<Record<DataItemId, string | number>>(() => getDataStats());
+
+  // 刷新统计数据
+  const refreshDataStats = () => {
+    setDataStats(getDataStats());
+  };
 
   // 切换数据项选中状态
   const toggleDataItem = (itemId: DataItemId) => {
@@ -97,13 +234,65 @@ export default function SettingsPage() {
     });
   };
 
-  // 处理清空所选数据（仅显示提示，暂不实现实际清除逻辑）
+  // 处理清空所选数据
   const handleClearSelectedData = () => {
-    const selectedLabels = DATA_ITEMS
-      .filter((item) => selectedDataItems.has(item.id))
-      .map((item) => item.label);
+    if (selectedDataItems.size === 0) return;
+    setConfirmInput('');
+    setConfirmDialogOpen(true);
+  };
 
-    alert(`您选择了以下数据项：\n\n${selectedLabels.join('\n')}\n\n实际清空逻辑将在第二步实现。`);
+  // 执行真正的数据清除
+  const executeClearSelectedData = async () => {
+    if (confirmInput !== '确认清空') {
+      toast.error('确认文字不正确，请输入"确认清空"');
+      return;
+    }
+
+    setClearingSelected(true);
+    const results: Array<{ item: string; success: boolean; message: string }> = [];
+
+    try {
+      for (const itemId of selectedDataItems) {
+        const config = DATA_STORAGE_MAP[itemId];
+        try {
+          const result = clearLocalStorageData(itemId);
+          results.push({
+            item: config.label,
+            success: result.success,
+            message: result.message,
+          });
+        } catch (err) {
+          results.push({
+            item: config.label,
+            success: false,
+            message: err instanceof Error ? err.message : '未知错误',
+          });
+        }
+      }
+
+      // 统计结果
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      // 关闭对话框
+      setConfirmDialogOpen(false);
+      setSelectedDataItems(new Set());
+
+      // 刷新统计数据
+      refreshDataStats();
+
+      // 显示结果
+      if (failCount === 0) {
+        toast.success(`✅ 已成功清除 ${successCount} 项数据`);
+      } else {
+        toast.warning(`部分清除成功：${successCount} 项成功，${failCount} 项失败`);
+      }
+    } catch (error) {
+      console.error('清除数据失败:', error);
+      toast.error('清除失败：' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setClearingSelected(false);
+    }
   };
 
   // 同步 settings 到表单
@@ -535,22 +724,88 @@ export default function SettingsPage() {
                 >
                   <span className="font-medium">{item.label}</span>
                   <span className="text-muted-foreground ml-2">
-                    (共 {DATA_STATS[item.id]} {item.id === 'textbook' ? '本' : item.id === 'wrongQuestions' ? '题' : item.id === 'weakPoints' ? '项' : '条'})
+                    (共 {dataStats[item.id]} {item.id === 'textbook' ? '本' : item.id === 'wrongQuestions' ? '题' : item.id === 'weakPoints' ? '项' : item.id === 'dashboard' ? '' : '条'})
                   </span>
                 </Label>
               </div>
             ))}
           </div>
 
-          <Button
-            variant="destructive"
-            onClick={handleClearSelectedData}
-            disabled={selectedDataItems.size === 0}
-            className="w-full"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            确认清空所选数据
-          </Button>
+          <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="destructive"
+                onClick={handleClearSelectedData}
+                disabled={selectedDataItems.size === 0}
+                className="w-full"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                确认清空所选数据
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  确认清空数据
+                </DialogTitle>
+                <DialogDescription>
+                  即将清除以下数据项，此操作不可撤销：
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2 py-4">
+                {Array.from(selectedDataItems).map((itemId) => {
+                  const item = DATA_ITEMS.find(i => i.id === itemId);
+                  return (
+                    <div key={itemId} className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <span className="font-medium">{item?.label}</span>
+                      <span className="text-muted-foreground">- {DATA_STORAGE_MAP[itemId].description}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmInput">请输入 "确认清空" 以继续</Label>
+                <Input
+                  id="confirmInput"
+                  value={confirmInput}
+                  onChange={(e) => setConfirmInput(e.target.value)}
+                  placeholder="输入: 确认清空"
+                  className="border-red-300 focus:border-red-500"
+                />
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDialogOpen(false)}
+                  disabled={clearingSelected}
+                >
+                  取消
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={executeClearSelectedData}
+                  disabled={clearingSelected || confirmInput !== '确认清空'}
+                >
+                  {clearingSelected ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      清除中...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      确认清除
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <p className="text-sm text-amber-600 flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />
