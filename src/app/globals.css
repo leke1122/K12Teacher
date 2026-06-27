@@ -5,23 +5,167 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* 设计系统颜色 */
+  --color-primary: #4F46E5;
+  --color-primary-light: #EEF2FF;
+  --color-primary-dark: #3730A3;
+  
+  --color-bg: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-card-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  
+  --color-title: #1E293B;
+  --color-body: #475569;
+  --color-muted: #94A3B8;
+  
+  /* 学习模式颜色 */
+  --color-knowledge: #4F46E5;
+  --color-knowledge-light: #EEF2FF;
+  --color-textbook: #059669;
+  --color-textbook-light: #ECFDF5;
+  --color-practice: #D97706;
+  --color-practice-light: #FFFBEB;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    
+    --color-primary: #818CF8;
+    --color-primary-light: #1E1B4B;
+    --color-primary-dark: #A5B4FC;
+    
+    --color-bg: #0F172A;
+    --color-card: #1E293B;
+    --color-card-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    
+    --color-title: #F1F5F9;
+    --color-body: #CBD5E1;
+    --color-muted: #64748B;
+    
+    --color-knowledge: #818CF8;
+    --color-knowledge-light: #1E1B4B;
+    --color-textbook: #34D399;
+    --color-textbook-light: #064E3B;
+    --color-practice: #FBBF24;
+    --color-practice-light: #78350F;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  
+  /* 标题字体 */
+  h1 { font-size: 2rem; font-weight: 700; }
+  h2 { font-size: 1.5rem; font-weight: 600; }
+  h3 { font-size: 1.25rem; font-weight: 600; }
+  h4 { font-size: 1.125rem; font-weight: 500; }
+  
+  /* 链接 */
+  a {
+    color: var(--color-primary);
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* 卡片悬浮效果 */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+/* 按钮渐变效果 */
+.btn-gradient-knowledge {
+  background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-knowledge:hover {
+  background: linear-gradient(135deg, #4338CA 0%, #4F46E5 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+.btn-gradient-textbook {
+  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-textbook:hover {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+}
+
+.btn-gradient-practice {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-practice:hover {
+  background: linear-gradient(135deg, #B45309 0%, #D97706 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }
