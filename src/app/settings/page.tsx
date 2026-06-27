@@ -25,9 +25,30 @@ import {
   CheckCircle2,
   Database,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { storage, StorageKeys } from '@/lib/storage';
 import { useUserGradeStore, GRADE_LABELS, type Grade } from '@/stores/gradeStore';
+
+// 数据管理相关类型和常量
+type DataItemId = 'textbook' | 'learning' | 'dashboard' | 'wrongQuestions' | 'weakPoints';
+
+const DATA_ITEMS: Array<{ id: DataItemId; label: string; description: string }> = [
+  { id: 'textbook', label: 'PDF教材数据', description: '已上传的教材和章节信息' },
+  { id: 'learning', label: '学习记录', description: '各学科学习进度和时长' },
+  { id: 'dashboard', label: '仪表盘数据', description: '首页统计和每日积累' },
+  { id: 'wrongQuestions', label: '错题本', description: '所有错题记录' },
+  { id: 'weakPoints', label: '薄弱项记录', description: 'AI分析的知识薄弱点' },
+];
+
+// 占位统计数据（硬编码示例）
+const DATA_STATS: Record<DataItemId, string | number> = {
+  textbook: 3,
+  learning: 45,
+  dashboard: '2.5h',
+  wrongQuestions: 12,
+  weakPoints: 5,
+};
 
 export default function SettingsPage() {
   const { grade, setGrade } = useUserGradeStore();
@@ -59,6 +80,31 @@ export default function SettingsPage() {
   // 数据同步状态
   const { isOnline, isSyncing, lastSource, logs, isCloudConfigured, clearLogs, manualSync } = useDataSync();
   const [syncing, setSyncing] = useState(false);
+
+  // 数据管理状态
+  const [selectedDataItems, setSelectedDataItems] = useState<Set<DataItemId>>(new Set());
+
+  // 切换数据项选中状态
+  const toggleDataItem = (itemId: DataItemId) => {
+    setSelectedDataItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  // 处理清空所选数据（仅显示提示，暂不实现实际清除逻辑）
+  const handleClearSelectedData = () => {
+    const selectedLabels = DATA_ITEMS
+      .filter((item) => selectedDataItems.has(item.id))
+      .map((item) => item.label);
+
+    alert(`您选择了以下数据项：\n\n${selectedLabels.join('\n')}\n\n实际清空逻辑将在第二步实现。`);
+  };
 
   // 同步 settings 到表单
   useEffect(() => {
@@ -460,6 +506,56 @@ export default function SettingsPage() {
               </ScrollArea>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 数据管理卡片 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            数据管理
+          </CardTitle>
+          <CardDescription>
+            管理本地数据，勾选需要清空的数据项后点击确认清除
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            {DATA_ITEMS.map((item) => (
+              <div key={item.id} className="flex items-center gap-3">
+                <Checkbox
+                  id={item.id}
+                  checked={selectedDataItems.has(item.id)}
+                  onCheckedChange={() => toggleDataItem(item.id)}
+                />
+                <Label
+                  htmlFor={item.id}
+                  className="flex-1 cursor-pointer"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-muted-foreground ml-2">
+                    (共 {DATA_STATS[item.id]} {item.id === 'textbook' ? '本' : item.id === 'wrongQuestions' ? '题' : item.id === 'weakPoints' ? '项' : '条'})
+                  </span>
+                </Label>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            variant="destructive"
+            onClick={handleClearSelectedData}
+            disabled={selectedDataItems.size === 0}
+            className="w-full"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            确认清空所选数据
+          </Button>
+
+          <p className="text-sm text-amber-600 flex items-center gap-1">
+            <AlertTriangle className="h-4 w-4" />
+            提示：此操作不可撤销，请谨慎操作
+          </p>
         </CardContent>
       </Card>
 
