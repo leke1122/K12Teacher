@@ -94,8 +94,8 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
       if (!saveJson.success) { setError(saveJson.error || '保存失败'); setLoading(false); return; }
 
       // 提取章节并更新到 Supabase
-      const { settings } = await import('@/stores/settingsStore');
-      const apiKey = settings?.deepseekKey;
+      const { useSettingsStore } = await import('@/stores/settingsStore');
+      const apiKey = useSettingsStore.getState().settings?.deepseekKey;
       let chapters: unknown[] = [];
       if (apiKey && json.fullText) {
         try {
