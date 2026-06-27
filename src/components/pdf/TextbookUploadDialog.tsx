@@ -74,6 +74,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
       const json = await res.json();
       if (json.error) { setError(json.error); setLoading(false); return; }
 
+      // 保存教材基本信息到 Supabase
       const saveRes = await fetch('/api/textbook/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,11 +86,59 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           totalPages: json.totalPages,
           fullText: json.fullText,
           pages: json.pages || [],
+          // chapters 暂不传，等提取完成后再更新
         }),
       });
       const saveJson = await saveRes.json();
 
       if (!saveJson.success) { setError(saveJson.error || '保存失败'); setLoading(false); return; }
+
+      // 提取章节并更新到 Supabase
+      const { settings } = await import('@/stores/settingsStore');
+      const apiKey = settings?.deepseekKey;
+      let chapters: unknown[] = [];
+      if (apiKey && json.fullText) {
+        try {
+          const extractRes = await fetch('/api/extract-chapters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: json.fullText,
+              apiKey,
+              subjectId,
+              textbookId: saveJson.textbook?.id,
+              refresh: true,
+            }),
+          });
+          const extractJson = await extractRes.json();
+          if (extractJson.chapters) {
+            chapters = extractJson.legacyChapters || extractJson.chapters;
+            console.log('[上传] 章节提取成功:', chapters.length, '个章节');
+          }
+        } catch (extractErr) {
+          console.warn('[上传] 章节提取失败:', extractErr);
+        }
+      }
+
+      // 如果提取到章节，更新 Supabase 中的教材记录
+      if (chapters.length > 0) {
+        try {
+          const updateRes = await fetch('/api/textbook/update-chapters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              textbookId: saveJson.textbook?.id,
+              chapters,
+            }),
+          });
+          const updateJson = await updateRes.json();
+          if (updateJson.success) {
+            console.log('[上传] 章节更新成功');
+          }
+        } catch (updateErr) {
+          console.warn('[上传] 章节更新失败:', updateErr);
+        }
+      }
 
       const { saveTextbook, saveTextbookPDF, getTextbooks, setActiveTextbook } = await import('@/lib/textbookStorage');
       saveTextbook(subjectId, saveJson.textbook);

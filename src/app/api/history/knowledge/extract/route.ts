@@ -33,19 +33,42 @@ async function getTextbookContentFromSupabase(): Promise<{
   pages?: { pageNumber: number; content: string }[];
   chapters?: unknown[];
 } | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase) {
+    console.log('[API history/knowledge] Supabase未配置');
+    return null;
+  }
 
   try {
+    console.log('[API history/knowledge] 开始查询Supabase，条件: user_id=personal-user, subject_id=history');
+
     const { data, error } = await supabase
       .from('textbook_cache')
-      .select('full_text, pages, chapters')
+      .select('*')
       .eq('user_id', 'personal-user')
       .eq('subject_id', 'history')
       .order('uploaded_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (error || !data) return null;
+    if (error) {
+      console.error('[API history/knowledge] Supabase查询错误:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log('[API history/knowledge] Supabase中没有找到历史教材记录');
+      return null;
+    }
+
+    console.log('[API history/knowledge] Supabase查询成功:', {
+      textbook_id: data.textbook_id,
+      textbook_name: data.textbook_name,
+      total_pages: data.total_pages,
+      pages_count: data.pages?.length || 0,
+      chapters_count: data.chapters?.length || 0,
+      has_full_text: !!data.full_text,
+      uploaded_at: data.uploaded_at
+    });
 
     return {
       fullText: data.full_text,
@@ -53,7 +76,7 @@ async function getTextbookContentFromSupabase(): Promise<{
       chapters: data.chapters as unknown[] || [],
     };
   } catch (err) {
-    console.warn('[API history/knowledge] Supabase读取失败:', err);
+    console.error('[API history/knowledge] Supabase读取异常:', err);
     return null;
   }
 }
