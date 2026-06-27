@@ -106,8 +106,18 @@ const DATA_ITEMS: Array<{ id: DataItemId; label: string; description: string }> 
   { id: 'weakPoints', label: '薄弱项记录', description: 'AI分析的知识薄弱点' },
 ];
 
-// 获取统计数据（从实际存储中读取）
+// 获取统计数据（从实际存储中读取）- 仅在客户端调用
 function getDataStats(): Record<DataItemId, string | number> {
+  if (typeof window === 'undefined') {
+    return {
+      textbook: 0,
+      learning: 0,
+      dashboard: '0h',
+      wrongQuestions: 0,
+      weakPoints: 0,
+    };
+  }
+
   // PDF教材数量 - 统计所有学科的教材
   let textbookCount = 0;
   const subjects = ['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'];
@@ -148,8 +158,12 @@ function getDataStats(): Record<DataItemId, string | number> {
   };
 }
 
-// 清除指定数据项的本地存储
+// 清除指定数据项的本地存储 - 仅在客户端调用
 function clearLocalStorageData(itemId: DataItemId): { success: boolean; message: string; removedCount: number } {
+  if (typeof window === 'undefined') {
+    return { success: false, message: 'SSR环境无法清除', removedCount: 0 };
+  }
+
   const config = DATA_STORAGE_MAP[itemId];
   const removedKeys: string[] = [];
 
@@ -222,11 +236,26 @@ export default function SettingsPage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmInput, setConfirmInput] = useState('');
   const [clearingSelected, setClearingSelected] = useState(false);
-  const [dataStats, setDataStats] = useState<Record<DataItemId, string | number>>(() => getDataStats());
+  const [dataStats, setDataStats] = useState<Record<DataItemId, string | number>>({
+    textbook: 0,
+    learning: 0,
+    dashboard: '0h',
+    wrongQuestions: 0,
+    weakPoints: 0,
+  });
+  const [isClient, setIsClient] = useState(false);
 
-  // 刷新统计数据
-  const refreshDataStats = () => {
+  // 在客户端挂载后获取统计数据
+  useEffect(() => {
+    setIsClient(true);
     setDataStats(getDataStats());
+  }, []);
+
+  // 刷新统计数据（仅在客户端执行）
+  const refreshDataStats = () => {
+    if (typeof window !== 'undefined') {
+      setDataStats(getDataStats());
+    }
   };
 
   // 切换数据项选中状态
