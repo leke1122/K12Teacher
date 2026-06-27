@@ -118,11 +118,21 @@ function getDataStats(): Record<DataItemId, string | number> {
     };
   }
 
-  // PDF教材数量 - 统计所有学科的教材
+  // PDF教材数量 - 统计所有学科的教材列表
   let textbookCount = 0;
   const subjects = ['math', 'physics', 'chemistry', 'english', 'chinese', 'biology', 'geography', 'politics', 'history'];
   subjects.forEach(s => {
-    if (storage.exists(`pdf_${s}`)) textbookCount++;
+    // 检查 textbooks_{subjectId} 键（教材元数据列表）
+    if (storage.exists(`textbooks_${s}`)) {
+      const textbooks = storage.get<unknown[]>(`textbooks_${s}`);
+      if (textbooks && Array.isArray(textbooks) && textbooks.length > 0) {
+        textbookCount++;
+      }
+    }
+    // 也检查旧的 pdf_{subjectId} 格式
+    if (storage.exists(`pdf_${s}`)) {
+      textbookCount++;
+    }
   });
 
   // 学习记录数量 - 统计学习进度记录
@@ -170,25 +180,48 @@ function clearLocalStorageData(itemId: DataItemId): { success: boolean; message:
   console.log(`[数据清除] 开始清除: ${config.label}`);
   const startTime = Date.now();
 
-  config.localStorageKeys.forEach(key => {
-    // 尝试多种 key 格式
-    const variants = [
-      key,
-      `edumind_${key}`,
-      key.replace('edumind_', ''),
-    ];
+  // 动态获取所有需要清除的键
+  const allKeys = storage.keys();
 
-    variants.forEach(variant => {
-      if (localStorage.getItem(variant) !== null) {
-        localStorage.removeItem(variant);
-        removedKeys.push(variant);
-        console.log(`[数据清除] 已移除: ${variant}`);
-      }
+  if (itemId === 'textbook') {
+    // 教材数据：需要清除 textbooks_*, pdf_*, chapters_* 等
+    const textbookKeys = allKeys.filter(key =>
+      key.startsWith('textbooks_') ||
+      key.startsWith('pdf_') ||
+      key.startsWith('chapters_')
+    );
+    textbookKeys.forEach(key => {
+      storage.remove(key);
+      removedKeys.push(key);
+      console.log(`[数据清除] 已移除: ${key}`);
     });
+  } else {
+    // 其他数据类型：使用预定义的键列表
+    config.localStorageKeys.forEach(key => {
+      // 尝试多种 key 格式
+      const variants = [
+        key,
+        `edumind_${key}`,
+        key.replace('edumind_', ''),
+      ];
 
-    // 也使用统一存储层清除
-    storage.remove(key);
-  });
+      variants.forEach(variant => {
+        // 直接清除 variant
+        if (storage.exists(variant)) {
+          storage.remove(variant);
+          removedKeys.push(variant);
+          console.log(`[数据清除] 已移除: ${variant}`);
+        }
+        // 也清除带 edumind_ 前缀的（如果还没有清除）
+        const fullKey = `edumind_${variant}`;
+        if (storage.exists(fullKey) && !removedKeys.includes(fullKey)) {
+          storage.remove(fullKey);
+          removedKeys.push(fullKey);
+          console.log(`[数据清除] 已移除: ${fullKey}`);
+        }
+      });
+    });
+  }
 
   const elapsed = Date.now() - startTime;
   console.log(`[数据清除] 完成: ${config.label}，移除了 ${removedKeys.length} 个 key，耗时 ${elapsed}ms`);
