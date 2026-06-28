@@ -27,12 +27,15 @@ interface UseTextbooksReturn {
  */
 async function fetchTextbooksFromSupabase(subjectId: string): Promise<Textbook[]> {
   try {
+    console.log('[useTextbooks] 开始从 Supabase 加载教材, subjectId:', subjectId);
+    
     const response = await fetch(`/api/textbook/list?subjectId=${subjectId}`);
     const data = await response.json();
     
-    if (data.success && data.textbooks) {
-      // 转换为本地格式
-      return data.textbooks.map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
+    console.log('[useTextbooks] API 返回:', data);
+    
+    if (data.success && data.textbooks && data.textbooks.length > 0) {
+      const textbooks = data.textbooks.map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
         id: t.textbook_id,
         name: t.textbook_name,
         grade: '高一',
@@ -42,7 +45,10 @@ async function fetchTextbooksFromSupabase(subjectId: string): Promise<Textbook[]
         isActive: false,
         chaptersCount: t.chapters?.length || 0,
       }));
+      console.log('[useTextbooks] 转换后的教材:', textbooks);
+      return textbooks;
     }
+    console.log('[useTextbooks] Supabase 没有数据');
     return [];
   } catch (err) {
     console.error('[useTextbooks] fetchTextbooksFromSupabase error:', err);
@@ -60,9 +66,11 @@ export function useTextbooks(subjectId: string): UseTextbooksReturn {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError('');
+    console.log('[useTextbooks] refresh 开始, subjectId:', subjectId);
     try {
       // 1. 优先从 Supabase 获取教材列表
       let textbookList = await fetchTextbooksFromSupabase(subjectId);
+      console.log('[useTextbooks] fetchTextbooksFromSupabase 返回:', textbookList.length);
       
       // 2. 如果 Supabase 没有，尝试本地存储
       if (textbookList.length === 0) {
