@@ -275,14 +275,11 @@ export async function saveTextbookCache(data: TextbookCacheItem) {
     user_id: USER_ID,
     subject_id: data.subject_id,
     textbook_name: data.textbook_name,
-    chapters_count: data.chapters?.length || 0,
-    supabaseUrlConfigured: !!supabaseUrl,
-    supabaseAnonKeyConfigured: !!supabaseAnonKey,
-    supabaseClientReady: !!supabase
+    chapters_count: data.chapters?.length || 0
   });
 
   if (!supabase) {
-    console.error('[Supabase] supabase 未初始化, URL:', !!supabaseUrl, 'Key:', !!supabaseAnonKey);
+    console.error('[Supabase] supabase 未初始化');
     return { success: false, error: 'Supabase未配置' };
   }
 

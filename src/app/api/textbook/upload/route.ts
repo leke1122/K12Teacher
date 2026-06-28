@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveTextbook, saveTextbookPDF } from '@/lib/textbookStorage.server';
-import { saveTextbookCache, isSupabaseConfigured } from '@/lib/supabase';
-
-// GET /api/textbook/upload - 检查配置状态
-export async function GET() {
-  return NextResponse.json({
-    supabaseConfigured: isSupabaseConfigured,
-    envUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    envKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  });
-}
+import { saveTextbookCache } from '@/lib/supabase';
 
 // POST /api/textbook/upload
 // 保存教材元数据到服务端存储和Supabase
@@ -79,8 +70,6 @@ export async function POST(request: NextRequest) {
       pdf,
       chapters,
       supabase: supabaseResult.success,
-      supabaseConfigured: isSupabaseConfigured,
-      supabaseError: supabaseResult.error,
     });
   } catch (error) {
     console.error('[API textbook/upload] error:', error);

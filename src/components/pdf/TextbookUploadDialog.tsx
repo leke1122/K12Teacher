@@ -102,10 +102,10 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           chapters: tocData.chapters,
         }),
       });
+      const saveJson = await saveRes.json();
+      
       console.log('[上传] API响应:', saveJson);
       console.log('[上传] Supabase存储结果:', saveJson.supabase);
-      console.log('[上传] Supabase配置状态:', saveJson.supabaseConfigured);
-      console.log('[上传] Supabase错误:', saveJson.supabaseError);
 
       if (!saveJson.success) { 
         setError(saveJson.error || '保存失败'); 
@@ -114,9 +114,8 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
       }
 
       if (!saveJson.supabase) {
-        const errorMsg = saveJson.supabaseError || '云端存储失败';
-        console.warn('[上传] Supabase存储失败:', errorMsg);
-        setError(errorMsg); 
+        console.warn('[上传] Supabase存储失败，教材可能只保存在本地');
+        setError('云端存储失败，请刷新页面重试'); 
         setLoading(false); 
         return;
       }
