@@ -271,7 +271,17 @@ export async function getTextbook(textbookId: string) {
  * 保存教材数据到Supabase
  */
 export async function saveTextbookCache(data: TextbookCacheItem) {
-  if (!supabase) return { success: false, error: 'Supabase未配置' };
+  console.log('[Supabase] saveTextbookCache 开始:', {
+    user_id: USER_ID,
+    subject_id: data.subject_id,
+    textbook_name: data.textbook_name,
+    chapters_count: data.chapters?.length || 0
+  });
+
+  if (!supabase) {
+    console.error('[Supabase] supabase 未初始化');
+    return { success: false, error: 'Supabase未配置' };
+  }
 
   const { error } = await supabase
     .from('textbook_cache')
@@ -296,6 +306,7 @@ export async function saveTextbookCache(data: TextbookCacheItem) {
     return { success: false, error: error.message };
   }
 
+  console.log('[Supabase] saveTextbookCache 成功');
   return { success: true };
 }
 

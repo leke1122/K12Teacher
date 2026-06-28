@@ -103,11 +103,21 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
         }),
       });
       const saveJson = await saveRes.json();
+      
+      console.log('[上传] API响应:', saveJson);
+      console.log('[上传] Supabase存储结果:', saveJson.supabase);
 
       if (!saveJson.success) { 
         setError(saveJson.error || '保存失败'); 
         setLoading(false); 
         return; 
+      }
+
+      if (!saveJson.supabase) {
+        console.warn('[上传] Supabase存储失败，教材可能只保存在本地');
+        setError('云端存储失败，请刷新页面重试'); 
+        setLoading(false); 
+        return;
       }
 
       console.log('[上传] 教材上传成功:', textbookName, tocData.chapters.length, '个章节');
