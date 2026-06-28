@@ -8,6 +8,7 @@ import {
   getTextbookChapters, saveTextbookChapters, saveTextbooks,
 } from '@/lib/textbookStorage';
 import { Chapter } from '@/types/chapter';
+import { convertTOCChapters } from '@/types/chapter';
 
 interface UseTextbooksReturn {
   textbooks: Textbook[];
@@ -21,6 +22,34 @@ interface UseTextbooksReturn {
   refresh: () => Promise<void>;
 }
 
+/**
+ * 从 Supabase 获取教材数据
+ */
+async function fetchTextbooksFromSupabase(subjectId: string): Promise<Textbook[]> {
+  try {
+    const response = await fetch(`/api/textbook/list?subjectId=${subjectId}`);
+    const data = await response.json();
+    
+    if (data.success && data.textbooks) {
+      // 转换为本地格式
+      return data.textbooks.map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
+        id: t.textbook_id,
+        name: t.textbook_name,
+        grade: '高一',
+        fileName: t.textbook_id + '.pdf',
+        totalPages: t.total_pages || 0,
+        uploadedAt: t.uploaded_at,
+        isActive: false,
+        chaptersCount: t.chapters?.length || 0,
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.error('[useTextbooks] fetchTextbooksFromSupabase error:', err);
+    return [];
+  }
+}
+
 export function useTextbooks(subjectId: string): UseTextbooksReturn {
   const [textbooks, setTextbooks] = useState<Textbook[]>([]);
   const [activeTextbook, setActiveTextbookState] = useState<Textbook | null>(null);
@@ -32,16 +61,41 @@ export function useTextbooks(subjectId: string): UseTextbooksReturn {
     setLoading(true);
     setError('');
     try {
-      // 加载教材列表
-      const list = getTextbooks(subjectId);
-      setTextbooks(list);
-      // 获取当前激活的教材
-      const active = getActiveTextbook(subjectId);
+      // 1. 优先从 Supabase 获取教材列表
+      let textbookList = await fetchTextbooksFromSupabase(subjectId);
+      
+      // 2. 如果 Supabase 没有，尝试本地存储
+      if (textbookList.length === 0) {
+        textbookList = getTextbooks(subjectId);
+        console.log('[useTextbooks] 从本地存储加载教材:', textbookList.length);
+      } else {
+        console.log('[useTextbooks] 从Supabase加载教材:', textbookList.length);
+      }
+      
+      setTextbooks(textbookList);
+      
+      // 3. 获取当前激活的教材
+      let active = getActiveTextbook(subjectId);
+      
+      // 如果本地没有激活的，尝试从 Supabase 取第一个
+      if (!active && textbookList.length > 0) {
+        active = textbookList[0];
+        setActiveTextbook(subjectId, active.id);
+      }
+      
       setActiveTextbookState(active);
-      // 加载章节
+      
+      // 4. 加载章节
       if (active) {
-        const chs = getTextbookChapters(active.id);
-        setChapters(chs || []);
+        // 尝试从 Supabase 获取章节
+        const chs = await fetchChaptersFromSupabase(active.id);
+        if (chs && chs.length > 0) {
+          setChapters(chs);
+        } else {
+          // 降级到本地存储
+          const localChs = getTextbookChapters(active.id);
+          setChapters(localChs || []);
+        }
       } else {
         setChapters([]);
       }
@@ -69,6 +123,14 @@ export function useTextbooks(subjectId: string): UseTextbooksReturn {
   const deleteTextbook = useCallback(async (textbookId: string) => {
     try {
       removeTextbook(subjectId, textbookId);
+      // 同时从 Supabase 删除
+      try {
+        await fetch(`/api/textbook/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ textbookId }),
+        });
+      } catch {}
       await refresh();
     } catch (err) {
       setError('删除教材失败');
@@ -85,6 +147,32 @@ export function useTextbooks(subjectId: string): UseTextbooksReturn {
     deleteTextbook,
     refresh,
   };
+}
+
+/**
+ * 从 Supabase 获取章节数据
+ */
+async function fetchChaptersFromSupabase(textbookId: string): Promise<Chapter[]> {
+  try {
+    const response = await fetch(`/api/textbook/chapters?textbookId=${textbookId}`);
+    const data = await response.json();
+    
+    if (data.success && data.chapters) {
+      const chapters = data.chapters;
+      
+      // 检查是否是新的 TOC 格式 (带有 type 和 children)
+      if (chapters.length > 0 && 'type' in chapters[0] && 'children' in chapters[0]) {
+        console.log('[useTextbooks] 检测到TOC格式章节，转换为页面格式');
+        return convertTOCChapters(chapters as import('@/types/chapter').TOCChapter[]);
+      }
+      
+      return chapters as Chapter[];
+    }
+    return [];
+  } catch (err) {
+    console.error('[useTextbooks] fetchChaptersFromSupabase error:', err);
+    return [];
+  }
 }
 
 // ==================== 教材上传相关 ====================
