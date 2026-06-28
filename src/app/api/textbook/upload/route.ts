@@ -9,7 +9,7 @@ import { saveTextbookCache } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subjectId, name, grade, fileName, totalPages, fullText, pages } = body;
+    const { subjectId, name, grade, fileName, totalPages, fullText, pages, chapters } = body;
 
     if (!subjectId || !name || !fileName) {
       return NextResponse.json({ success: false, error: '缺少必要参数' }, { status: 400 });
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       totalPages: totalPages || 0,
       uploadedAt: new Date().toISOString(),
       isActive: false,
-      chaptersCount: 0,
+      chaptersCount: chapters?.length || 0,
     };
 
     const pdf = {
@@ -53,21 +53,22 @@ export async function POST(request: NextRequest) {
       total_pages: totalPages,
       full_text: fullText,
       pages: pages,
+      chapters: chapters || [], // 从TXT目录解析的章节数据
       uploaded_at: new Date().toISOString(),
     });
 
     if (!supabaseResult.success) {
       console.warn('[API textbook/upload] Supabase存储失败:', supabaseResult.error);
-      // 不影响返回，教材数据已保存到服务端
     } else {
-      console.log('[API textbook/upload] Supabase存储成功:', textbookId);
+      console.log('[API textbook/upload] Supabase存储成功:', textbookId, chapters?.length, '个章节');
     }
 
-    // 返回教材元数据给客户端，客户端也保存到 localStorage
+    // 返回教材元数据给客户端
     return NextResponse.json({
       success: true,
       textbook,
       pdf,
+      chapters,
       supabase: supabaseResult.success,
     });
   } catch (error) {

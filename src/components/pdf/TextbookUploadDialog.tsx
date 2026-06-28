@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Loader2, FileText, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, FileText, AlertCircle, File, CheckCircle2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -24,10 +24,13 @@ const GRADES = ['高一', '高二', '高三'];
 export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId }: TextbookUploadDialogProps) {
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('高一');
-  const [file, setFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [tocFile, setTocFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [success, setSuccess] = useState(false);
+  const pdfRef = useRef<HTMLInputElement>(null);
+  const tocRef = useRef<HTMLInputElement>(null);
 
   const [suppressClose, setSuppressClose] = useState(false);
   const suppressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,109 +57,73 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
     if (!loading) {
       setName('');
       setGrade('高一');
-      setFile(null);
+      setPdfFile(null);
+      setTocFile(null);
       setError('');
+      setSuccess(false);
       onOpenChange(val);
     }
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError('请输入教材名称'); return; }
-    if (!file) { setError('请选择 PDF 文件'); return; }
+    if (!pdfFile) { setError('请选择 PDF 文件'); return; }
+    if (!tocFile) { setError('请同时上传 TXT 目录文件'); return; }
 
     setLoading(true);
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: formData });
-      const json = await res.json();
-      if (json.error) { setError(json.error); setLoading(false); return; }
+      // 1. 解析 PDF
+      const pdfFormData = new FormData();
+      pdfFormData.append('file', pdfFile);
+      const pdfRes = await fetch('/api/parse-pdf', { method: 'POST', body: pdfFormData });
+      const pdfJson = await pdfRes.json();
+      if (pdfJson.error) { setError(pdfJson.error); setLoading(false); return; }
 
-      // 保存教材基本信息到 Supabase
+      // 2. 解析 TXT 目录
+      const tocContent = await tocFile.text();
+      const tocData = parseTxtTOC(tocContent);
+      
+      // 使用 TXT 中的教材名称（如果用户没有手动输入）
+      const textbookName = name.trim() || tocData.title;
+
+      // 3. 保存教材到 Supabase
       const saveRes = await fetch('/api/textbook/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subjectId,
-          name: name.trim(),
+          name: textbookName,
           grade,
-          fileName: file.name,
-          totalPages: json.totalPages,
-          fullText: json.fullText,
-          pages: json.pages || [],
-          // chapters 暂不传，等提取完成后再更新
+          fileName: pdfFile.name,
+          totalPages: pdfJson.totalPages,
+          fullText: pdfJson.fullText,
+          pages: pdfJson.pages || [],
+          chapters: tocData.chapters,
         }),
       });
       const saveJson = await saveRes.json();
 
-      if (!saveJson.success) { setError(saveJson.error || '保存失败'); setLoading(false); return; }
-
-      // 提取章节并更新到 Supabase
-      const { useSettingsStore } = await import('@/stores/settingsStore');
-      const apiKey = useSettingsStore.getState().settings?.deepseekKey;
-      let chapters: unknown[] = [];
-      if (apiKey && json.fullText) {
-        try {
-          const extractRes = await fetch('/api/extract-chapters', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: json.fullText,
-              apiKey,
-              subjectId,
-              textbookId: saveJson.textbook?.id,
-              refresh: true,
-            }),
-          });
-          const extractJson = await extractRes.json();
-          if (extractJson.chapters) {
-            chapters = extractJson.legacyChapters || extractJson.chapters;
-            console.log('[上传] 章节提取成功:', chapters.length, '个章节');
-          }
-        } catch (extractErr) {
-          console.warn('[上传] 章节提取失败:', extractErr);
-        }
+      if (!saveJson.success) { 
+        setError(saveJson.error || '保存失败'); 
+        setLoading(false); 
+        return; 
       }
 
-      // 如果提取到章节，更新 Supabase 中的教材记录
-      if (chapters.length > 0) {
-        try {
-          const updateRes = await fetch('/api/textbook/update-chapters', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              textbookId: saveJson.textbook?.id,
-              chapters,
-            }),
-          });
-          const updateJson = await updateRes.json();
-          if (updateJson.success) {
-            console.log('[上传] 章节更新成功');
-          }
-        } catch (updateErr) {
-          console.warn('[上传] 章节更新失败:', updateErr);
-        }
-      }
+      console.log('[上传] 教材上传成功:', textbookName, tocData.chapters.length, '个章节');
+      setSuccess(true);
+      
+      // 延迟关闭，给用户看到成功提示
+      setTimeout(() => {
+        setName('');
+        setGrade('高一');
+        setPdfFile(null);
+        setTocFile(null);
+        setSuccess(false);
+        onOpenChange(false);
+        onSuccess();
+      }, 1500);
 
-      const { saveTextbook, saveTextbookPDF, getTextbooks, setActiveTextbook } = await import('@/lib/textbookStorage');
-      saveTextbook(subjectId, saveJson.textbook);
-
-      const existing = getTextbooks(subjectId);
-      if (existing.length >= 1) {
-        setActiveTextbook(subjectId, saveJson.textbook.id);
-      }
-
-      if (saveJson.pdf?.fullText) {
-        saveTextbookPDF(saveJson.pdf);
-      }
-
-      setName('');
-      setGrade('高一');
-      setFile(null);
-      onOpenChange(false);
-      onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : '上传失败');
     } finally {
@@ -170,24 +137,30 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            上传新教材
+            上传教材
           </DialogTitle>
-          <DialogDescription>
-            请输入教材信息并上传 PDF 文件，支持 50MB 以内
+          <DialogDescription className="text-left">
+            请同时上传 <strong>PDF教材</strong> 和 <strong>TXT目录文件</strong>。
+            <br />
+            教材名称将从TXT目录第一行自动读取。
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* 教材名称（可选） */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">教材名称</label>
+            <label className="text-sm font-medium">
+              教材名称 <span className="text-xs text-muted-foreground font-normal">（可选，将从TXT自动读取）</span>
+            </label>
             <Input
-              placeholder="如：人教B版必修一"
+              placeholder="如留空则自动从TXT读取"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
             />
           </div>
 
+          {/* 年级选择 */}
           <div className="space-y-2">
             <label className="text-sm font-medium">年级</label>
             <Select value={grade} onValueChange={setGrade} disabled={loading}>
@@ -200,35 +173,36 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
             </Select>
           </div>
 
+          {/* PDF 文件上传 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">PDF 文件</label>
+            <label className="text-sm font-medium">PDF 教材文件 <span className="text-destructive">*</span></label>
             <input
-              ref={fileRef}
+              ref={pdfRef}
               type="file"
               accept=".pdf"
               className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
               disabled={loading}
             />
             <button
               type="button"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => pdfRef.current?.click()}
               className={cn(
                 "w-full border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                file ? "border-green-400 bg-green-50 dark:bg-green-950/20" : "border-muted hover:border-primary/50"
+                pdfFile ? "border-green-400 bg-green-50 dark:bg-green-950/20" : "border-muted hover:border-primary/50"
               )}
               disabled={loading}
             >
               <div className="flex flex-col items-center gap-2">
-                {file ? (
+                {pdfFile ? (
                   <>
                     <FileText className="h-6 w-6 text-green-600" />
-                    <span className="text-sm font-medium">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <span className="text-sm font-medium">{pdfFile.name}</span>
+                    <span className="text-xs text-muted-foreground">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</span>
                   </>
                 ) : (
                   <>
-                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <FileText className="h-6 w-6 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">点击选择 PDF 文件</span>
                   </>
                 )}
@@ -236,10 +210,59 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
             </button>
           </div>
 
+          {/* TXT 目录文件上传 */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">TXT 目录文件 <span className="text-destructive">*</span></label>
+            <input
+              ref={tocRef}
+              type="file"
+              accept=".txt"
+              className="hidden"
+              onChange={(e) => setTocFile(e.target.files?.[0] || null)}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => tocRef.current?.click()}
+              className={cn(
+                "w-full border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+                tocFile ? "border-blue-400 bg-blue-50 dark:bg-blue-950/20" : "border-muted hover:border-primary/50"
+              )}
+              disabled={loading}
+            >
+              <div className="flex flex-col items-center gap-2">
+                {tocFile ? (
+                  <>
+                    <File className="h-6 w-6 text-blue-600" />
+                    <span className="text-sm font-medium">{tocFile.name}</span>
+                    <span className="text-xs text-muted-foreground">目录文件</span>
+                  </>
+                ) : (
+                  <>
+                    <File className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">点击选择 TXT 目录文件</span>
+                  </>
+                )}
+              </div>
+            </button>
+            <p className="text-xs text-muted-foreground">
+              TXT格式：第一行 <code className="bg-muted px-1 rounded"># 教材名称</code>，第二行 <code className="bg-muted px-1 rounded"># 学科</code>，其余为章节
+            </p>
+          </div>
+
+          {/* 错误提示 */}
           {error && (
             <div className="flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               {error}
+            </div>
+          )}
+
+          {/* 成功提示 */}
+          {success && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <CheckCircle2 className="h-4 w-4" />
+              上传成功！
             </div>
           )}
         </div>
@@ -248,12 +271,87 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           <Button variant="outline" onClick={() => handleClose(false)} disabled={loading}>
             取消
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || !pdfFile || !tocFile}>
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-            {loading ? '上传中...' : '上传'}
+            {loading ? '上传中...' : '上传教材'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * 解析 TXT 目录内容（简化版，用于客户端预览）
+ */
+function parseTxtTOC(content: string): { title: string; subject: string; chapters: unknown[] } {
+  const lines = content.split('\n').filter(line => line.trim() !== '');
+  
+  let title = '';
+  let subject = '';
+  const chapters: unknown[] = [];
+  let currentUnit: { id: string; title: string; startPage: number; endPage: number; type: string; children: unknown[] } | null = null;
+  let unitCount = 0;
+  let lessonCount = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // 跳过纯数字行
+    if (/^\d+$/.test(trimmed)) continue;
+
+    // 解析元数据
+    if (trimmed.startsWith('# ')) {
+      const key = trimmed.substring(2).trim();
+      if (!title) {
+        title = key;
+      } else if (!subject) {
+        subject = key;
+      }
+      continue;
+    }
+
+    // 解析单元
+    if (trimmed.startsWith('## ')) {
+      const parts = trimmed.substring(3).split('|');
+      unitCount++;
+      currentUnit = {
+        id: `unit_${unitCount}`,
+        title: parts[0].trim(),
+        startPage: parts.length > 1 ? parseInt(parts[1]) || 0 : 0,
+        endPage: parts.length > 2 ? parseInt(parts[2]) || 0 : 0,
+        type: 'unit',
+        children: []
+      };
+      chapters.push(currentUnit);
+      continue;
+    }
+
+    // 解析课/节
+    if (!trimmed.startsWith('#') && trimmed.includes('|')) {
+      const parts = trimmed.split('|');
+      if (parts.length >= 3) {
+        lessonCount++;
+        const lesson = {
+          id: `lesson_${unitCount}_${lessonCount}`,
+          title: parts[0].trim(),
+          startPage: parseInt(parts[1]) || 0,
+          endPage: parseInt(parts[2]) || 0,
+          type: 'lesson'
+        };
+        
+        if (currentUnit) {
+          currentUnit.children.push(lesson);
+        } else {
+          chapters.push(lesson);
+        }
+      }
+    }
+  }
+
+  if (!subject) subject = 'history';
+  if (!title) title = '未知教材';
+
+  return { title, subject, chapters };
 }

@@ -117,51 +117,28 @@ export async function POST(request: NextRequest) {
       // 判断是"课"还是"单元"
       const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
 
-      if (isLesson && chapters) {
-        // 查找课
-        for (const chapter of chapters) {
-          const c = chapter as { sections?: { sectionIndex: string; sectionTitle: string; startPage: number; endPage: number }[] };
-          if (c.sections) {
-            const normalizedId = chapterId.replace(/第/g, '').replace(/课/g, '').trim();
-            const section = c.sections.find((s) => {
-              const sIndex = s.sectionIndex.replace(/第/g, '').replace(/课/g, '').trim();
-              return sIndex === normalizedId || s.sectionIndex.includes(chapterId) || s.sectionTitle.includes(chapterId);
-            });
-            if (section) {
-              text = pages
-                .filter((p) => p.pageNumber >= section.startPage && p.pageNumber <= section.endPage)
-                .map((p) => p.content)
-                .join('\n\n');
-              break;
+      // 尝试匹配章节
+      if (chapters && chapterId) {
+        // 使用新的章节结构查找
+        function findChapter(chapters: unknown[], id: string): { startPage: number; endPage: number } | null {
+          for (const ch of chapters as { id: string; children?: unknown[]; startPage?: number; endPage?: number }[]) {
+            if (ch.id === id) {
+              return { startPage: ch.startPage || 0, endPage: ch.endPage || 0 };
+            }
+            if (ch.children) {
+              const found = findChapter(ch.children, id);
+              if (found) return found;
             }
           }
+          return null;
         }
-      }
 
-      // 如果没找到课，尝试按页数范围或返回全部
-      if (!text) {
-        if (startPage !== undefined && endPage !== undefined) {
+        const foundChapter = findChapter(chapters, chapterId);
+        if (foundChapter) {
           text = pages
-            .filter((p) => p.pageNumber >= startPage && p.pageNumber <= endPage)
+            .filter((p) => p.pageNumber >= foundChapter.startPage && p.pageNumber <= foundChapter.endPage)
             .map((p) => p.content)
             .join('\n\n');
-        } else if (chapters) {
-          // 尝试匹配单元
-          for (const chapter of chapters) {
-            const c = chapter as { chapterIndex: string; chapterTitle: string; startPage: number; endPage: number };
-            if (c.chapterIndex === chapterId || c.chapterTitle.includes(chapterId)) {
-              text = pages
-                .filter((p) => p.pageNumber >= c.startPage && p.pageNumber <= c.endPage)
-                .map((p) => p.content)
-                .join('\n\n');
-              break;
-            }
-          }
-        }
-
-        // 如果还是没找到，返回前几页
-        if (!text && pages.length > 0) {
-          text = pages.slice(0, 5).map((p) => p.content).join('\n\n');
         }
       }
     }
