@@ -245,7 +245,7 @@ export async function updateMastery(
   wordId: string,
   action: 'learned' | 'reviewed' | 'mastered' | 'forgotten',
   userId: string = 'personal-user'
-): Promise<boolean> {
+): Promise<{ mastery_level: number; review_count: number; next_review: string } | null> {
   console.log('[WordService] updateMastery called:', { wordId, action, userId });
   
   // 获取当前掌握度
