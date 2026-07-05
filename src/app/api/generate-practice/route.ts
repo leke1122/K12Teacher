@@ -3,6 +3,7 @@ import {
   getKnowledgeRange,
   formatKnowledgeForPrompt,
   getSubjectName,
+  getForbiddenKnowledge,
   type PracticeSectionKnowledge,
 } from '@/lib/knowledgeScope';
 import {
@@ -44,12 +45,15 @@ export async function POST(request: NextRequest) {
       sectionId
     );
     const { currentStr, previousStr } = formatKnowledgeForPrompt(currentKnowledge, previousKnowledge);
+    
+    // 获取禁止知识点（当前小节之后的内容）
+    const forbiddenKnowledge = getForbiddenKnowledge(subjectId, String(chapterId), sectionId);
 
     // 生成题型列表
     const typeList = generateQuestionTypeList(difficulty as 'simple' | 'medium' | 'hard', questionCount);
 
     // 构建学科特定的出题提示词
-    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, pdfContext);
+    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
 
     if (apiKey) {
       try {
@@ -105,28 +109,29 @@ function buildSubjectPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const diffLabel = { simple: '简单', medium: '中等', hard: '困难' }[difficulty] || '中等';
 
   // 根据学科选择不同的提示词模板
   if (subjectId === 'math') {
-    return buildMathPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+    return buildMathPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   if (subjectId === 'physics') {
-    return buildPhysicsPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+    return buildPhysicsPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   if (subjectId === 'chemistry') {
-    return buildChemistryPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+    return buildChemistryPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   if (subjectId === 'chinese') {
-    return buildChinesePrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+    return buildChinesePrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   if (subjectId === 'english') {
-    return buildEnglishPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+    return buildEnglishPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   // 默认通用模板
-  return buildGenericPrompt(subjectId, difficulty, diffLabel, typeList, seed, currentStr, previousStr, pdfContext);
+  return buildGenericPrompt(subjectId, difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
 }
 
 function buildMathPrompt(
@@ -136,6 +141,7 @@ function buildMathPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中数学教师，精通辽宁高考出题规律，擅长设计原创练习题。
@@ -145,6 +151,12 @@ function buildMathPrompt(
 2. 不超纲：只考察当前及之前学过的知识点
 3. 不重复：每次生成的题目必须不同，通过改变数值、表述、角度实现
 4. 严谨规范：使用标准数学符号和术语
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
+如果发现某道题需要用到禁止的知识点，必须跳过或更换角度！
 
 【难度标准】
 - 简单：直接考察概念或公式的直接应用，1步解答
@@ -182,6 +194,10 @@ ${currentStr}
 之前小节知识点（占40%左右，用于复习巩固）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配（共${typeList.length}题）
@@ -189,9 +205,10 @@ ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t 
 
 ### 出题规则
 1. 题目必须覆盖上述所有知识点
-2. 每道题不同，不能重复或高度相似
-3. 变化角度：概念理解 / 计算 / 判断 / 应用 / 综合
-4. 同一知识点可通过改变数值或表述出多道不同题目
+2. **严格禁止使用禁止列表中的知识点**
+3. 每道题不同，不能重复或高度相似
+4. 变化角度：概念理解 / 计算 / 判断 / 应用 / 综合
+5. 同一知识点可通过改变数值或表述出多道不同题目
 
 ### 格式要求（严格JSON）
 {
@@ -221,6 +238,7 @@ function buildPhysicsPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中物理教师，精通辽宁高考物理出题规律，擅长设计原创练习题。
@@ -230,6 +248,10 @@ function buildPhysicsPrompt(
 2. 不超纲：只考察当前及之前学过的知识点
 3. 不重复：通过改变情境、数值、条件实现题目差异化
 4. 注重物理意义：每道题都要有明确的物理意义
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
 
 【难度标准】
 - 简单：直接套公式，1步完成
@@ -261,10 +283,18 @@ ${currentStr}
 之前小节知识点（40%）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配
 ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t === 'fill' ? '填空题' : '计算题'}`).join('\n')}
+
+### 出题规则
+1. **严格禁止使用禁止列表中的知识点**
+2. 每道题不同，不能重复或高度相似
 
 ### 格式要求（严格JSON）
 {
@@ -294,6 +324,7 @@ function buildChemistryPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中化学教师，精通辽宁高考化学出题规律。
@@ -302,6 +333,10 @@ function buildChemistryPrompt(
 1. 绝对原创：题目必须是你原创设计的
 2. 不超纲：只考察当前及之前学过的知识点
 3. 注重化学思维：宏观辨识与微观探析相结合
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
 
 【难度标准】
 - 简单：直接考察化学概念或方程式
@@ -333,10 +368,17 @@ ${currentStr}
 之前小节知识点（40%）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配
 ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t === 'fill' ? '填空题' : '计算题'}`).join('\n')}
+
+### 出题规则
+1. **严格禁止使用禁止列表中的知识点**
 
 ### 格式要求（严格JSON）
 {
@@ -366,6 +408,7 @@ function buildChinesePrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中语文教师，精通辽宁高考语文出题规律。
@@ -374,6 +417,10 @@ function buildChinesePrompt(
 1. 绝对原创：题目必须是你原创设计的
 2. 不超纲：只考察当前及之前学过的知识点
 3. 注重语言运用：字词句篇综合考察
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
 
 【难度标准】
 - 简单：直接考察识记内容（字音、字形、默写）
@@ -400,10 +447,17 @@ ${currentStr}
 之前小节知识点（40%）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配
 ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t === 'fill' ? '填空题' : '简答题'}`).join('\n')}
+
+### 出题规则
+1. **严格禁止使用禁止列表中的知识点**
 
 ### 格式要求（严格JSON）
 {
@@ -433,6 +487,7 @@ function buildEnglishPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中英语教师，精通辽宁高考英语出题规律。
@@ -441,6 +496,10 @@ function buildEnglishPrompt(
 1. 绝对原创：题目必须是你原创设计的
 2. 不超纲：只考察当前及之前学过的词汇和语法
 3. 注重语境：所有题目在真实语境中考察
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
 
 【难度标准】
 - 简单：直接考察词汇含义或基础语法
@@ -467,10 +526,17 @@ ${currentStr}
 之前小节知识点（40%）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配
 ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t === 'fill' ? '填空题' : '简答题'}`).join('\n')}
+
+### 出题规则
+1. **严格禁止使用禁止列表中的知识点**
 
 ### 格式要求（严格JSON）
 {
@@ -501,6 +567,7 @@ function buildGenericPrompt(
   seed: number,
   currentStr: string,
   previousStr: string,
+  forbiddenKnowledge: string[],
   pdfContext: string
 ): { system: string; user: string } {
   const systemPrompt = `你是一位资深高中${getSubjectName(subjectId)}教师，精通出题规律，擅长设计原创练习题。
@@ -508,7 +575,11 @@ function buildGenericPrompt(
 【核心原则】
 1. 绝对原创：题目必须是你原创设计的
 2. 不超纲：只考察当前及之前学过的知识点
-3. 不重复：每次生成的题目必须不同`;
+3. 不重复：每次生成的题目必须不同
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}`;
 
   const userPrompt = `请生成一套高中${getSubjectName(subjectId)}章节练习题。
 
@@ -525,10 +596,17 @@ ${currentStr}
 之前小节知识点（40%）：
 ${previousStr}
 
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
 ${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
 
 ### 题型分配
 ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t === 'fill' ? '填空题' : '解答题'}`).join('\n')}
+
+### 出题规则
+1. **严格禁止使用禁止列表中的知识点**
 
 ### 格式要求（严格JSON）
 {

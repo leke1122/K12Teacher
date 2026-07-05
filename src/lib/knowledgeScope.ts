@@ -22,32 +22,49 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
   // 必修一
   '1': [
     {
-      sectionId: '1.1',
-      sectionTitle: '集合',
+      // 1.1 集合及其表示方法（1.1.1）
+      sectionId: '1.1.1',
+      sectionTitle: '集合及其表示方法',
       knowledge: [
-        { id: 'k_1_1_1', name: '集合的概念', description: '集合的定义、元素特性' },
-        { id: 'k_1_1_2', name: '集合的表示', description: '列举法、描述法' },
-        { id: 'k_1_1_3', name: '子集', description: '子集、真子集、相等', symbols: ['⊆', '⊂', '=', '∈', '∉'] },
+        { id: 'k_1_1_1', name: '集合的概念', description: '集合的定义、元素特性', symbols: ['∈', '∉'] },
+        { id: 'k_1_1_2', name: '集合的表示', description: '列举法、描述法', symbols: ['{', '}'] },
+        { id: 'k_1_1_3', name: '元素与集合的关系', description: '属于、不属于', symbols: ['∈', '∉'] },
+        { id: 'k_1_1_4', name: '集合的特性', description: '确定性、互异性、无序性' },
+        { id: 'k_1_1_5', name: '常用数集', description: 'N, N*, Z, Q, R', symbols: ['N', 'N*', 'Z', 'Q', 'R'] },
       ],
     },
     {
-      sectionId: '1.2',
-      sectionTitle: '集合间的基本关系',
+      // 1.2 子集与集合的相等（1.1.2 / 1.2.1）
+      sectionId: '1.1.2',
+      sectionTitle: '子集与集合的相等',
       knowledge: [
-        { id: 'k_1_2_1', name: '子集与真子集', description: '子集、真子集定义与性质', symbols: ['⊆', '⊂', '⊇', '⊃'] },
-        { id: 'k_1_2_2', name: '集合相等', description: '两个集合相等的条件' },
+        { id: 'k_1_2_1', name: '子集', description: '子集的定义与表示', symbols: ['⊆'] },
+        { id: 'k_1_2_2', name: '真子集', description: '真子集的定义', symbols: ['⊂', '⊊'] },
+        { id: 'k_1_2_3', name: '集合相等', description: '两个集合相等的条件' },
       ],
     },
     {
-      sectionId: '1.3',
+      // 1.3 集合的基本运算（1.1.3 / 1.2.2）
+      sectionId: '1.1.3',
       sectionTitle: '集合的基本运算',
       knowledge: [
-        { id: 'k_1_3_1', name: '交集', description: '交集的定义与运算律', symbols: ['∩', '∅'] },
-        { id: 'k_1_3_2', name: '并集', description: '并集的定义与运算律', symbols: ['∪'] },
+        { id: 'k_1_3_1', name: '交集', description: '交集的定义与运算', symbols: ['∩', '∅'] },
+        { id: 'k_1_3_2', name: '并集', description: '并集的定义与运算', symbols: ['∪'] },
         { id: 'k_1_3_3', name: '补集', description: '补集、全集的概念', symbols: ['∁', '∅'] },
       ],
     },
     {
+      // 1.4 充分条件与必要条件
+      sectionId: '1.4',
+      sectionTitle: '充分条件与必要条件',
+      knowledge: [
+        { id: 'k_1_4_1', name: '充分条件', description: '充分条件的定义' },
+        { id: 'k_1_4_2', name: '必要条件', description: '必要条件的定义' },
+        { id: 'k_1_4_3', name: '充要条件', description: '充要条件的定义', symbols: ['⇔', '↔'] },
+      ],
+    },
+    {
+      // 2.1 相等关系与函数概念
       sectionId: '2.1',
       sectionTitle: '相等关系与函数概念',
       knowledge: [
@@ -56,6 +73,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
       ],
     },
     {
+      // 2.2 函数的基本性质
       sectionId: '2.2',
       sectionTitle: '函数的基本性质',
       knowledge: [
@@ -229,10 +247,25 @@ const ALL_SUBJECT_KNOWLEDGE: Record<string, Record<string, PracticeSectionKnowle
 };
 
 /**
+ * 解析小节 ID，提取章节编号
+ * 支持格式: "1.1", "1.1.1", "lesson_1_1", "unit_1", "lesson_1_1_1"
+ */
+function parseSectionId(sectionId: string): string {
+  // 如果是 "lesson_1_1" 或 "unit_1" 格式
+  if (sectionId.includes('_')) {
+    const parts = sectionId.split('_');
+    // lesson_1_1 -> 1.1, lesson_1_1_1 -> 1.1.1
+    const nums = parts.slice(1).join('.');
+    return nums;
+  }
+  return sectionId;
+}
+
+/**
  * 根据学科和章节ID获取该章节及之前所有章节的知识点
  * @param subjectId 学科ID
  * @param chapterId 章节编号（如 "1"）
- * @param sectionId 小节编号（如 "1.1"，"all"表示整章）
+ * @param sectionId 小节编号（如 "1.1"，"1.1.1"，"lesson_1_1"，"all"表示整章）
  */
 export function getKnowledgeRange(
   subjectId: string,
@@ -240,22 +273,41 @@ export function getKnowledgeRange(
   sectionId: string
 ): { currentKnowledge: PracticeSectionKnowledge[]; previousKnowledge: PracticeSectionKnowledge[] } {
   const subjectKnowledge = ALL_SUBJECT_KNOWLEDGE[subjectId] || {};
-  const chapterData = subjectKnowledge[chapterId] || [];
-  const currentSectionId = sectionId === 'all' ? null : sectionId;
-
-  // 找出当前小节及之前的小节
+  
+  // 收集所有小节（跨章节）
   const allSections: PracticeSectionKnowledge[] = [];
   for (const chapter of Object.values(subjectKnowledge)) {
     allSections.push(...chapter);
   }
 
-  const currentIdx = allSections.findIndex(s =>
-    s.sectionId === currentSectionId ||
-    (sectionId === 'all' && s.sectionId.startsWith(chapterId + '.'))
-  );
-
-  const previousKnowledge = currentIdx >= 0 ? allSections.slice(0, currentIdx) : allSections;
-  const currentKnowledge = currentIdx >= 0 ? [allSections[currentIdx]] : [];
+  // 解析 sectionId
+  const parsedSectionId = parseSectionId(sectionId);
+  
+  // 找当前小节的索引
+  let currentIdx = -1;
+  
+  // 先精确匹配
+  currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
+  
+  // 如果没找到，尝试前缀匹配（如 "1.1" 匹配 "1.1.1"）
+  if (currentIdx === -1) {
+    currentIdx = allSections.findIndex(s => s.sectionId.startsWith(parsedSectionId + '.'));
+  }
+  
+  // 如果还是没找到，尝试部分匹配
+  if (currentIdx === -1 && sectionId === 'all') {
+    currentIdx = 0; // 整章的话，从第一章开始
+  }
+  
+  // 如果没找到，返回空（没有预设知识点）
+  if (currentIdx === -1) {
+    return { currentKnowledge: [], previousKnowledge: [] };
+  }
+  
+  // 之前章节（包括当前小节之前的所有内容）
+  const previousKnowledge = allSections.slice(0, currentIdx);
+  // 当前小节
+  const currentKnowledge = [allSections[currentIdx]];
 
   return { currentKnowledge, previousKnowledge };
 }
@@ -313,4 +365,43 @@ export function isKnowledgeInScope(
   return allKnowledge.some(k =>
     k.name.includes(knowledgeName) || knowledgeName.includes(k.name)
   );
+}
+
+/**
+ * 获取禁止知识点（当前小节之后的所有知识点）
+ * 用于出题时避免超纲
+ */
+export function getForbiddenKnowledge(
+  subjectId: string,
+  chapterId: string,
+  sectionId: string
+): string[] {
+  const subjectKnowledge = ALL_SUBJECT_KNOWLEDGE[subjectId] || {};
+  
+  // 收集所有小节（跨章节）
+  const allSections: PracticeSectionKnowledge[] = [];
+  for (const chapter of Object.values(subjectKnowledge)) {
+    allSections.push(...chapter);
+  }
+
+  // 解析 sectionId
+  const parsedSectionId = parseSectionId(sectionId);
+  
+  // 找当前小节的索引
+  let currentIdx = -1;
+  currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
+  if (currentIdx === -1) {
+    currentIdx = allSections.findIndex(s => s.sectionId.startsWith(parsedSectionId + '.'));
+  }
+  
+  // 如果没找到，返回空（所有知识点都可用）
+  if (currentIdx === -1) {
+    return [];
+  }
+  
+  // 返回当前小节之后的所有知识点
+  const forbiddenSections = allSections.slice(currentIdx + 1);
+  const forbiddenPoints = flattenKnowledgePoints(forbiddenSections);
+  
+  return forbiddenPoints.map(k => k.name);
 }
