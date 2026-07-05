@@ -247,76 +247,137 @@ export async function updateMastery(
   userId: string = 'personal-user'
 ): Promise<boolean> {
   console.log('[WordService] updateMastery called:', { wordId, action, userId });
-  console.log('[WordService] supabaseClient:', supabaseClient ? 'exists' : 'null');
-  
-  if (!supabaseClient) {
-    console.error('[WordService] supabaseClient is null!');
-    return false;
-  }
   
   // 获取当前掌握度
-  const { data: existing, error: fetchError } = await supabaseClient
-    .from('word_mastery')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('word_id', wordId)
-    .single();
+  let newLevel = 0;
+  let reviewCount = 0;
 
-  if (fetchError && fetchError.code !== 'PGRST116') {
-    console.error('[WordService] fetch existing error:', fetchError);
+  if (supabaseClient) {
+    try {
+      const { data: existing, error: fetchError } = await supabaseClient
+        .from('word_mastery')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('word_id', wordId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('[WordService] fetch existing error:', fetchError);
+      }
+      
+      console.log('[WordService] existing record:', existing);
+      
+      if (existing) {
+        newLevel = existing.mastery_level || 0;
+        reviewCount = existing.review_count || 0;
+      }
+
+      // 计算新掌握度
+      switch (action) {
+        case 'learned':
+        case 'reviewed':
+          newLevel = Math.min(5, newLevel + 1);
+          reviewCount += 1;
+          break;
+        case 'mastered':
+          newLevel = 5;
+          reviewCount += 1;
+          break;
+        case 'forgotten':
+          newLevel = Math.max(0, newLevel - 1);
+          break;
+      }
+
+      // 计算下次复习时间
+      const days = REVIEW_INTERVALS[newLevel - 1] || 1;
+      const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+      const masteryData = {
+        user_id: userId,
+        word_id: wordId,
+        mastery_level: newLevel,
+        review_count: reviewCount,
+        last_review: new Date().toISOString(),
+        next_review: nextReview,
+      };
+
+      console.log('[WordService] upserting:', masteryData);
+
+      const { error: upsertError } = await supabaseClient
+        .from('word_mastery')
+        .upsert(masteryData, { onConflict: 'user_id,word_id' });
+
+      if (upsertError) {
+        console.error('[WordService] upsert error:', upsertError);
+        // Fallback to localStorage
+        saveMasteryToLocal(wordId, newLevel, reviewCount);
+        return true; // 返回成功因为已经保存到localStorage
+      }
+
+      console.log('[WordService] upsert success!');
+      
+      // 记录学习行为
+      await recordLearningAction(wordId, action);
+      
+      return true;
+    } catch (err) {
+      console.error('[WordService] supabase error, using localStorage:', err);
+      // Fallback to localStorage
+      switch (action) {
+        case 'learned':
+        case 'reviewed':
+          newLevel = Math.min(5, newLevel + 1);
+          break;
+        case 'mastered':
+          newLevel = 5;
+          break;
+        case 'forgotten':
+          newLevel = Math.max(0, newLevel - 1);
+          break;
+      }
+      saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
+      return true;
+    }
+  } else {
+    console.log('[WordService] supabaseClient is null, using localStorage');
+    // 完全使用 localStorage
+    switch (action) {
+      case 'learned':
+      case 'reviewed':
+        newLevel = Math.min(5, newLevel + 1);
+        break;
+      case 'mastered':
+        newLevel = 5;
+        break;
+      case 'forgotten':
+        newLevel = Math.max(0, newLevel - 1);
+        break;
+    }
+    saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
+    return true;
   }
-  
-  console.log('[WordService] existing record:', existing);
+}
 
-  // 计算新掌握度
-  let newLevel = existing ? (existing.mastery_level || 0) : 0;
-  let reviewCount = existing ? (existing.review_count || 0) : 0;
-
-  switch (action) {
-    case 'learned':
-    case 'reviewed':
-      newLevel = Math.min(5, newLevel + 1);
-      reviewCount += 1;
-      break;
-    case 'mastered':
-      newLevel = 5;
-      reviewCount += 1;
-      break;
-    case 'forgotten':
-      newLevel = Math.max(0, newLevel - 1);
-      break;
+/**
+ * 保存到 localStorage (fallback)
+ */
+function saveMasteryToLocal(wordId: string, level: number, reviewCount: number) {
+  try {
+    const key = `word_mastery_${wordId}`;
+    const days = REVIEW_INTERVALS[level - 1] || 1;
+    const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    
+    localStorage.setItem(key, JSON.stringify({
+      word_id: wordId,
+      mastery_level: level,
+      review_count: reviewCount,
+      last_review: new Date().toISOString(),
+      next_review: nextReview,
+    }));
+    console.log('[WordService] Saved to localStorage:', key);
+  } catch (err) {
+    console.error('[WordService] localStorage save failed:', err);
   }
-
-  // 计算下次复习时间
-  const days = REVIEW_INTERVALS[newLevel - 1] || 1;
-  const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-
-  const masteryData = {
-    user_id: userId,
-    word_id: wordId,
-    mastery_level: newLevel,
-    review_count: reviewCount,
-    last_review: new Date().toISOString(),
-    next_review: nextReview,
-  };
-
-  console.log('[WordService] upserting:', masteryData);
-
-  const { error: upsertError } = await supabaseClient
-    .from('word_mastery')
-    .upsert(masteryData, { onConflict: 'user_id,word_id' });
-
-  if (upsertError) {
-    console.error('[WordService] upsert error:', upsertError);
-    return false;
-  }
-
-  console.log('[WordService] upsert success!');
-
-  // 记录学习行为
-  await recordLearningAction(wordId, action);
-
-  return true;
 }
 
 /**
