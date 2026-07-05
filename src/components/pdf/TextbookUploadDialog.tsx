@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fixMathSymbols } from '@/lib/pdf-utils';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -27,6 +28,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [tocFile, setTocFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [parsingStatus, setParsingStatus] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -67,25 +69,75 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
 
   const handleSubmit = async () => {
     if (!pdfFile) { setError('请选择 PDF 文件'); return; }
-    if (!tocFile) { setError('请同时上传 TXT 目录文件'); return; }
 
     setLoading(true);
     setError('');
+    setParsingStatus('');
 
     try {
-      // 1. 解析 PDF
-      const pdfFormData = new FormData();
-      pdfFormData.append('file', pdfFile);
-      const pdfRes = await fetch('/api/parse-pdf', { method: 'POST', body: pdfFormData });
-      const pdfJson = await pdfRes.json();
-      if (pdfJson.error) { setError(pdfJson.error); setLoading(false); return; }
+      // 1. 使用动态导入的 pdf.js 解析 PDF
+      setParsingStatus('正在解析 PDF...');
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-      // 2. 解析 TXT 目录
-      const tocContent = await tocFile.text();
-      const tocData = parseTxtTOC(tocContent);
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const totalPages = pdf.numPages;
+      const pages: { pageNumber: number; content: string }[] = [];
+      let fullText = '';
+
+      for (let i = 1; i <= totalPages; i++) {
+        setParsingStatus(`正在解析第 ${i}/${totalPages} 页...`);
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const rawPageText = textContent.items
+          .map((item: any) => ('str' in item ? item.str : ''))
+          .join('');
+        const dedupedPageText = rawPageText.replace(/(.+?)\1+/g, '$1');
+        const fixedPageText = fixMathSymbols(dedupedPageText);
+        pages.push({ pageNumber: i, content: fixedPageText });
+        fullText += fixedPageText + '\n';
+      }
+
+      const textLength = fullText.trim().replace(/\s/g, '').length;
+      if (textLength < 100) {
+        setError('此PDF可能为扫描版（无文字层），无法直接解析。请上传文字版PDF。');
+        setLoading(false);
+        return;
+      }
+
+      // fullText 已由各页 fixedPageText 累积构建，无需再修复
+      fullText = fullText.trim();
+
+      // 2. 解析 TXT 目录（可选）
+      let tocData = { title: name.trim() || '未命名教材', subject: subjectId, chapters: [] };
+      if (tocFile) {
+        setParsingStatus('正在解析目录...');
+        const tocContent = await tocFile.text();
+        tocData = parseTxtTOC(tocContent);
+      } else {
+        // 无目录时生成默认章节
+        tocData = {
+          title: name.trim() || pdfFile.name.replace('.pdf', ''),
+          subject: subjectId,
+          chapters: Array.from({ length: totalPages }, (_, i) => ({
+            id: `page_${i + 1}`,
+            title: `第 ${i + 1} 页`,
+            startPage: i + 1,
+            endPage: i + 1,
+            type: 'lesson',
+            pages: {
+              type: 'file' as const,
+              start: i + 1,
+              end: i + 1,
+            },
+            children: [],
+          })),
+        };
+      }
       
-      // 使用 TXT 中的教材名称（如果用户没有手动输入）
       const textbookName = name.trim() || tocData.title;
+      setParsingStatus('正在上传...');
 
       // 3. 保存教材到 Supabase
       const saveRes = await fetch('/api/textbook/upload', {
@@ -96,16 +148,15 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           name: textbookName,
           grade,
           fileName: pdfFile.name,
-          totalPages: pdfJson.totalPages,
-          fullText: pdfJson.fullText,
-          pages: pdfJson.pages || [],
+          totalPages,
+          fullText: fullText.trim(),
+          pages,
           chapters: tocData.chapters,
         }),
       });
       const saveJson = await saveRes.json();
       
       console.log('[上传] API响应:', saveJson);
-      console.log('[上传] Supabase存储结果:', saveJson.supabase);
 
       if (!saveJson.success) { 
         setError(saveJson.error || '保存失败'); 
@@ -113,17 +164,10 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
         return; 
       }
 
-      if (!saveJson.supabase) {
-        console.warn('[上传] Supabase存储失败，教材可能只保存在本地');
-        setError('云端存储失败，请刷新页面重试'); 
-        setLoading(false); 
-        return;
-      }
-
       console.log('[上传] 教材上传成功:', textbookName, tocData.chapters.length, '个章节');
       setSuccess(true);
+      setParsingStatus('');
       
-      // 延迟关闭，给用户看到成功提示
       setTimeout(() => {
         setName('');
         setGrade('高一');
@@ -135,6 +179,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
       }, 1500);
 
     } catch (err) {
+      console.error('[上传] 错误:', err);
       setError(err instanceof Error ? err.message : '上传失败');
     } finally {
       setLoading(false);
@@ -150,9 +195,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
             上传教材
           </DialogTitle>
           <DialogDescription className="text-left">
-            请同时上传 <strong>PDF教材</strong> 和 <strong>TXT目录文件</strong>。
-            <br />
-            教材名称将从TXT目录第一行自动读取。
+            请上传 <strong>PDF教材</strong>（必选）。TXT目录文件为可选，上传后系统会自动解析章节结构。
           </DialogDescription>
         </DialogHeader>
 
@@ -160,7 +203,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           {/* 教材名称（可选） */}
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              教材名称 <span className="text-xs text-muted-foreground font-normal">（可选，将从TXT自动读取）</span>
+              教材名称 <span className="text-xs text-muted-foreground font-normal">（可选）</span>
             </label>
             <Input
               placeholder="如留空则自动从TXT读取"
@@ -222,7 +265,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
 
           {/* TXT 目录文件上传 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">TXT 目录文件 <span className="text-destructive">*</span></label>
+            <label className="text-sm font-medium">TXT 目录文件 <span className="text-xs text-muted-foreground font-normal">（可选）</span></label>
             <input
               ref={tocRef}
               type="file"
@@ -250,7 +293,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
                 ) : (
                   <>
                     <File className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">点击选择 TXT 目录文件</span>
+                    <span className="text-sm text-muted-foreground">点击选择 TXT 目录文件（可选）</span>
                   </>
                 )}
               </div>
@@ -259,6 +302,14 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
               TXT格式：第一行 <code className="bg-muted px-1 rounded"># 教材名称</code>，第二行 <code className="bg-muted px-1 rounded"># 学科</code>，其余为章节
             </p>
           </div>
+
+          {/* 解析状态 */}
+          {parsingStatus && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {parsingStatus}
+            </div>
+          )}
 
           {/* 错误提示 */}
           {error && (
@@ -281,7 +332,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
           <Button variant="outline" onClick={() => handleClose(false)} disabled={loading}>
             取消
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || !pdfFile || !tocFile}>
+          <Button onClick={handleSubmit} disabled={loading || !pdfFile}>
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
             {loading ? '上传中...' : '上传教材'}
           </Button>
@@ -292,7 +343,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
 }
 
 /**
- * 解析 TXT 目录内容（简化版，用于客户端预览）
+ * 解析 TXT 目录内容
  */
 function parseTxtTOC(content: string): { title: string; subject: string; chapters: unknown[] } {
   const lines = content.split('\n').filter(line => line.trim() !== '');

@@ -34,8 +34,10 @@ async function fetchTextbooksFromSupabase(subjectId: string): Promise<Textbook[]
     
     console.log('[useTextbooks] API 返回:', data);
     
-    if (data.success && data.textbooks && data.textbooks.length > 0) {
-      const textbooks = data.textbooks.map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
+    if (data.success && !!data.textbooks && data.textbooks.length > 0) {
+      const textbooks = data.textbooks
+        .filter((t: any) => !!t.textbook_id)
+        .map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
         id: t.textbook_id,
         name: t.textbook_name,
         grade: '高一',

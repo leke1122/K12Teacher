@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fixMathSymbols } from '@/lib/pdf-utils';
 
 interface PageContent {
   pageNumber: number;
@@ -13,6 +12,8 @@ interface ParseResult {
   fullText: string;
 }
 
+// 简化版服务端 PDF 验证接口
+// 实际解析工作由客户端 pdf.js 完成
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -30,67 +31,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '文件过大，请上传小于50MB的PDF' }, { status: 400 });
     }
 
-    if (file.size === 0) {
-      return NextResponse.json({ error: '文件为空' }, { status: 400 });
-    }
-
+    // 仅验证文件格式，不做实际解析
+    // 解析工作由客户端使用 pdf.js 完成
     const buffer = Buffer.from(await file.arrayBuffer());
-
-    const pdfParseModule = await import('pdf-parse/lib/pdf-parse.js');
-    const pdfParse = pdfParseModule.default || pdfParseModule;
-    const data = await pdfParse(buffer);
-
-    const textLength = data.text.trim().replace(/\s/g, '').length;
-    if (textLength < 100) {
-      return NextResponse.json({
-        error: '此PDF可能为扫描版（无文字层），无法直接解析。请上传文字版PDF。',
-        isScanned: true,
-      }, { status: 422 });
+    
+    // 验证 PDF 文件头
+    const header = buffer.slice(0, 5).toString('ascii');
+    if (!header.startsWith('%PDF-')) {
+      return NextResponse.json({ error: '文件格式无效' }, { status: 400 });
     }
 
-    const numPages = data.numpages;
-    const totalChars = data.text.length;
-    const avgCharsPerPage = Math.max(1, Math.floor(totalChars / numPages));
-
-    const pages: PageContent[] = [];
-    for (let i = 0; i < numPages; i++) {
-      const start = i * avgCharsPerPage;
-      const end = i === numPages - 1 ? totalChars : (i + 1) * avgCharsPerPage;
-      const rawContent = data.text.substring(start, end).trim();
-      pages.push({
-        pageNumber: i + 1,
-        content: fixMathSymbols(rawContent),
-      });
-    }
-
-    const fullText = pages
-      .map((page) => `===== Page ${page.pageNumber} =====\n${page.content}`)
-      .join('\n\n');
-
-    const result: ParseResult = {
+    return NextResponse.json({
+      success: true,
+      message: 'PDF 验证通过，请在客户端完成解析',
       fileName: file.name,
-      totalPages: numPages,
-      pages,
-      fullText,
-    };
-
-    console.log(`[PDF解析] 成功: ${file.name}, ${numPages}页, 文本长度: ${fullText.length}`);
-    console.log(`[PDF解析] 第1页预览: ${pages[0]?.content.slice(0, 100)}`);
-
-    return NextResponse.json(result);
-  } catch (error: unknown) {
-    console.error('[PDF解析] 错误:', error);
-
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-
-    if (errorMessage.includes('password') || errorMessage.includes('encrypted')) {
-      return NextResponse.json({ error: 'PDF文件已加密，请解密后重试' }, { status: 400 });
-    }
-
-    if (errorMessage.includes('Invalid PDF') || errorMessage.includes('Could not parse')) {
-      return NextResponse.json({ error: '文件格式无效或已损坏，请确认是有效的PDF文件' }, { status: 400 });
-    }
-
-    return NextResponse.json({ error: `PDF解析失败: ${errorMessage}` }, { status: 500 });
+      fileSize: file.size,
+      clientSideParsing: true
+    });
+  } catch (error) {
+    console.error('[PDF验证] 错误:', error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : '验证失败' 
+    }, { status: 500 });
   }
 }

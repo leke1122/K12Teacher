@@ -1,6 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
+ * 精准修复 PDF 文本中的"元/元素"混淆问题
+ *
+ * PDF 字体编码错误会把集合符号 A 错误渲染为汉字"元"，
+ * 导致"元素"和"集合符号A"混淆。
+ *
+ * 策略：
+ * 1. 用零宽空格保护"元素"（元素本身不需要替换）
+ * 2. 识别独立的集合符号"元"（前后有明确分隔）→ "A"
+ * 3. 还原所有零宽空格
+ *
+ * 原始文本: "如果a是集合元的元素,就记作a∈元,读作a属于元"
+ * 处理后:   "如果a是集合A的元素,就记作a∈A,读作a属于A"
+ */
+function fixYuansuConfusion(text: string): string {
+  if (!text) return text;
+  let result = text;
+
+  // 步骤1：保护"元素"——用零宽空格包裹，这样后续替换不会影响它
+  result = result.replace(/元素/g, '\u200B元素\u200B');
+
+  // 步骤2：修复 PDF 误拆产生的"A素"或"A 素"（"元素"被打散）
+  result = result.replace(/A([\s　]+)素/g, '元素');
+  result = result.replace(/A素/g, '元素');
+
+  // 步骤3：精准替换集合符号"元" → "A"
+  //
+  // PDF 字体错误把 ∈、∈ 渲染成了"元"，产生两种情况：
+  // (a) 独立符号元：有数学运算符/标点/空白作前后缀 → 替换为 A
+  // (b) 元元相连：PDF把∈渲染成"元"导致两个"元"连在一起 → 都替换为 A
+  //
+  // 核心正则：用负向前查(?!)排除"元"后紧跟汉字/字母的情况
+
+  // (a) 独立符号元：元前后有分隔符/运算符 → 替换为 A
+  const leftSep  = '([\\s　,，;。.!！？、…—–\\(\\[∈∉⊆⊂⊇⊃∩∪])';
+  const rightSep = '([\\s　,，;。.!！？、…—–\\)\\]∈∉⊆⊂⊇⊃∩∪]|$)';
+  result = result.replace(new RegExp(leftSep + '元' + rightSep, 'g'), '$1A$2');
+
+  // (a') 句首独立符号元
+  result = result.replace(new RegExp('^元' + rightSep, 'g'), 'A$1');
+
+  // (b) 元元相连：PDF把∈渲染成了元，两个元都要替换为A
+  result = result.replace(/元元([。.!！？、…;，)）\]])?/g, 'AA$1');
+  result = result.replace(/([(（\[{])元元/g, '$1AA');
+  result = result.replace(/^元元/g, 'AA');
+  // (c) ∈元 直接相连：∈后紧跟元（∈被渲染成元导致∈元相连）
+  result = result.replace(/∈元/g, '∈A');
+
+  // (d) 兜底修复：∈∈素 / ∈素 是 MATH_SYMBOL_MAP 中 '元': '∈' 把"元素"误转换后的残留
+  result = result.replace(/∈∈素/g, '元素');
+  result = result.replace(/∈素/g, '元素');
+
+  // 步骤4：兜底还原——受保护的"元" + 空格/不可见 + "素" → "元素"
+  result = result.replace(/(\u200B元)[\s　]+(素)/g, '$1$2');
+
+  // 步骤5：移除所有零宽空格
+  result = result.replace(/\u200B/g, '');
+
+  return result;
+}
+
+/**
+ * 检测文本中是否存在元/元素混淆（用于调试）
+ * 使用与 fixYuansuConfusion 一致的匹配规则
+ */
+function detectYuansuConfusion(text: string): { problems: string[]; summary: string } {
+  const problems: string[] = [];
+
+  // 检测独立的"元"（非"元素"组成部分）
+  // 包含：独立符号元（有分隔符）和元元相连（∈被打成元）
+  const leftSep  = '[\\s　,，;。.!！？、…—–\\(\\[∈∉⊆⊂⊇⊃∩∪]';
+  const rightSep = '[\\s　,，;。.!！？、…—–\\)\\]∈∉⊆⊂⊇⊃∩∪]|$';
+  const standalonePattern = new RegExp(`(${leftSep})元(${rightSep})|(^元(${rightSep}))|(元元)`, 'g');
+  const standaloneMatches = [...text.matchAll(standalonePattern)];
+  for (const m of standaloneMatches) {
+    const pos = m.index ?? 0;
+    const snippet = text.slice(Math.max(0, pos - 5), pos + 10);
+    problems.push(`"元"在位置${pos}：…${snippet}…`);
+  }
+
+  // 检测"A素"（本应是"元素"但被错误替换后又部分还原）
+  const aSuMatches = [...text.matchAll(/A素|A\s素/g)];
+  for (const m of aSuMatches) {
+    problems.push(`"A素"疑似错误替换在位置${m.index}：${m[0]}`);
+  }
+
+  return {
+    problems,
+    summary: problems.length === 0 ? '未检测到元/元素混淆' : `发现${problems.length}处疑似混淆`
+  };
+}
+
+/**
  * 还原课本 - AI自动分段+生成（严谨版本）
  *
  * 将章节内容发送给AI，一次性完成：
@@ -40,6 +132,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[AutoSegment] 开始处理，章节: ${chapterTitle}，内容长度: ${content.length}，核心概念: ${ctx.coreConcept}`);
 
+    // 精准预处理：修复"元/元素"混淆，再送去 AI
+    const fixedContent = fixYuansuConfusion(content);
+    const detected = detectYuansuConfusion(content);
+    if (detected.problems.length > 0) {
+      console.log(`[AutoSegment] 原文检测到混淆: ${detected.summary}`, detected.problems);
+    }
+
     // 构建严谨的提示词
     const systemPrompt = `你是一位严谨的高中数学教师，擅长将教材内容拆解为易于学习的知识点，并设计有明确教材依据的练习题。
 
@@ -75,19 +174,36 @@ export async function POST(request: NextRequest) {
 【本节学习目标】${ctx.learningGoal}
 【本段学习目的】${ctx.sectionPurpose}
 
-教材内容：
-${content}
+教材内容（已预处理）：
+${fixedContent}
 
 ## 拆分要求
 1. **不能跳过任何原文**：必须逐句处理教材内容，一字不漏
 2. 每段必须是原文的一部分，一字不改（即使是很短的句子如"思考：为什么要进行分类"也要保留）
-3. 按知识点/语义单元自然分段（每段包含一个完整的概念）
-4. 段落数量控制在5-15个，不要太碎也不要太少
+3. **按知识点/语义单元分段**：每段包含一个完整的小知识点；遇到新概念、新定义、新例子、新问题，都要独立成段
+4. **不限制段落数量**：知识点多就多拆，知识点少就少拆，完全由内容决定
 5. 优先按自然段落分割，遇到长段落可以拆分，但不得漏掉任何句子
+6. 短定义、独立例子、思考问题各占一段，不要强行合并
 
 【跳段检查】返回前请自检：
 - 原文总字数 ≈ 所有段落原文总字数（允许5%以内的合理误差）
-- 如果发现段落数量过少（如原文很长但只返回5-8段），说明可能跳段了，请补充分段
+- 检查是否每个新概念/新定义/新例子都独立成段
+- 如果发现段落数量过少，说明可能跳段了，请补充分段
+
+## 精准符号还原说明（重要！）
+教材中出现的"元"字有两种含义：
+- **集合符号"元"**：表示集合的名称，如"集合通常用英文大写字母A,B,C,…表示"，这里"元"应替换为"A"
+- **"元素"的组成部分**：如"组成集合的每个对象都是这个集合的元素"，这里"元素"是完整词汇，不能拆分
+
+请在返回的 original 字段中，**将所有集合符号"元"正确还原为"A"**，保持其他"元"字不变。
+
+**示例**：
+- 原文输入："用英文大写字母元,B,C表示"
+- 正确还原："用英文大写字母A,B,C表示"
+- 原文输入："就记作a∈元，读作a属于元"
+- 正确还原："就记作a∈A，读作a属于A"
+- 原文输入："集合的元素"
+- 保持不变："集合的元素"（不是"集合的A素"）
 
 ## 每段输出格式
 - original: 原文摘录（一字不改，简洁完整）
@@ -205,8 +321,8 @@ ${content}
         if (result.sections && result.sections.length > 0) {
           console.log(`[AutoSegment] 成功解析 ${result.sections.length} 个段落`);
           
-          // 验证每个段落
-          result.sections = result.sections.map((s: any, i: number) => ({
+          // 验证并标准化每个段落
+          let normalized = result.sections.map((s: any, i: number) => ({
             id: s.id || i + 1,
             page: s.page || 3,
             original: s.original || s.content || '',
@@ -215,24 +331,46 @@ ${content}
             question: normalizeQuestion(s.question)
           })).filter((s: any) => s.original && s.original.length > 10);
 
+          // 强制段落长度控制：每段 original ≤ 200字
+          // 将超长段落按完整句子拆分为多个子段
+          const MAX_ORIGINAL_LEN = 200;
+          const expanded: typeof normalized = [];
+          for (const s of normalized) {
+            const parts = splitLongOriginal(s.original, MAX_ORIGINAL_LEN);
+            if (parts.length === 1) {
+              expanded.push(s);
+            } else {
+              // 每个子段复用父段的讲解和题目（子段共享同一知识点）
+              for (let i = 0; i < parts.length; i++) {
+                expanded.push({
+                  ...s,
+                  id: expanded.length + 1,
+                  original: parts[i],
+                  page: s.page + Math.floor(i / 3), // 估算子段页码
+                });
+              }
+            }
+          }
+
+          console.log(`[AutoSegment] 长度控制后：${normalized.length} → ${expanded.length} 个段落`);
           return NextResponse.json({
             success: true,
-            sections: result.sections,
-            total: result.sections.length
+            sections: expanded,
+            total: expanded.length
           });
         }
 
         throw new Error('未能解析出有效的段落');
       } catch (apiError) {
         console.error(`[AutoSegment] API调用失败:`, apiError);
-        // API失败，使用本地处理
-        return generateLocalSegments(content);
+        // API失败，使用本地处理（使用已修复的文本）
+        return generateLocalSegments(fixedContent);
       }
     }
 
-    // 没有API Key，使用本地处理
+    // 没有API Key，使用本地处理（使用已修复的文本）
     console.log(`[AutoSegment] 无API Key，使用本地处理`);
-    return generateLocalSegments(content);
+    return generateLocalSegments(fixedContent);
 
   } catch (error) {
     console.error('[AutoSegment] 处理失败:', error);
@@ -289,6 +427,50 @@ function parseSectionsResponse(content: string): { sections: any[] } {
 }
 
 /**
+ * 将过长的原文按完整句子拆分为多个子段落
+ * 每段不超过 maxLen（默认200字），确保不截断半句
+ */
+function splitLongOriginal(text: string, maxLen: number = 200): string[] {
+  if (!text || text.length <= maxLen) return [text];
+
+  // 按完整句子拆分（保留句子结束标点）
+  const sentences = text.split(/(?<=[。！？「」；])/);
+  const result: string[] = [];
+  let current = '';
+
+  for (const s of sentences) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+
+    if (current.length + trimmed.length <= maxLen) {
+      current += trimmed;
+    } else {
+      // 当前块够大，保存并开始新块
+      if (current) result.push(current.trim());
+      // 如果单个句子就超长了，按逗号再拆分
+      if (trimmed.length > maxLen) {
+        const parts = trimmed.split(/(?=[，、])/);
+        let sub = '';
+        for (const p of parts) {
+          if (sub.length + p.length <= maxLen) {
+            sub += p;
+          } else {
+            if (sub) result.push(sub.trim());
+            sub = p.length <= maxLen ? p : p.slice(0, maxLen);
+          }
+        }
+        current = sub;
+      } else {
+        current = trimmed;
+      }
+    }
+  }
+
+  if (current.trim()) result.push(current.trim());
+  return result.length > 0 ? result : [text];
+}
+
+/**
  * 规范化问题格式
  */
 function normalizeQuestion(question: any): { text: string; options: string[]; correct: string; explanation: string } | null {
@@ -339,25 +521,38 @@ function normalizeQuestion(question: any): { text: string; options: string[]; co
  */
 function generateLocalSegments(content: string): NextResponse {
   // 按段落分割
-  const paragraphs = content
+  const rawParagraphs = content
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .split(/\n\s*\n/)
     .filter(p => p.trim().length >= 30)
     .slice(0, 10); // 最多10个段落
 
-  if (paragraphs.length === 0) {
+  if (rawParagraphs.length === 0) {
     return NextResponse.json({
       success: false,
       error: '内容太短，无法分段'
     }, { status: 400 });
   }
 
+  // 强制段落长度控制：每段 original ≤ 200字
+  const expanded: { id: number; page: number; original: string }[] = [];
+  for (const p of rawParagraphs) {
+    const parts = splitLongOriginal(p.trim(), 200);
+    for (const part of parts) {
+      expanded.push({
+        id: expanded.length + 1,
+        page: 3 + Math.floor(expanded.length / 3),
+        original: part,
+      });
+    }
+  }
+
   // 为每个段落生成基本结构
-  const sections = paragraphs.map((p, i) => ({
+  const sections = expanded.map((s, i) => ({
     id: i + 1,
-    page: 3 + Math.floor(i / 3),
-    original: p.trim(),
+    page: s.page,
+    original: s.original,
     explanation: '请结合上下文理解这段内容。',
     keyPoints: ['理解原文含义', '注意关键概念'],
     question: {
@@ -368,7 +563,7 @@ function generateLocalSegments(content: string): NextResponse {
     }
   }));
 
-  console.log(`[AutoSegment] 本地生成 ${sections.length} 个段落`);
+  console.log(`[AutoSegment] 本地生成 ${sections.length} 个段落（强制拆分后）`);
 
   return NextResponse.json({
     success: true,

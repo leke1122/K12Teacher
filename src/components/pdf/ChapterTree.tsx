@@ -22,6 +22,7 @@ interface ChapterTreeProps {
 }
 
 function getPageRangeLabel(pages: PageRange): string {
+  if (!pages) return '';
   const effective = resolvePageRange(pages);
   const printedLabel = pages.type === 'printed' && Number.isFinite(pages.fileStart!) && Number.isFinite(pages.fileEnd!)
     ? `(${pages.start}-${pages.end} => ${pages.fileStart}-${pages.fileEnd})`
@@ -64,10 +65,10 @@ function SubSectionItem({
       subSectionTitle: subSection.title,
       startPage: range.start,
       endPage: range.end,
-      fileStart: subSection.pages.fileStart,
-      fileEnd: subSection.pages.fileEnd,
-      pageType: subSection.pages.type,
-      pageRangeType: subSection.pages.type,
+      fileStart: subSection.pages?.fileStart,
+      fileEnd: subSection.pages?.fileEnd,
+      pageType: subSection.pages?.type ?? 'file',
+      pageRangeType: subSection.pages?.type ?? 'file',
       textbookId: textbookId || '',
     });
     
@@ -135,10 +136,10 @@ function SectionItem({
     section: section.sectionIndex,
     startPage: resolvePageRange(section.pages).start,
     endPage: resolvePageRange(section.pages).end,
-    fileStart: section.pages.fileStart,
-    fileEnd: section.pages.fileEnd,
-    pageType: section.pages.type,
-    pageRangeType: section.pages.type,
+    fileStart: section.pages?.fileStart,
+    fileEnd: section.pages?.fileEnd,
+    pageType: section.pages?.type ?? 'file',
+    pageRangeType: section.pages?.type ?? 'file',
     textbookId: textbookId || '',
     ...extra,
   });
@@ -290,10 +291,10 @@ function ChapterCard({
                 chapter: chapter.chapterIndex,
                 startPage: range.start,
                 endPage: range.end,
-                fileStart: chapter.pages.fileStart,
-                fileEnd: chapter.pages.fileEnd,
-                pageType: chapter.pages.type,
-                pageRangeType: chapter.pages.type,
+                fileStart: chapter.pages?.fileStart,
+                fileEnd: chapter.pages?.fileEnd,
+                pageType: chapter.pages?.type ?? 'file',
+                pageRangeType: chapter.pages?.type ?? 'file',
                 textbookId: textbookId || '',
               })}`);
             }}
@@ -311,10 +312,10 @@ function ChapterCard({
                 chapter: chapter.chapterIndex,
                 startPage: range.start,
                 endPage: range.end,
-                fileStart: chapter.pages.fileStart,
-                fileEnd: chapter.pages.fileEnd,
-                pageType: chapter.pages.type,
-                pageRangeType: chapter.pages.type,
+                fileStart: chapter.pages?.fileStart,
+                fileEnd: chapter.pages?.fileEnd,
+                pageType: chapter.pages?.type ?? 'file',
+                pageRangeType: chapter.pages?.type ?? 'file',
                 textbookId: textbookId || '',
               })}`);
             }}
