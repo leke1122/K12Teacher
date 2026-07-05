@@ -776,10 +776,15 @@ export default function WordsPage() {
   
   const fetchReviewWords = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ status: 'mastered', limit: '50' });
+      // 获取所有单词，API 会附加 mastery_level
+      const params = new URLSearchParams({ status: 'all', limit: '100' });
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
-      if (data.success) setReviewWords(data.words || []);
+      if (data.success) {
+        // 过滤出已学习的单词（mastery_level > 0）
+        const learnedWords = data.words?.filter((w: any) => w.mastery_level > 0) || [];
+        setReviewWords(learnedWords);
+      }
     } catch (err) {
       console.error('Failed to fetch review words:', err);
     }

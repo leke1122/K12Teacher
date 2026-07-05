@@ -105,8 +105,8 @@ export async function getWords(params: {
     return { words: [], total: 0 };
   }
 
-  // 如果需要状态筛选，需要关联 mastery 表
-  if (status !== 'all' && data && data.length > 0) {
+  // 关联 mastery 表获取每个单词的掌握状态
+  if (data && data.length > 0) {
     const wordIds = data.map(w => w.id);
     const { data: masteries } = await supabaseClient
       .from('word_mastery')
@@ -117,28 +117,39 @@ export async function getWords(params: {
     const masteryMap = new Map();
     masteries?.forEach(m => masteryMap.set(m.word_id, m.mastery_level));
 
-    const filteredWords = data.filter(w => {
-      const level = masteryMap.get(w.id) || 0;
-      if (status === 'unlearned') return level === 0;
-      if (status === 'learned') return level > 0 && level < 5;
-      if (status === 'mastered') return level >= 5;
-      return true;
-    });
+    // 为每个单词附加 mastery_level 字段
+    const wordsWithMastery = data.map(w => ({
+      ...w,
+      mastery_level: masteryMap.get(w.id) || 0,
+    }));
 
-    // 状态筛选时重新计算总数
-    let countQuery = supabaseClient
-      .from('words')
-      .select('*', { count: 'exact', head: true });
+    // 如果需要状态筛选
+    if (status !== 'all') {
+      const filteredWords = wordsWithMastery.filter(w => {
+        const level = w.mastery_level;
+        if (status === 'unlearned') return level === 0;
+        if (status === 'learned') return level > 0 && level < 5;
+        if (status === 'mastered') return level >= 5;
+        return true;
+      });
 
-    if (frequency !== 'all') {
-      countQuery = countQuery.eq('frequency_level', frequency);
+      // 状态筛选时重新计算总数
+      let countQuery = supabaseClient
+        .from('words')
+        .select('*', { count: 'exact', head: true });
+
+      if (frequency !== 'all') {
+        countQuery = countQuery.eq('frequency_level', frequency);
+      }
+      if (search) {
+        countQuery = countQuery.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
+      }
+
+      const { count: totalCount } = await countQuery;
+      return { words: filteredWords, total: totalCount || filteredWords.length };
     }
-    if (search) {
-      countQuery = countQuery.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
-    }
 
-    const { count: totalCount } = await countQuery;
-    return { words: filteredWords, total: totalCount || filteredWords.length };
+    return { words: wordsWithMastery, total: count || 0 };
   }
 
   return { words: data || [], total: count || 0 };
