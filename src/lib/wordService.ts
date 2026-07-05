@@ -302,13 +302,12 @@ export async function updateMastery(
 
   console.log('[WordService] upserting:', masteryData);
 
-  // 使用 upsert 更新或插入
-  const { error } = await supabaseClient
+  const { error: upsertError } = await supabaseClient
     .from('word_mastery')
     .upsert(masteryData, { onConflict: 'user_id,word_id' });
 
-  if (error) {
-    console.error('[WordService] upsert error:', error);
+  if (upsertError) {
+    console.error('[WordService] upsert error:', upsertError);
     return false;
   }
 
