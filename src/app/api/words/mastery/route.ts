@@ -8,9 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateMastery, recordLearningAction, getWordMastery } from '@/lib/wordService';
 
 export async function POST(request: NextRequest) {
+  console.log('[API/words/mastery] Request received');
+  
   try {
     const body = await request.json();
     const { wordId, action, duration } = body;
+    
+    console.log('[API/words/mastery] Body:', { wordId, action, duration });
 
     if (!wordId || !action) {
       return NextResponse.json(
@@ -29,15 +33,16 @@ export async function POST(request: NextRequest) {
 
     let success = false;
     if (action === 'skipped') {
-      // 跳过只记录行为，不更新掌握度
       await recordLearningAction(wordId, 'skipped', duration || 0);
       success = true;
     } else {
+      console.log('[API/words/mastery] Calling updateMastery...');
       success = await updateMastery(wordId, action);
+      console.log('[API/words/mastery] updateMastery result:', success);
     }
 
-    // 获取更新后的掌握度
     const mastery = await getWordMastery(wordId);
+    console.log('[API/words/mastery] Final mastery:', mastery);
 
     return NextResponse.json({
       success,

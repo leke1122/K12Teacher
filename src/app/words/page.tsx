@@ -812,21 +812,36 @@ export default function WordsPage() {
   };
   
   const handleMaster = async () => {
+    console.log('[Words] handleMaster called, currentWord:', currentWord?.id);
     if (!currentWord) return;
+    
     try {
-      await fetch('/api/words/mastery', {
+      console.log('[Words] Calling mastery API...');
+      const res = await fetch('/api/words/mastery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wordId: currentWord.id, action: 'mastered' }),
       });
+      
+      const data = await res.json();
+      console.log('[Words] Mastery API response:', data);
+      
+      if (!data.success) {
+        console.error('[Words] Mastery API failed:', data.error);
+      }
+      
       const newWords = words.filter((_, i) => i !== currentIndex);
       setWords(newWords);
-      if (currentIndex >= newWords.length && newWords.length > 0) {
+      
+      if (newWords.length === 0) {
+        setCurrentIndex(0);
+      } else if (currentIndex >= newWords.length) {
         setCurrentIndex(newWords.length - 1);
       }
+      
       await refreshStats();
     } catch (err) {
-      console.error('Failed to mark as mastered:', err);
+      console.error('[Words] Failed to mark as mastered:', err);
     }
   };
   
