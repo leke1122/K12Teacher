@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     let success = false;
     let errorMessage = '';
-    let mastery = null;
+    let mastery: { mastery_level: number; review_count: number; next_review: string } | null = null;
     
     if (action === 'skipped') {
       await recordLearningAction(wordId, 'skipped', duration || 0);
@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
       console.log('[API/words/mastery] Calling updateMastery...');
       try {
         const result = await updateMastery(wordId, action);
-        success = result !== false;
-        mastery = result;
+        if (result) {
+          success = true;
+          mastery = result;
+        }
         console.log('[API/words/mastery] updateMastery result:', result);
       } catch (err) {
         errorMessage = err instanceof Error ? err.message : '未知错误';

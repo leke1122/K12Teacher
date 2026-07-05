@@ -326,7 +326,7 @@ export async function updateMastery(
       if (upsertError) {
         console.error('[WordService] upsert error:', upsertError);
         saveMasteryToLocal(wordId, newLevel, reviewCount);
-        return true;
+        return { mastery_level: newLevel, review_count: reviewCount, next_review: nextReview } as any;
       }
 
       console.log('[WordService] upsert success!');
@@ -352,7 +352,7 @@ export async function updateMastery(
           break;
       }
       saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
-      return true;
+      return { mastery_level: newLevel, review_count: reviewCount, next_review: '' } as any;
     }
   } else {
     console.log('[WordService] supabaseClient is null, using localStorage');
@@ -370,7 +370,7 @@ export async function updateMastery(
         break;
     }
     saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
-    return true;
+    return { mastery_level: newLevel, review_count: reviewCount, next_review: '' } as any;
   }
 }
 
