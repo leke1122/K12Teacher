@@ -112,8 +112,8 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       supabaseConfigured: isSupabaseConfigured,
-      supabaseUrl: supabase.supabaseUrl || 'not set',
-      insertTest: { success: !insertError, error: insertError?.message || null, data: insertData },
+      supabaseHasClient: supabase !== null,
+      insertTest: { success: !insertError, error: insertError?.message || null },
     });
   }
   
