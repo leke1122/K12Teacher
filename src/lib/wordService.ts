@@ -246,33 +246,43 @@ export async function updateMastery(
   action: 'learned' | 'reviewed' | 'mastered' | 'forgotten',
   userId: string = 'personal-user'
 ): Promise<boolean> {
-  if (!supabaseClient) return false;
+  console.log('[WordService] updateMastery called:', { wordId, action, userId });
+  console.log('[WordService] supabaseClient:', supabaseClient ? 'exists' : 'null');
+  
+  if (!supabaseClient) {
+    console.error('[WordService] supabaseClient is null!');
+    return false;
+  }
   
   // 获取当前掌握度
-  const { data: existing } = await supabaseClient
+  const { data: existing, error: fetchError } = await supabaseClient
     .from('word_mastery')
     .select('*')
     .eq('user_id', userId)
     .eq('word_id', wordId)
     .single();
 
-  let newLevel = existing?.mastery_level || 0;
-  let reviewCount = existing?.review_count || 0;
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('[WordService] fetch existing error:', fetchError);
+  }
+  
+  console.log('[WordService] existing record:', existing);
+
+  // 计算新掌握度
+  let newLevel = existing ? (existing.mastery_level || 0) : 0;
+  let reviewCount = existing ? (existing.review_count || 0) : 0;
 
   switch (action) {
     case 'learned':
     case 'reviewed':
-      // 答对/复习：增加掌握度
       newLevel = Math.min(5, newLevel + 1);
       reviewCount += 1;
       break;
     case 'mastered':
-      // 完全掌握
       newLevel = 5;
       reviewCount += 1;
       break;
     case 'forgotten':
-      // 遗忘：降低掌握度
       newLevel = Math.max(0, newLevel - 1);
       break;
   }
@@ -281,7 +291,7 @@ export async function updateMastery(
   const days = REVIEW_INTERVALS[newLevel - 1] || 1;
   const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-  const masteryData: WordMastery = {
+  const masteryData = {
     user_id: userId,
     word_id: wordId,
     mastery_level: newLevel,
@@ -290,14 +300,19 @@ export async function updateMastery(
     next_review: nextReview,
   };
 
+  console.log('[WordService] upserting:', masteryData);
+
+  // 使用 upsert 更新或插入
   const { error } = await supabaseClient
     .from('word_mastery')
     .upsert(masteryData, { onConflict: 'user_id,word_id' });
 
   if (error) {
-    console.error('[WordService] updateMastery error:', error);
+    console.error('[WordService] upsert error:', error);
     return false;
   }
+
+  console.log('[WordService] upsert success!');
 
   // 记录学习行为
   await recordLearningAction(wordId, action);
