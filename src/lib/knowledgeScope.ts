@@ -22,7 +22,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
   // 必修一
   '1': [
     {
-      // 1.1 集合及其表示方法（1.1.1）
+      // 1.1 集合及其表示方法
       sectionId: '1.1.1',
       sectionTitle: '集合及其表示方法',
       knowledge: [
@@ -34,7 +34,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
       ],
     },
     {
-      // 1.2 子集与集合的相等（1.1.2 / 1.2.1）
+      // 1.2 子集与集合的相等
       sectionId: '1.1.2',
       sectionTitle: '子集与集合的相等',
       knowledge: [
@@ -44,7 +44,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
       ],
     },
     {
-      // 1.3 集合的基本运算（1.1.3 / 1.2.2）
+      // 1.3 集合的基本运算
       sectionId: '1.1.3',
       sectionTitle: '集合的基本运算',
       knowledge: [
@@ -54,32 +54,78 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
       ],
     },
     {
-      // 1.4 充分条件与必要条件
-      sectionId: '1.4',
+      // 1.4 命题与量词
+      sectionId: '1.1.4',
+      sectionTitle: '命题与量词',
+      knowledge: [
+        { id: 'k_1_4_1', name: '命题', description: '命题的定义与表示' },
+        { id: 'k_1_4_2', name: '全称量词', description: '全称量词与全称命题', symbols: ['∀'] },
+        { id: 'k_1_4_3', name: '存在量词', description: '存在量词与特称命题', symbols: ['∃'] },
+      ],
+    },
+    {
+      // 1.5 充分条件与必要条件
+      sectionId: '1.1.5',
       sectionTitle: '充分条件与必要条件',
       knowledge: [
-        { id: 'k_1_4_1', name: '充分条件', description: '充分条件的定义' },
-        { id: 'k_1_4_2', name: '必要条件', description: '必要条件的定义' },
-        { id: 'k_1_4_3', name: '充要条件', description: '充要条件的定义', symbols: ['⇔', '↔'] },
+        { id: 'k_1_5_1', name: '充分条件', description: '充分条件的定义' },
+        { id: 'k_1_5_2', name: '必要条件', description: '必要条件的定义' },
+        { id: 'k_1_5_3', name: '充要条件', description: '充要条件的定义', symbols: ['⇔', '↔'] },
       ],
     },
+  ],
+  // 必修一 第二章
+  '2': [
     {
-      // 2.1 相等关系与函数概念
-      sectionId: '2.1',
-      sectionTitle: '相等关系与函数概念',
+      // 2.1 等式
+      sectionId: '2.1.1',
+      sectionTitle: '等式',
       knowledge: [
-        { id: 'k_2_1_1', name: '函数概念', description: '函数的定义、定义域、值域' },
-        { id: 'k_2_1_2', name: '函数表示', description: '列表法、图像法、解析法' },
+        { id: 'k_2_1_1', name: '等式的性质', description: '等式的基本性质' },
+        { id: 'k_2_1_2', name: '恒等式', description: '恒等式的概念' },
+        { id: 'k_2_1_3', name: '方程的解集', description: '方程解的概念与解集' },
       ],
     },
     {
-      // 2.2 函数的基本性质
-      sectionId: '2.2',
+      // 2.2 不等式
+      sectionId: '2.2.1',
+      sectionTitle: '不等式',
+      knowledge: [
+        { id: 'k_2_2_1', name: '不等式的性质', description: '不等式的基本性质' },
+        { id: 'k_2_2_2', name: '作差法', description: '比较大小的方法' },
+        { id: 'k_2_2_3', name: '综合法', description: '由因导果的证明方法' },
+      ],
+    },
+    {
+      // 2.3 一元二次不等式
+      sectionId: '2.2.2',
+      sectionTitle: '一元二次不等式',
+      knowledge: [
+        { id: 'k_2_2_4', name: '一元二次不等式', description: '一元二次不等式的解法' },
+        { id: 'k_2_2_5', name: '二次函数与不等式', description: '二次函数与不等式的关系' },
+      ],
+    },
+  ],
+  // 必修一 第三章
+  '3': [
+    {
+      // 3.1 函数的概念
+      sectionId: '3.1.1',
+      sectionTitle: '函数的概念',
+      knowledge: [
+        { id: 'k_3_1_1', name: '函数概念', description: '函数的定义、定义域、值域' },
+        { id: 'k_3_1_2', name: '函数表示', description: '列表法、图像法、解析法' },
+        { id: 'k_3_1_3', name: '分段函数', description: '分段函数的定义与表示' },
+      ],
+    },
+    {
+      // 3.2 函数的基本性质
+      sectionId: '3.1.2',
       sectionTitle: '函数的基本性质',
       knowledge: [
-        { id: 'k_2_2_1', name: '单调性', description: '增函数、减函数定义' },
-        { id: 'k_2_2_2', name: '最大值与最小值', description: '函数最值的概念与求法' },
-        { id: 'k_2_2_3', name: '奇偶性', description: '奇函数、偶函数定义', symbols: ['f(-x)'] },
+        { id: 'k_3_2_1', name: '单调性', description: '增函数、减函数定义', symbols: ['↗', '↘'] },
+        { id: 'k_3_2_2', name: '最大值与最小值', description: '函数最值的概念与求法' },
+        { id: 'k_3_2_3', name: '奇偶性', description: '奇函数、偶函数定义', symbols: ['f(-x)'] },
       ],
     },
   ],
