@@ -110,7 +110,7 @@ export function TextbookUploadDialog({ open, onOpenChange, onSuccess, subjectId 
       fullText = fullText.trim();
 
       // 2. 解析 TXT 目录（可选）
-      let tocData = { title: name.trim() || '未命名教材', subject: subjectId, chapters: [] };
+      let tocData: { title: string; subject: string; chapters: unknown[] } = { title: name.trim() || '未命名教材', subject: subjectId, chapters: [] };
       if (tocFile) {
         setParsingStatus('正在解析目录...');
         const tocContent = await tocFile.text();
