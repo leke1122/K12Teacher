@@ -313,8 +313,8 @@ export async function updateMastery(
         word_text: wordText,
         mastery_level: newLevel,
         review_count: reviewCount,
-        last_review: new Date().toISOString(),
-        next_review: nextReview,
+        updated_at: new Date().toISOString(),
+        next_review_date: nextReview.split('T')[0], // DATE type needs YYYY-MM-DD format
       };
 
       console.log('[WordService] upserting:', masteryData);
