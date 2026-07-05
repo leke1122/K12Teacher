@@ -49,3 +49,6 @@ deploy-*.js
 
 # SQL files (don't need in repo)
 *.sql
+
+.vercel
+.env*

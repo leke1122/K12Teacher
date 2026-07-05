@@ -6,9 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { updateMastery, recordLearningAction, getWordMastery } from '@/lib/wordService';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   console.log('[API/words/mastery] Request received');
+  console.log('[API/words/mastery] Supabase configured:', isSupabaseConfigured);
   
   try {
     const body = await request.json();
@@ -32,20 +34,33 @@ export async function POST(request: NextRequest) {
     }
 
     let success = false;
+    let errorMessage = '';
+    
     if (action === 'skipped') {
       await recordLearningAction(wordId, 'skipped', duration || 0);
       success = true;
     } else {
       console.log('[API/words/mastery] Calling updateMastery...');
-      success = await updateMastery(wordId, action);
-      console.log('[API/words/mastery] updateMastery result:', success);
+      try {
+        success = await updateMastery(wordId, action);
+        console.log('[API/words/mastery] updateMastery result:', success);
+      } catch (err) {
+        errorMessage = err instanceof Error ? err.message : '未知错误';
+        console.error('[API/words/mastery] updateMastery error:', err);
+      }
     }
 
-    const mastery = await getWordMastery(wordId);
+    let mastery = null;
+    try {
+      mastery = await getWordMastery(wordId);
+    } catch (e) {
+      console.log('[API/words/mastery] getWordMastery failed (non-critical)');
+    }
     console.log('[API/words/mastery] Final mastery:', mastery);
 
     return NextResponse.json({
       success,
+      error: errorMessage || undefined,
       mastery: mastery ? {
         level: mastery.mastery_level,
         reviewCount: mastery.review_count,
