@@ -764,7 +764,8 @@ export default function WordsPage() {
       const data = await res.json();
       if (data.success) {
         setWords(data.words || []);
-        setStats(prev => ({ ...prev, ...data.stats }));
+        // 只更新 total（未学习数），保留其他本地 stats
+        setStats(prev => ({ ...prev, total: data.stats.total }));
         setCurrentIndex(0);
       }
     } catch (err) {
@@ -835,21 +836,25 @@ export default function WordsPage() {
         console.error('[Words] Mastery API failed:', data.error);
       }
       
-      // 实时更新本地 stats
+      // 实时更新本地 stats（不在这里调用 refreshStats，避免覆盖）
       setStats(prev => ({
         ...prev,
         mastered: prev.mastered + 1,
-        total: prev.total - 1, // 未学习 = 总数 - 已掌握
+        total: Math.max(0, prev.total - 1), // 未学习数最小为0
       }));
       
-      const newWords = words.filter((_, i) => i !== currentIndex);
-      setWords(newWords);
+      // 从当前列表中移除已掌握的单词（按频率筛选）
+      setWords(prevWords => {
+        // 如果是全部级别，直接移除；如果按频率筛选，也移除（因为已掌握）
+        return prevWords.filter(w => w.id !== currentWord.id);
+      });
       
-      if (newWords.length === 0) {
-        setCurrentIndex(0);
-      } else if (currentIndex >= newWords.length) {
-        setCurrentIndex(newWords.length - 1);
-      }
+      // 更新当前索引
+      setCurrentIndex(prev => {
+        if (words.length <= 1) return 0;
+        if (prev >= words.length - 1) return words.length - 2;
+        return prev;
+      });
       
       await refreshStats();
     } catch (err) {
