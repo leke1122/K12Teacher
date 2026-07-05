@@ -75,3 +75,47 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+/**
+ * 测试 Supabase 连接和 RLS
+ * GET /api/words/mastery?test=true
+ */
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const testMode = url.searchParams.get('test');
+  
+  if (testMode === 'true' && supabase) {
+    console.log('[API/words/mastery] Test mode - checking RLS...');
+    
+    // 测试插入
+    const testWordId = 'test_' + Date.now();
+    const { data: insertData, error: insertError } = await supabase
+      .from('word_mastery')
+      .insert({
+        user_id: 'personal-user',
+        word_id: testWordId,
+        mastery_level: 1,
+        review_count: 1,
+      })
+      .select()
+      .single();
+    
+    console.log('[API/words/mastery] Insert test result:', { data: insertData, error: insertError });
+    
+    // 清理测试数据
+    if (insertData) {
+      await supabase
+        .from('word_mastery')
+        .delete()
+        .eq('id', insertData.id);
+    }
+    
+    return NextResponse.json({
+      supabaseConfigured: isSupabaseConfigured,
+      supabaseUrl: supabase.supabaseUrl || 'not set',
+      insertTest: { success: !insertError, error: insertError?.message || null, data: insertData },
+    });
+  }
+  
+  return NextResponse.json({ message: 'Use POST to update mastery' });
+}
