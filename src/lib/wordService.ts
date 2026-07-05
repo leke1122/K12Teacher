@@ -455,7 +455,7 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
   const today = new Date().toISOString().split('T')[0];
 
   // 总词数
-  const { count: total } = await supabaseClient
+  const { count: totalWords } = await supabaseClient
     .from('words')
     .select('*', { count: 'exact', head: true });
 
@@ -472,6 +472,9 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('mastery_level', 5);
+
+  // 未学习 = 总词数 - 已学习
+  const total = (totalWords || 0) - (learned || 0);
 
   // 待复习（next_review <= 今天）
   const { count: toReview } = await supabaseClient
@@ -509,7 +512,7 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
   }
 
   return {
-    total: total || 0,
+    total,
     learned: learned || 0,
     mastered: mastered || 0,
     toReview: toReview || 0,

@@ -667,7 +667,7 @@ function StatsDashboard({
         <button onClick={onStatsClick} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-2.5 text-center hover:opacity-80 transition-opacity">
           <BookOpen className="h-4 w-4 mx-auto mb-1 text-blue-500" />
           <p className="text-lg font-bold text-slate-800">{stats.total}</p>
-          <p className="text-xs text-slate-500">总词数</p>
+          <p className="text-xs text-slate-500">未学习</p>
         </button>
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-xl p-2.5 text-center">
           <Award className="h-4 w-4 mx-auto mb-1 text-green-500" />
@@ -829,6 +829,13 @@ export default function WordsPage() {
       if (!data.success) {
         console.error('[Words] Mastery API failed:', data.error);
       }
+      
+      // 实时更新本地 stats
+      setStats(prev => ({
+        ...prev,
+        mastered: prev.mastered + 1,
+        total: prev.total - 1, // 未学习 = 总数 - 已掌握
+      }));
       
       const newWords = words.filter((_, i) => i !== currentIndex);
       setWords(newWords);
