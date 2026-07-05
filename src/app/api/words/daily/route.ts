@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getDailyWords, getWordStats, supabase } from '@/lib/wordService';
+import { getDailyWords, getWordStats } from '@/lib/wordService';
 
 export async function GET() {
   try {
@@ -17,37 +17,9 @@ export async function GET() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: records } = await supabase
-      .from('word_learning_records')
-      .select('*')
-      .eq('user_id', 'personal-user')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: true });
-
-    // 按日期聚合
-    const dateMap = new Map<string, { learned: number; reviewed: number }>();
-
-    (records || []).forEach(r => {
-      const date = r.created_at?.split('T')[0] || '';
-      if (!dateMap.has(date)) {
-        dateMap.set(date, { learned: 0, reviewed: 0 });
-      }
-      const day = dateMap.get(date)!;
-      if (r.action === 'mastered' || r.action === 'learned') {
-        day.learned++;
-      } else if (r.action === 'reviewed') {
-        day.reviewed++;
-      }
-    });
-
-    // 转换为数组并排序
-    const dailyRecords = Array.from(dateMap.entries())
-      .map(([date, stats]) => ({
-        date,
-        learned: stats.learned,
-        reviewed: stats.reviewed,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // TODO: 从 wordService 获取学习记录
+    // 暂时返回空记录
+    const dailyRecords: { date: string; learned: number; reviewed: number }[] = [];
 
     return NextResponse.json({
       success: true,

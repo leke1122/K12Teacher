@@ -3,8 +3,8 @@
 // 优先从 Supabase 读取，本地 serverStorage 作为备用
 
 import { getActiveTextbook, getTextbookPDF, getTextbookChapters } from './textbookStorage.server';
-import { supabase, isSupabaseConfigured } from './supabase';
-import { TextbookCacheItem } from './supabase';
+import { supabase as supabaseClient, isSupabaseConfigured } from './supabase';
+import type { TextbookCacheItem } from './supabase';
 
 // 历史章节配置
 export const HISTORY_CHAPTERS = {
@@ -27,10 +27,10 @@ async function getTextbookFromSupabase(subjectId: string = 'history'): Promise<{
   chapters?: unknown[];
   textbookId?: string;
 } | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabaseClient) return null;
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('textbook_cache')
       .select('textbook_id, full_text, pages, chapters')
       .eq('user_id', 'personal-user')

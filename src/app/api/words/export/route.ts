@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase as supabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,10 +16,17 @@ export async function GET(request: NextRequest) {
     let data: any[] = [];
     let filename = '';
 
+    if (!isSupabaseConfigured || !supabaseClient) {
+      return NextResponse.json(
+        { success: false, error: '数据库未配置' },
+        { status: 500 }
+      );
+    }
+
     switch (type) {
       case 'words': {
         // 导出已掌握的单词
-        const { data: masteryData } = await supabase
+        const { data: masteryData } = await supabaseClient
           .from('word_mastery')
           .select('word_id, mastery_level, last_review, next_review')
           .eq('user_id', userId)
@@ -27,7 +34,7 @@ export async function GET(request: NextRequest) {
 
         if (masteryData && masteryData.length > 0) {
           const wordIds = masteryData.map(m => m.word_id);
-          const { data: wordsData } = await supabase
+          const { data: wordsData } = await supabaseClient
             .from('words')
             .select('*')
             .in('id', wordIds);
@@ -52,7 +59,7 @@ export async function GET(request: NextRequest) {
 
       case 'wrong': {
         // 导出错词
-        const { data: wrongData } = await supabase
+        const { data: wrongData } = await supabaseClient
           .from('wrong_questions')
           .select('*')
           .eq('user_id', userId)
@@ -72,7 +79,7 @@ export async function GET(request: NextRequest) {
 
       case 'records': {
         // 导出学习记录
-        const { data: recordsData } = await supabase
+        const { data: recordsData } = await supabaseClient
           .from('word_learning_records')
           .select('*')
           .eq('user_id', userId)

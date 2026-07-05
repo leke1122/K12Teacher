@@ -2,7 +2,7 @@
  * 错词本服务 - Supabase 数据操作
  */
 
-import { supabase } from './supabase';
+import { supabase as supabaseClient } from './supabase';
 
 export interface WrongQuestion {
   id: string;
@@ -22,9 +22,9 @@ export async function getWrongQuestions(
   userId: string = 'personal-user',
   subjectId?: string
 ): Promise<WrongQuestion[]> {
-  if (!supabase) return [];
+  if (!supabaseClient) return [];
   
-  let query = supabase
+  let query = supabaseClient
     .from('wrong_questions')
     .select('*')
     .eq('user_id', userId)
@@ -55,9 +55,9 @@ export async function addWrongQuestion(
   difficulty: string = 'medium',
   knowledgePoint: string = ''
 ): Promise<string | null> {
-  if (!supabase) return null;
+  if (!supabaseClient) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('wrong_questions')
     .insert({
       user_id: userId,
@@ -85,9 +85,9 @@ export async function deleteWrongQuestion(
   id: string,
   userId: string = 'personal-user'
 ): Promise<boolean> {
-  if (!supabase) return false;
+  if (!supabaseClient) return false;
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('wrong_questions')
     .delete()
     .eq('id', id)
@@ -106,9 +106,9 @@ export async function clearWrongQuestions(
   userId: string = 'personal-user',
   subjectId?: string
 ): Promise<boolean> {
-  if (!supabase) return false;
+  if (!supabaseClient) return false;
 
-  let query = supabase
+  let query = supabaseClient
     .from('wrong_questions')
     .delete()
     .eq('user_id', userId);
@@ -132,9 +132,9 @@ export async function getWrongQuestionCount(
   userId: string = 'personal-user',
   subjectId?: string
 ): Promise<number> {
-  if (!supabase) return 0;
+  if (!supabaseClient) return 0;
 
-  let query = supabase
+  let query = supabaseClient
     .from('wrong_questions')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);

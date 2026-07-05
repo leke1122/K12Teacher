@@ -2,7 +2,10 @@
  * 单词学习服务 - Supabase 数据操作
  */
 
-import { supabase } from './supabase';
+// 重新导出 supabase（为了兼容旧代码）
+export { supabase } from './supabase';
+
+import { supabase as supabaseClient } from './supabase';
 import { ParsedWord } from './wordParser';
 
 export interface WordRecord {
@@ -48,8 +51,8 @@ const REVIEW_INTERVALS = [1, 3, 7, 15, 30];
  * 获取所有单词
  */
 export async function getAllWords(): Promise<WordRecord[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
     .from('words')
     .select('*')
     .order('word');
@@ -73,10 +76,10 @@ export async function getWords(params: {
   search?: string;
   userId?: string;
 }): Promise<{ words: WordRecord[]; total: number }> {
-  if (!supabase) return { words: [], total: 0 };
+  if (!supabaseClient) return { words: [], total: 0 };
   const { page = 1, limit = 20, frequency = 'all', status = 'all', search = '', userId = 'personal-user' } = params;
 
-  let query = supabase
+  let query = supabaseClient
     .from('words')
     .select('*', { count: 'exact' });
 
@@ -105,7 +108,7 @@ export async function getWords(params: {
   // 如果需要状态筛选，需要关联 mastery 表
   if (status !== 'all' && data && data.length > 0) {
     const wordIds = data.map(w => w.id);
-    const { data: masteries } = await supabase
+    const { data: masteries } = await supabaseClient
       .from('word_mastery')
       .select('word_id, mastery_level')
       .eq('user_id', userId)
@@ -123,7 +126,7 @@ export async function getWords(params: {
     });
 
     // 状态筛选时重新计算总数
-    let countQuery = supabase
+    let countQuery = supabaseClient
       .from('words')
       .select('*', { count: 'exact', head: true });
 
@@ -148,11 +151,11 @@ export async function getDailyWords(userId: string = 'personal-user', limit: num
   newWords: WordRecord[];
   reviewWords: WordRecord[];
 }> {
-  if (!supabase) return { newWords: [], reviewWords: [] };
+  if (!supabaseClient) return { newWords: [], reviewWords: [] };
   const today = new Date().toISOString().split('T')[0];
 
   // 获取从未学过的单词（新词）
-  const { data: allWords } = await supabase
+  const { data: allWords } = await supabaseClient
     .from('words')
     .select('*')
     .order('RANDOM()')
@@ -163,7 +166,7 @@ export async function getDailyWords(userId: string = 'personal-user', limit: num
   const wordIds = allWords.map(w => w.id);
 
   // 获取已学习的单词ID
-  const { data: masteries } = await supabase
+  const { data: masteries } = await supabaseClient
     .from('word_mastery')
     .select('word_id, next_review, mastery_level')
     .eq('user_id', userId)
@@ -197,7 +200,7 @@ export async function getDailyWords(userId: string = 'personal-user', limit: num
  * 批量插入单词（分批插入，避免限制）
  */
 export async function insertWords(words: ParsedWord[]): Promise<{ success: number; failed: number }> {
-  if (!supabase) return { success: 0, failed: words.length };
+  if (!supabaseClient) return { success: 0, failed: words.length };
 
   const BATCH_SIZE = 100;
   let totalSuccess = 0;
@@ -219,7 +222,7 @@ export async function insertWords(words: ParsedWord[]): Promise<{ success: numbe
       frequency_level: w.frequencyLevel,
     }));
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('words')
       .upsert(records, { onConflict: 'word' });
 
@@ -243,10 +246,10 @@ export async function updateMastery(
   action: 'learned' | 'reviewed' | 'mastered' | 'forgotten',
   userId: string = 'personal-user'
 ): Promise<boolean> {
-  if (!supabase) return false;
+  if (!supabaseClient) return false;
   
   // 获取当前掌握度
-  const { data: existing } = await supabase
+  const { data: existing } = await supabaseClient
     .from('word_mastery')
     .select('*')
     .eq('user_id', userId)
@@ -287,7 +290,7 @@ export async function updateMastery(
     next_review: nextReview,
   };
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('word_mastery')
     .upsert(masteryData, { onConflict: 'user_id,word_id' });
 
@@ -311,8 +314,8 @@ export async function recordLearningAction(
   duration: number = 0,
   userId: string = 'personal-user'
 ): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient
     .from('word_learning_records')
     .insert({
       user_id: userId,
@@ -333,8 +336,8 @@ export async function getWordMastery(
   wordId: string,
   userId: string = 'personal-user'
 ): Promise<WordMastery | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!supabaseClient) return null;
+  const { data, error } = await supabaseClient
     .from('word_mastery')
     .select('*')
     .eq('user_id', userId)
@@ -356,31 +359,31 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
   todayLearned: number;
   streakDays: number;
 }> {
-  if (!supabase) return { total: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0 };
+  if (!supabaseClient) return { total: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0 };
   
   const today = new Date().toISOString().split('T')[0];
 
   // 总词数
-  const { count: total } = await supabase
+  const { count: total } = await supabaseClient
     .from('words')
     .select('*', { count: 'exact', head: true });
 
   // 已学习（mastery_level > 0）
-  const { count: learned } = await supabase
+  const { count: learned } = await supabaseClient
     .from('word_mastery')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gt('mastery_level', 0);
 
   // 已掌握（mastery_level >= 5）
-  const { count: mastered } = await supabase
+  const { count: mastered } = await supabaseClient
     .from('word_mastery')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('mastery_level', 5);
 
   // 待复习（next_review <= 今天）
-  const { count: toReview } = await supabase
+  const { count: toReview } = await supabaseClient
     .from('word_mastery')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -388,14 +391,14 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
     .lte('next_review', today);
 
   // 今日学习
-  const { count: todayLearned } = await supabase
+  const { count: todayLearned } = await supabaseClient
     .from('word_learning_records')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('created_at', `${today}T00:00:00`);
 
   // 计算连续学习天数
-  const { data: records } = await supabase
+  const { data: records } = await supabaseClient
     .from('word_learning_records')
     .select('created_at')
     .eq('user_id', userId)
@@ -431,8 +434,8 @@ export async function getBatchMastery(
   wordIds: string[],
   userId: string = 'personal-user'
 ): Promise<Map<string, WordMastery>> {
-  if (!supabase) return new Map();
-  const { data, error } = await supabase
+  if (!supabaseClient) return new Map();
+  const { data, error } = await supabaseClient
     .from('word_mastery')
     .select('*')
     .eq('user_id', userId)

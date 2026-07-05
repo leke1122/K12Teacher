@@ -80,7 +80,9 @@ function SpeakButton({ text, className }: { text: string; className?: string }) 
     } else {
       setSpeaking(true);
       speakWord(text);
-      window.speechSynthesis.onend = () => setSpeaking(false);
+      // 使用 onend 事件
+      const handleEnd = () => setSpeaking(false);
+      window.speechSynthesis.addEventListener('end', handleEnd, { once: true });
     }
   };
   
