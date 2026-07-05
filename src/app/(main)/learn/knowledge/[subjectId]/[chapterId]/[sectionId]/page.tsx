@@ -23,6 +23,7 @@ import { QuizQuestion, QuizQuestion as QuizQuestionType } from '@/components/lea
 import { LearningSummary } from '@/components/learning/LearningProgress';
 import { getSectionPageRange, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, getLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
+import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
 
 interface KnowledgePointData {
@@ -661,10 +662,35 @@ function KnowledgePageContent() {
         if (result.correct) {
           setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: true, attemptCount: newAttemptCount, isWeak: false } }));
           setCorrectAttempts(prev => prev + 1);
-        } else if (result.nextAction === 'mark-weak' || newAttemptCount > 2) {
-          setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: false, attemptCount: newAttemptCount, isWeak: true } }));
         } else {
-          setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], attemptCount: newAttemptCount } }));
+          // 答错时立即记录错题（无论第几次答错）
+          const wrongQ: WrongQuestion = {
+            id: `wq_k_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            subjectId,
+            chapterId,
+            sectionId: decodedSectionId,
+            question: currentQuestion.question,
+            options: currentQuestion.options,
+            userAnswer: answer,
+            correctAnswer: currentQuestion.correctAnswer,
+            wrongReason: result.explanation || '解题思路有误',
+            knowledgePoint: currentPoint.name,
+            weakPoint: currentPoint.name,
+            stepAnalysis: result.hint || '',
+            solutionSteps: '',
+            difficulty: 'medium',
+            createdAt: new Date().toISOString(),
+            isMastered: false,
+          };
+          console.log('[知识点学习-错题记录] 记录错题:', wrongQ);
+          addWrongQuestion(wrongQ);
+
+          // 如果多次答错或明确标记为薄弱项，则标记为薄弱项
+          if (result.nextAction === 'mark-weak' || newAttemptCount > 2) {
+            setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: false, attemptCount: newAttemptCount, isWeak: true } }));
+          } else {
+            setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], attemptCount: newAttemptCount } }));
+          }
         }
         setTotalAttempts(prev => prev + 1);
       }

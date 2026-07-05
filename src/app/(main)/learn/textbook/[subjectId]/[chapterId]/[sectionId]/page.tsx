@@ -19,6 +19,7 @@ import { useHistoryStore } from '@/stores/historyStore';
 import { extractSectionContent, findSectionContent, findNextSectionTitle, extractContentByPageRange, fixMathSymbols } from '@/lib/pdf-utils';
 import { getBantuMathB1Range, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
+import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
 
 interface PDFData {
@@ -405,6 +406,28 @@ function TextbookPageContent() {
         setCompletedSections(prev => [...prev, currentSection.id]);
       }
     } else {
+      // 答错时记录错题
+      const wrongQ: WrongQuestion = {
+        id: `wq_t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        subjectId,
+        chapterId,
+        sectionId: sectionId,
+        question: currentSection.original || tutorial.question || '课本还原题',
+        options: tutorial.options,
+        userAnswer: tutorial.options[index],
+        correctAnswer: tutorial.options[tutorial.correctIndex],
+        wrongReason: errorExplanation || '选项理解有误',
+        knowledgePoint: '课本还原-' + sectionId,
+        weakPoint: '课本还原',
+        stepAnalysis: '',
+        solutionSteps: '',
+        difficulty: 'medium',
+        createdAt: new Date().toISOString(),
+        isMastered: false,
+      };
+      console.log('[课本还原-错题记录] 记录错题:', wrongQ);
+      addWrongQuestion(wrongQ);
+
       setMastered(false);
       try {
         const res = await fetch('/api/textbook/explain-section', {

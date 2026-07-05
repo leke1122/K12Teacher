@@ -14,11 +14,15 @@ const PAGE_NAMES: Record<string, { name: string; icon: string }> = {
   '/analysis': { name: '薄弱分析', icon: '📊' },
   '/connect': { name: '串联学习', icon: '🔗' },
   '/wrong-questions': { name: '错题本', icon: '📝' },
+  '/words': { name: '单词学习', icon: '📚' },
+  '/words/stats': { name: '学习统计', icon: '📊' },
 };
 
 // 学科路径映射（优先级高于 SUBJECTS 常量）
 const SUBJECT_PATHS: Record<string, { id: string; name: string; icon: string }> = {
   '/learn/math': { id: 'math', name: '数学', icon: '📐' },
+  '/learn/math/geogebra': { id: 'math', name: 'GeoGebra', icon: '📐' },
+  '/learn/math/geogebra/model': { id: 'math', name: 'GeoGebra', icon: '📐' },
   '/learn/physics': { id: 'physics', name: '物理', icon: '⚛️' },
   '/learn/chemistry': { id: 'chemistry', name: '化学', icon: '🧪' },
   '/learn/english': { id: 'english', name: '英语', icon: '🔤' },
@@ -30,18 +34,17 @@ const SUBJECT_PATHS: Record<string, { id: string; name: string; icon: string }> 
 };
 
 function getPageInfo(pathname: string, currentSubject: string | null) {
-  // 精确匹配
+  // 精确匹配优先
   if (PAGE_NAMES[pathname]) {
     return PAGE_NAMES[pathname];
   }
 
-  // 从路径中识别学科
-  const pathSegments = pathname.split('/').filter(Boolean);
-  for (const [path, subject] of Object.entries(SUBJECT_PATHS)) {
-    const pathSegments2 = path.split('/').filter(Boolean);
-    if (pathSegments.length >= pathSegments2.length &&
-        pathSegments[0] === pathSegments2[0] &&
-        pathSegments[1] === pathSegments2[1]) {
+  // 按路径长度从长到短排序，优先匹配更具体的路径
+  const sortedPaths = Object.entries(SUBJECT_PATHS)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [path, subject] of sortedPaths) {
+    if (pathname === path || pathname.startsWith(path + '/')) {
       return { name: subject.name, icon: subject.icon };
     }
   }

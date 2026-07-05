@@ -1,50 +1,38 @@
+/**
+ * 导入单词到数据库 API
+ * POST /api/words/import
+ * Body: { words: ParsedWord[] }
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { importWords, exportWords, resetProgress } from '@/data/words/storage';
+import { insertWords } from '@/lib/wordService';
+import { ParsedWord } from '@/lib/wordParser';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { words, mode } = body;
+    const { words } = body as { words: ParsedWord[] };
 
-    if (!Array.isArray(words)) {
+    if (!words || !Array.isArray(words) || words.length === 0) {
       return NextResponse.json(
-        { success: false, message: '词库必须是数组格式' },
-        { status: 400 },
+        { success: false, error: '没有单词数据' },
+        { status: 400 }
       );
     }
 
-    const result = importWords(JSON.stringify(words), mode === 'overwrite');
+    const result = await insertWords(words);
 
     return NextResponse.json({
       success: true,
-      data: {
-        count: result.words.length,
-        action: result.action,
-      },
+      imported: result.success,
+      failed: result.failed,
+      total: words.length,
     });
   } catch (error) {
+    console.error('[API/words/import] Error:', error);
     return NextResponse.json(
-      { success: false, message: '导入失败' },
-      { status: 500 },
+      { success: false, error: '导入失败' },
+      { status: 500 }
     );
-  }
-}
-
-export async function GET() {
-  try {
-    const words = getWordsFromStorage();
-    return NextResponse.json({ success: true, data: words });
-  } catch {
-    return NextResponse.json({ success: true, data: [] });
-  }
-}
-
-function getWordsFromStorage() {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('words_data');
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
   }
 }
