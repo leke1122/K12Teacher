@@ -16,7 +16,7 @@ import {
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useSubjectStore } from '@/stores/subjectStore';
 import { useHistoryStore } from '@/stores/historyStore';
-import { extractSectionContent, findSectionContent, findNextSectionTitle } from '@/lib/pdf-utils';
+import { extractSectionContent, findSectionContent, findNextSectionTitle, extractContentByPageRange } from '@/lib/pdf-utils';
 import { getBantuMathB1Range, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { storage, StorageKeys } from '@/lib/storage';
