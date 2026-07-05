@@ -325,9 +325,8 @@ export async function updateMastery(
 
       if (upsertError) {
         console.error('[WordService] upsert error:', upsertError);
-        // Fallback to localStorage
         saveMasteryToLocal(wordId, newLevel, reviewCount);
-        return true; // 返回成功因为已经保存到localStorage
+        return true;
       }
 
       console.log('[WordService] upsert success!');
@@ -335,7 +334,8 @@ export async function updateMastery(
       // 记录学习行为
       await recordLearningAction(wordId, action);
       
-      return true;
+      // 返回新数据而不是再查一次
+      return { mastery_level: newLevel, review_count: reviewCount, next_review: nextReview } as any;
     } catch (err) {
       console.error('[WordService] supabase error, using localStorage:', err);
       // Fallback to localStorage
