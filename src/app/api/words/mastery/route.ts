@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
       .insert({
         user_id: 'personal-user',
         word_id: testWordId,
+        word_text: 'test_word',
         mastery_level: 1,
         review_count: 1,
       })

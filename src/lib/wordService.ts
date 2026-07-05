@@ -272,6 +272,21 @@ export async function updateMastery(
         reviewCount = existing.review_count || 0;
       }
 
+      // 获取单词文本（用于 word_text 字段）
+      let wordText = wordId;
+      try {
+        const { data: wordData } = await supabaseClient
+          .from('words')
+          .select('word')
+          .eq('id', wordId)
+          .single();
+        if (wordData) {
+          wordText = wordData.word;
+        }
+      } catch (e) {
+        console.log('[WordService] Could not fetch word text, using wordId');
+      }
+
       // 计算新掌握度
       switch (action) {
         case 'learned':
@@ -295,6 +310,7 @@ export async function updateMastery(
       const masteryData = {
         user_id: userId,
         word_id: wordId,
+        word_text: wordText,
         mastery_level: newLevel,
         review_count: reviewCount,
         last_review: new Date().toISOString(),
