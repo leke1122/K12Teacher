@@ -317,7 +317,7 @@ function KnowledgePageContent() {
   const weakCount = Object.values(pointStates).filter(s => s.isWeak).length;
   
   const canGoNext = currentPointState 
-    ? (currentPointState.answered && currentPointState.correct) || currentPointState.isWeak || (currentPointState.attemptCount >= 2)
+    ? currentPointState.answered && currentPointState.correct
     : true;
 
   useEffect(() => {
@@ -683,14 +683,10 @@ function KnowledgePageContent() {
             isMastered: false,
           };
           console.log('[知识点学习-错题记录] 记录错题:', wrongQ);
-          addWrongQuestion(wrongQ);
+          addWrongQuestion(wrongQ); // 异步存储，会同步到 Supabase
 
-          // 如果多次答错或明确标记为薄弱项，则标记为薄弱项
-          if (result.nextAction === 'mark-weak' || newAttemptCount > 2) {
-            setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: false, attemptCount: newAttemptCount, isWeak: true } }));
-          } else {
-            setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], attemptCount: newAttemptCount } }));
-          }
+          // 答错不标记为薄弱项，用户必须答对才能继续
+          setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], attemptCount: newAttemptCount } }));
         }
         setTotalAttempts(prev => prev + 1);
       }

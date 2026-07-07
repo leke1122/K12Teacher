@@ -426,7 +426,7 @@ function TextbookPageContent() {
         isMastered: false,
       };
       console.log('[课本还原-错题记录] 记录错题:', wrongQ);
-      addWrongQuestion(wrongQ);
+      addWrongQuestion(wrongQ); // 异步存储，会同步到 Supabase
 
       setMastered(false);
       try {

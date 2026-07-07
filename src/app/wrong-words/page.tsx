@@ -59,6 +59,9 @@ export default function WrongWordsPage() {
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(false);
 
   // 加载错词列表
   const fetchWrongQuestions = useCallback(async () => {
@@ -100,6 +103,16 @@ export default function WrongWordsPage() {
     } finally {
       setDeleting(false);
       setDeleteId(null);
+      setPassword('');
+    }
+  };
+
+  // 确认删除（带密码验证）
+  const confirmDelete = () => {
+    if (password === 'qwe123456') {
+      handleDelete();
+    } else {
+      setPasswordError(true);
     }
   };
 
@@ -276,7 +289,7 @@ export default function WrongWordsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <Dialog open={!!deleteId} onOpenChange={() => { setDeleteId(null); setPassword(''); setPasswordError(false); setPasswordVerified(false); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -287,14 +300,30 @@ export default function WrongWordsPage() {
           <p className="text-slate-600">
             确定要移除这个错词吗？移除后将不再出现在错词本中。
           </p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">请输入密码确认删除</label>
+            <Input
+              type="password"
+              placeholder="输入密码"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(false);
+              }}
+              className={passwordError ? 'border-red-500 focus:border-red-500' : ''}
+            />
+            {passwordError && (
+              <p className="text-sm text-red-500">密码错误，请重试</p>
+            )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button variant="outline" onClick={() => { setDeleteId(null); setPassword(''); setPasswordError(false); setPasswordVerified(false); }}>
               取消
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={confirmDelete}
+              disabled={deleting || !password}
             >
               {deleting ? '删除中...' : '确认删除'}
             </Button>

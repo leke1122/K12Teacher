@@ -23,10 +23,17 @@ function WrongQuestionsContent() {
   const [filter, setFilter] = useState<'all' | 'unmastered' | 'mastered'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WrongQuestion | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
 
   useEffect(() => {
-    setWrongQuestions(getWrongQuestions());
-    setWeakPoints(getWeakPoints());
+    async function loadData() {
+      const wq = await getWrongQuestions();
+      setWrongQuestions(wq);
+      setWeakPoints(getWeakPoints());
+    }
+    loadData();
   }, []);
 
   const filtered = wrongQuestions
@@ -43,15 +50,28 @@ function WrongQuestionsContent() {
     );
 
   const handleDelete = (id: string) => {
-    if (!confirm('确定要删除这条错题吗？')) return;
-    deleteWrongQuestion(id);
-    setWrongQuestions(getWrongQuestions());
-    if (selected?.id === id) setSelected(null);
+    setDeleteId(id);
+    setPassword('');
+    setPasswordError(false);
   };
 
-  const handleMaster = (id: string) => {
-    markWrongQuestionMastered(id);
-    setWrongQuestions(getWrongQuestions());
+  const confirmDelete = async () => {
+    if (password === 'qwe123456') {
+      await deleteWrongQuestion(deleteId!);
+      const wq = await getWrongQuestions();
+      setWrongQuestions(wq);
+      if (selected?.id === deleteId) setSelected(null);
+      setDeleteId(null);
+      setPassword('');
+    } else {
+      setPasswordError(true);
+    }
+  };
+
+  const handleMaster = async (id: string) => {
+    await markWrongQuestionMastered(id);
+    const wq = await getWrongQuestions();
+    setWrongQuestions(wq);
   };
 
   return (
@@ -276,6 +296,37 @@ function WrongQuestionsContent() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* 删除确认对话框 */}
+      <Dialog open={!!deleteId} onOpenChange={() => { setDeleteId(null); setPassword(''); setPasswordError(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              确认删除
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-slate-600">确定要删除这条错题吗？</p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">请输入密码确认删除</label>
+            <Input
+              type="password"
+              placeholder="输入密码"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setPasswordError(false); }}
+              className={passwordError ? 'border-red-500' : ''}
+            />
+            {passwordError && <p className="text-sm text-red-500">密码错误，请重试</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setDeleteId(null); setPassword(''); setPasswordError(false); }}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              确认删除
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

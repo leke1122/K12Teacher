@@ -800,13 +800,7 @@ export default function WordsPage() {
       console.error('Failed to fetch wrong count:', err);
     }
   }, []);
-  
-  useEffect(() => {
-    fetchWords();
-    fetchReviewWords();
-    fetchWrongCount();
-  }, [fetchWords, fetchReviewWords, fetchWrongCount]);
-  
+
   const refreshStats = async () => {
     try {
       const res = await fetch('/api/words/stats');
@@ -816,11 +810,21 @@ export default function WordsPage() {
       console.error('Failed to refresh stats:', err);
     }
   };
+
+  useEffect(() => {
+    fetchWords();
+    fetchReviewWords();
+    fetchWrongCount();
+    refreshStats();
+  }, [fetchWords, fetchReviewWords, fetchWrongCount]);
   
   const handleMaster = async () => {
     console.log('[Words] handleMaster called, currentWord:', currentWord?.id);
     if (!currentWord) return;
-    
+
+    // 1. 立即禁用按钮，防止重复点击
+    setLoading(true);
+
     try {
       console.log('[Words] Calling mastery API...');
       const res = await fetch('/api/words/mastery', {
@@ -828,37 +832,36 @@ export default function WordsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wordId: currentWord.id, action: 'mastered' }),
       });
-      
+
       const data = await res.json();
       console.log('[Words] Mastery API response:', data);
-      
+
       if (!data.success) {
         console.error('[Words] Mastery API failed:', data.error);
+        // API 失败时不更新状态
+        return;
       }
-      
-      // 实时更新本地 stats（不在这里调用 refreshStats，避免覆盖）
-      setStats(prev => ({
-        ...prev,
-        mastered: prev.mastered + 1,
-        total: Math.max(0, prev.total - 1), // 未学习数最小为0
-      }));
-      
-      // 从当前列表中移除已掌握的单词（按频率筛选）
-      setWords(prevWords => {
-        // 如果是全部级别，直接移除；如果按频率筛选，也移除（因为已掌握）
-        return prevWords.filter(w => w.id !== currentWord.id);
-      });
-      
+
+      // 从当前列表中移除已掌握的单词
+      const newWordsList = words.filter(w => w.id !== currentWord.id);
+      setWords(newWordsList);
+
       // 更新当前索引
-      setCurrentIndex(prev => {
-        if (words.length <= 1) return 0;
-        if (prev >= words.length - 1) return words.length - 2;
-        return prev;
-      });
-      
+      let newIndex = currentIndex;
+      if (newWordsList.length === 0) {
+        newIndex = 0;
+      } else if (currentIndex >= newWordsList.length) {
+        newIndex = newWordsList.length - 1;
+      }
+      setCurrentIndex(newIndex);
+
+      // 立即从 API 获取最新统计数据
       await refreshStats();
+
     } catch (err) {
       console.error('[Words] Failed to mark as mastered:', err);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -874,11 +877,25 @@ export default function WordsPage() {
     if (words.length > 0) setCurrentIndex((prev) => (prev - 1 + words.length) % words.length);
   };
   
-  const startPractice = () => {
+  const startPractice = async () => {
     setPracticeResults([]);
     setPracticeMode('practice');
     setMode('practice');
     setStudyTime(0);
+
+    // 显式加载已掌握的单词用于练习
+    try {
+      const res = await fetch('/api/words/list?status=mastered&limit=100');
+      const data = await res.json();
+      if (data.success && data.words.length > 0) {
+        setReviewWords(data.words);
+      } else {
+        setReviewWords([]);
+      }
+    } catch (err) {
+      console.error('[Words] Failed to load mastered words:', err);
+      setReviewWords([]);
+    }
   };
   
   const startWrongReview = async () => {
