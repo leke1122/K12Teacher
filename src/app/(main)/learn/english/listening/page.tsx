@@ -254,47 +254,22 @@ function ListeningContent() {
     if (!currentQuestion) return;
 
     window.speechSynthesis.cancel();
-    
+
     const utterance = new SpeechSynthesisUtterance(currentQuestion.audio);
     utterance.rate = speechRate;
     utterance.lang = 'en-US';
-    
+
     if (selectedVoice) {
       utterance.voice = selectedVoice;
     }
 
-    utterance.onstart = () => {
-      setIsPlaying(true);
-    };
-
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setHighlightedWordIndex(-1);
-    };
-
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setHighlightedWordIndex(-1);
-    };
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => { setIsPlaying(false); setHighlightedWordIndex(-1); };
+    utterance.onerror = () => { setIsPlaying(false); setHighlightedWordIndex(-1); };
 
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-
-    // 逐词高亮模拟
-    const words = currentQuestion.audio.split(' ');
-    let wordIndex = 0;
-    const highlightInterval = setInterval(() => {
-      if (!isPlaying || wordIndex >= words.length) {
-        clearInterval(highlightInterval);
-        setHighlightedWordIndex(-1);
-        return;
-      }
-      setHighlightedWordIndex(wordIndex);
-      wordIndex++;
-    }, (currentQuestion.audio.length / words.length) * 80 * (1 / speechRate));
-
-    return () => clearInterval(highlightInterval);
-  }, [currentQuestion, speechRate, selectedVoice, isPlaying]);
+  }, [currentQuestion, speechRate, selectedVoice]);
 
   const pauseAudio = () => {
     window.speechSynthesis.pause();

@@ -12,9 +12,10 @@ import {
 import {
   BookOpen, Volume2, Shuffle, ChevronLeft, ChevronRight,
   CheckCircle, RotateCcw, SkipForward, Sparkles, Target,
-  Flame, Award, Trophy, AlertCircle, Clock, Zap, Bell
+  Flame, Award, Trophy, AlertCircle, Clock, Zap, Bell, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toast';
 
 interface WordRecord {
   id: string;
@@ -927,14 +928,46 @@ export default function WordsPage() {
     try {
       const res = await fetch('/api/words/list?status=mastered&limit=999');
       const data = await res.json();
-      const masteredWords = (data.success ? (data.words || []) : []).filter((w: any) => w.mastery_level >= 5);
-      setReviewWords(masteredWords);
+      
+      // 数据存在性检查
+      if (!data.success || !data.words || data.words.length === 0) {
+        // 如果 API 返回空，尝试用 stats 判断是否真的有已掌握单词
+        const statsRes = await fetch('/api/words/stats');
+        const statsData = await statsRes.json();
+        if (statsData.success && statsData.stats.mastered > 0) {
+          // stats 显示有已掌握单词但列表为空，说明映射有问题
+          toast('已掌握单词加载失败，尝试重新同步...', 'error');
+          // 强制刷新后重试
+          await refreshStats();
+          // 等待后重试一次
+          const retryRes = await fetch('/api/words/list?status=mastered&limit=999');
+          const retryData = await retryRes.json();
+          if (retryData.success && retryData.words?.length > 0) {
+            const masteredWords = retryData.words.filter((w: any) => w.mastery_level >= 5);
+            setReviewWords(masteredWords);
+            setPracticeLoading(false);
+            return;
+          }
+        }
+        setReviewWords([]);
+      } else {
+        const masteredWords = data.words.filter((w: any) => w.mastery_level >= 5);
+        setReviewWords(masteredWords);
+      }
     } catch (err) {
       console.error('[Words] Failed to load mastered words:', err);
       setReviewWords([]);
     } finally {
       setPracticeLoading(false);
     }
+  };
+  
+  // 手动同步已掌握单词数据
+  const syncMasteredWords = async () => {
+    toast('正在同步数据...', 'success');
+    await refreshStats();
+    await fetchReviewWords();
+    toast('同步完成', 'success');
   };
   
   const startWrongReview = async () => {
@@ -1099,11 +1132,17 @@ export default function WordsPage() {
                 </div>
               </div>
             ) : reviewWords.length === 0 ? (
-              <div className="text-center py-12">
-                <Award className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-slate-600 mb-2">暂无已掌握单词</h3>
-                <p className="text-slate-400 mb-4">先去学习一些新单词并标记为已掌握，再回来练习吧</p>
-                <Button onClick={() => setMode('learn')}>进入学习模式</Button>
+              <div className="text-center py-12 space-y-4">
+                <Award className="h-16 w-16 text-slate-300 mx-auto" />
+                <h3 className="text-xl font-medium text-slate-600">暂无已掌握单词</h3>
+                <p className="text-slate-400">先去学习一些新单词并标记为已掌握，再回来练习吧</p>
+                <div className="flex justify-center gap-3">
+                  <Button variant="outline" onClick={syncMasteredWords} className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    同步数据
+                  </Button>
+                  <Button onClick={() => setMode('learn')}>进入学习模式</Button>
+                </div>
               </div>
             ) : (
               <PracticeMode key={reviewWords.map(w => w.id).join(',')} words={reviewWords} onComplete={handlePracticeComplete} />
