@@ -35,7 +35,7 @@ function TextbookPageContent() {
   const chapterId = params.chapterId as string;
   const rawSectionId = params.sectionId as string;
   const decodedSectionId = rawSectionId ? decodeURIComponent(rawSectionId) : '';
-  const sectionId = normalizeSectionId(decodedSectionId);
+  const sectionId = normalizeSectionId(decodedSectionId, chapterId);
 
   const startPage = parseInt(searchParams.get('startPage') || '3', 10);
   const endPage = parseInt(searchParams.get('endPage') || '9', 10);

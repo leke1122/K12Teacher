@@ -415,7 +415,7 @@ function KnowledgePageContent() {
   // 精确匹配键：优先子节标题，其次节标题（路径参数）
   // 例如：从 1.1.2 子节项点进来 → subSectionTitle="1.1.2", sectionId="1.1"
   // 同时标准化 sectionId（如 "第1课" → "1.1.1"）
-  const normalizedSectionId = normalizeSectionId(decodedSectionId);
+  const normalizedSectionId = normalizeSectionId(decodedSectionId, chapterId);
   const mappingKey = subSectionTitle || normalizedSectionId;
   
   console.log('[Knowledge] 章节ID标准化:', {

@@ -99,34 +99,43 @@ function getLessonToSectionMap(): Record<string, string> {
 /**
  * 将各种格式的章节ID标准化为 "X.Y.Z" 格式
  * 例如：
- * - "第1课" → "1.1.1"
- * - "第2课" → "1.1.2"
+ * - "第1课" + chapterId="2" → "2.1.1"
+ * - "第1课" → "1.1.1"（无 chapterId 时的回退）
  * - "第1.1节" → "1.1"
  * - "1.1.1" → "1.1.1"
  * - "1.1" → "1.1"
  */
-export function normalizeSectionId(sectionId: string): string {
+export function normalizeSectionId(sectionId: string, chapterId?: string): string {
   if (!sectionId) return '';
-  
+
   const cleaned = sectionId.trim();
-  console.log('[normalizeSectionId] 输入:', cleaned);
-  
+  console.log('[normalizeSectionId] 输入:', cleaned, 'chapterId:', chapterId);
+
   // 如果已经是 X.Y.Z 或 X.Y 格式，直接返回
   if (/^\d+\.\d+(\.\d+)?$/.test(cleaned)) {
     console.log('[normalizeSectionId] 已是标准格式:', cleaned);
     return cleaned;
   }
-  
-  // 第X课 → 从映射表查找
+
+  // 第X课 → 优先结合 chapterId 生成带章节前缀的节号
   const lessonMatch = cleaned.match(/^第(\d+)课$/);
   if (lessonMatch) {
-    const lessonMap = getLessonToSectionMap();
-    const result = lessonMap[cleaned];
-    if (result) {
-      console.log(`[normalizeSectionId] 第X课映射: "${cleaned}" → "${result}"`);
+    const lessonNum = parseInt(lessonMatch[1], 10);
+
+    if (chapterId) {
+      const result = `${chapterId}.${lessonNum}.${lessonNum}`;
+      console.log(`[normalizeSectionId] 第X课(章节感知): "${cleaned}" → "${result}"`);
       return result;
     }
-    // 如果映射表中没有，使用默认逻辑
+
+    // 回退：使用全局 lesson→section 映射
+    const lessonMap = getLessonToSectionMap();
+    const mapped = lessonMap[cleaned];
+    if (mapped) {
+      console.log(`[normalizeSectionId] 第X课映射: "${cleaned}" → "${mapped}"`);
+      return mapped;
+    }
+
     const num = lessonMatch[1];
     console.log(`[normalizeSectionId] 第X课无映射，使用默认: "${cleaned}" → "${num}.1.1"`);
     return `${num}.1.1`;

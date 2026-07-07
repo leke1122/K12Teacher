@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -21,21 +21,19 @@ export default function ExportButton({ className }: ExportButtonProps) {
 
   const handleExport = async (type: string, format: string) => {
     setLoading(`${type}-${format}`);
-    
+
     try {
       const response = await fetch(`/api/words/export?type=${type}&format=${format}`);
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || '导出失败');
       }
 
-      // 获取文件名
       const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
       const filename = filenameMatch?.[1] || `${type}_export.${format}`;
 
-      // 下载文件
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

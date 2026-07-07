@@ -50,42 +50,49 @@ interface PracticeResult {
 const DAILY_GOALS = [10, 20, 30, 50, 100];
 
 // 发音函数
-function speakWord(text: string, lang: string = 'en-US') {
+function speakWord(text: string, lang: string = 'en-US', onEnd?: () => void, onError?: () => void) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+  // 如果正在播放，先取消当前语音
   window.speechSynthesis.cancel();
-  
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
   utterance.rate = 0.9;
   utterance.pitch = 1;
-  
+
   const voices = window.speechSynthesis.getVoices();
   const englishVoice = voices.find(v => v.lang.startsWith('en'));
   if (englishVoice) {
     utterance.voice = englishVoice;
   }
-  
-  window.speechSynthesis.speak(utterance);
+
+  utterance.onend = onEnd ?? null;
+  utterance.onerror = onError ?? null;
+
+  // 确保 cancel 已生效后再播放
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance);
+  }, 50);
 }
 
 // 发音按钮组件
 function SpeakButton({ text, className }: { text: string; className?: string }) {
   const [speaking, setSpeaking] = useState(false);
-  
+
   const handleSpeak = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-    } else {
-      setSpeaking(true);
-      speakWord(text);
-      // 使用 onend 事件
-      const handleEnd = () => setSpeaking(false);
-      window.speechSynthesis.addEventListener('end', handleEnd, { once: true });
-    }
+
+    // 每次点击都重新播放，无论当前是否正在播放
+    setSpeaking(true);
+    speakWord(
+      text,
+      'en-US',
+      () => setSpeaking(false),
+      () => setSpeaking(false)
+    );
   };
-  
+
   return (
     <Button
       variant="ghost"
@@ -107,10 +114,12 @@ function WordCard({
   word,
   onMaster,
   onSkip,
+  isMastering,
 }: {
   word: WordRecord;
   onMaster: () => void;
   onSkip: () => void;
+  isMastering?: boolean;
 }) {
   const levelStyles = {
     high: {
@@ -263,10 +272,23 @@ function WordCard({
           <Button
             size="sm"
             onClick={onMaster}
-            className="flex items-center gap-1 bg-green-600 hover:bg-green-700 px-6"
+            disabled={isMastering}
+            className={cn(
+              'flex items-center gap-1 px-6 transition-transform',
+              isMastering && 'scale-95 opacity-80'
+            )}
           >
-            <CheckCircle className="h-4 w-4" />
-            已掌握
+            {isMastering ? (
+              <>
+                <span className="h-4 w-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                处理中
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                已掌握
+              </>
+            )}
           </Button>
         </div>
       </CardContent>
@@ -720,6 +742,8 @@ export default function WordsPage() {
   
   const [studyTime, setStudyTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isMastering, setIsMastering] = useState(false);
+  const [practiceLoading, setPracticeLoading] = useState(false);
   
   const currentWord = words[currentIndex] || null;
   
@@ -820,9 +844,9 @@ export default function WordsPage() {
   
   const handleMaster = async () => {
     console.log('[Words] handleMaster called, currentWord:', currentWord?.id);
-    if (!currentWord) return;
+    if (!currentWord || isMastering) return;
 
-    // 1. 立即禁用按钮，防止重复点击
+    setIsMastering(true);
     setLoading(true);
 
     try {
@@ -838,13 +862,23 @@ export default function WordsPage() {
 
       if (!data.success) {
         console.error('[Words] Mastery API failed:', data.error);
-        // API 失败时不更新状态
         return;
       }
+
+      // 乐观更新统计，保证 UI 立即变化
+      setStats(prev => ({
+        ...prev,
+        mastered: prev.mastered + 1,
+        learned: prev.learned + 1,
+        total: Math.max(0, prev.total - 1),
+      }));
 
       // 从当前列表中移除已掌握的单词
       const newWordsList = words.filter(w => w.id !== currentWord.id);
       setWords(newWordsList);
+
+      // 同步维护练习词池，避免旧词仍可进入复习
+      setReviewWords(prev => prev.filter(w => w.id !== currentWord.id));
 
       // 更新当前索引
       let newIndex = currentIndex;
@@ -855,12 +889,12 @@ export default function WordsPage() {
       }
       setCurrentIndex(newIndex);
 
-      // 立即从 API 获取最新统计数据
+      // 后台刷新一次统计数据，以服务端为准
       await refreshStats();
-
     } catch (err) {
       console.error('[Words] Failed to mark as mastered:', err);
     } finally {
+      setIsMastering(false);
       setLoading(false);
     }
   };
@@ -882,19 +916,18 @@ export default function WordsPage() {
     setPracticeMode('practice');
     setMode('practice');
     setStudyTime(0);
+    setPracticeLoading(true);
 
-    // 显式加载已掌握的单词用于练习
     try {
-      const res = await fetch('/api/words/list?status=mastered&limit=100');
+      const res = await fetch('/api/words/list?status=mastered&limit=999');
       const data = await res.json();
-      if (data.success && data.words.length > 0) {
-        setReviewWords(data.words);
-      } else {
-        setReviewWords([]);
-      }
+      const masteredWords = data.success ? (data.words || []) : [];
+      setReviewWords(masteredWords);
     } catch (err) {
       console.error('[Words] Failed to load mastered words:', err);
       setReviewWords([]);
+    } finally {
+      setPracticeLoading(false);
     }
   };
   
@@ -1030,11 +1063,12 @@ export default function WordsPage() {
               </div>
             ) : currentWord ? (
               <div className="space-y-4">
-                <WordCard
-                  word={currentWord}
-                  onMaster={handleMaster}
-                  onSkip={handleSkip}
-                />
+              <WordCard
+                word={currentWord}
+                onMaster={handleMaster}
+                onSkip={handleSkip}
+                isMastering={isMastering}
+              />
                 
                 {/* 底部导航 */}
                 <div className="flex justify-center items-center gap-3">
@@ -1051,15 +1085,22 @@ export default function WordsPage() {
               </div>
             ) : null
           ) : mode === 'practice' && practiceMode === 'practice' ? (
-            reviewWords.length === 0 ? (
+            practiceLoading ? (
+              <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                  <div className="h-12 w-12 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-slate-500">正在加载练习单词...</p>
+                </div>
+              </div>
+            ) : reviewWords.length === 0 ? (
               <div className="text-center py-12">
                 <Award className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-slate-600 mb-2">暂无需要练习的单词</h3>
-                <p className="text-slate-400 mb-4">先学习一些新单词，掌握后再来练习吧</p>
+                <h3 className="text-xl font-medium text-slate-600 mb-2">暂无已掌握单词</h3>
+                <p className="text-slate-400 mb-4">先去学习一些新单词并标记为已掌握，再回来练习吧</p>
                 <Button onClick={() => setMode('learn')}>进入学习模式</Button>
               </div>
             ) : (
-              <PracticeMode words={reviewWords} onComplete={handlePracticeComplete} />
+              <PracticeMode key={reviewWords.map(w => w.id).join(',')} words={reviewWords} onComplete={handlePracticeComplete} />
             )
           ) : (
             <PracticeComplete
