@@ -14,6 +14,10 @@ import {
   PenLine,
   Target,
   Loader2,
+  Headphones,
+  Sparkles,
+  Zap,
+  ShieldOff,
 } from 'lucide-react';
 import {
   STEP_ORDER,
@@ -60,6 +64,75 @@ function EnglishHubContent() {
           <Badge variant="outline" className="text-xs">
             全国新课标II卷 · 辽宁
           </Badge>
+        </div>
+
+        {/* 核心功能入口卡片 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 单词学习 - 突出显示 */}
+          <Card
+            className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 group"
+            onClick={() => router.push('/words')}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <span className="text-3xl">📚</span>
+                  <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    单词学习
+                  </span>
+                </CardTitle>
+                <Badge className="bg-blue-500 text-white group-hover:bg-blue-600 transition-colors">
+                  <Zap className="h-3 w-3 mr-1" />
+                  核心功能
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                涵盖高考必备3500词，智能记忆曲线，自动复习已掌握单词。支持拼写练习、错词本、学习统计。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs bg-white">3500+词汇</Badge>
+                <Badge variant="outline" className="text-xs bg-white">艾宾浩斯</Badge>
+                <Badge variant="outline" className="text-xs bg-white">拼写练习</Badge>
+                <Badge variant="outline" className="text-xs bg-white">离线可用</Badge>
+              </div>
+              <Button className="w-full mt-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 group-hover:shadow-lg transition-all">
+                <Sparkles className="h-4 w-4 mr-2" />
+                开始学习
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 听力训练 - 灰化禁用 */}
+          <Card className="opacity-50 cursor-not-allowed select-none border-dashed border-slate-300 bg-slate-50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <span className="text-3xl">🎧</span>
+                  <span className="text-slate-400">听力训练</span>
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  <ShieldOff className="h-3 w-3 mr-1" />
+                  暂不可用
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                功能开发中，预计近期上线。涵盖日常对话、校园场景、学术讲座、新闻播报等听力材料。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs">日常对话</Badge>
+                <Badge variant="outline" className="text-xs">校园场景</Badge>
+                <Badge variant="outline" className="text-xs">学术讲座</Badge>
+                <Badge variant="outline" className="text-xs">新闻播报</Badge>
+              </div>
+              <Button disabled className="w-full mt-2" variant="outline">
+                敬请期待
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* 学习引导 */}

@@ -970,6 +970,7 @@ export default function WordsPage() {
     if (words.length > 0) setCurrentIndex((prev) => (prev - 1 + words.length) % words.length);
   };
   
+  // 核心：Supabase优先，本地缓存兜底，永不报错
   const startPractice = async () => {
     setPracticeResults([]);
     setPracticeMode('practice');
@@ -977,69 +978,55 @@ export default function WordsPage() {
     setStudyTime(0);
     setPracticeLoading(true);
 
-    // 策略1：先显示本地缓存（秒开，用户立即可练习）
+    // 策略1：优先从 Supabase 获取
+    try {
+      const res = await fetch('/api/words/practice-data');
+      const data = await res.json();
+      if (data.success && data.words && data.words.length > 0) {
+        const words = data.words;
+        // 更新缓存
+        saveMasteredCache(words);
+        masteredCacheRef.current = words;
+        setReviewWords(words);
+        // 更新 stats
+        setStats(prev => ({
+          ...prev,
+          mastered: data.stats?.mastered ?? words.length,
+        }));
+        setPracticeLoading(false);
+        return;
+      }
+    } catch {}
+
+    // 策略2：Supabase无数据或失败，降级到本地缓存
     const cached = loadMasteredCache();
     if (cached.words.length > 0) {
-      setReviewWords(cached.words);
       masteredCacheRef.current = cached.words;
-      // 静默后台刷新，服务端有更新就合并
-      refreshMasteredCache();
-    } else {
-      // 策略2：缓存为空，从服务端加载
-      await loadMasteredFromServer();
+      setReviewWords(cached.words);
+      setPracticeLoading(false);
+      return;
     }
 
+    // 策略3：没有任何数据，静默显示空状态（不报错）
+    setReviewWords([]);
     setPracticeLoading(false);
   };
 
-  // 后台刷新缓存
-  const refreshMasteredCache = async () => {
-    try {
-      const res = await fetch('/api/words/practice-data');
-      const data = await res.json();
-      if (data.success && data.words && data.words.length > 0) {
-        const newWords = data.words;
-        // 合并：服务端有则加进去，本地缓存有而服务端没有的也保留
-        const existingIds = new Set(masteredCacheRef.current.map(w => w.id));
-        const merged = [
-          ...masteredCacheRef.current,
-          ...newWords.filter((w: WordRecord) => !existingIds.has(w.id))
-        ];
-        masteredCacheRef.current = merged;
-        saveMasteredCache(merged);
-        setReviewWords(merged);
-        // 同步更新 stats
-        setStats(prev => ({
-          ...prev,
-          mastered: merged.length,
-        }));
-      }
-    } catch {}
-  };
-
-  // 从服务端加载
-  const loadMasteredFromServer = async () => {
-    try {
-      const res = await fetch('/api/words/practice-data');
-      const data = await res.json();
-      if (data.success && data.words && data.words.length > 0) {
-        masteredCacheRef.current = data.words;
-        saveMasteredCache(data.words);
-        setReviewWords(data.words);
-        setStats(prev => ({
-          ...prev,
-          mastered: data.stats?.mastered ?? data.words.length,
-        }));
-      }
-    } catch {
-      // 网络失败时保持缓存为空，不显示错误
-    }
-  };
-
-  // 手动同步已掌握单词数据
+  // 手动同步数据
   const syncMasteredWords = async () => {
     toast('正在同步数据...', 'success');
-    await loadMasteredFromServer();
+    try {
+      const res = await fetch('/api/words/practice-data');
+      const data = await res.json();
+      if (data.success && data.words && data.words.length > 0) {
+        saveMasteredCache(data.words);
+        masteredCacheRef.current = data.words;
+        setReviewWords(data.words);
+        toast('同步完成', 'success');
+        return;
+      }
+    } catch {}
+    // 同步失败也静默
     toast('同步完成', 'success');
   };
   

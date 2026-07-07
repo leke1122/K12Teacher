@@ -101,46 +101,46 @@ export async function getWords(params: {
   let masteryMap: Map<string, number> = new Map();
   let masteries: { word_id: string; mastery_level: number }[] = [];
 
-  // 特殊处理 mastered：用 RPC 执行 JOIN 查询，一次获取所有数据
+  // 特殊处理 mastered：先查 mastery IDs，再查单词详情（绕过外键限制）
   if (status === 'mastered' && supabaseClient) {
-    const { data, error } = await supabaseClient
+    // 步骤1：查 mastery 记录
+    const { data: masteryData, error: masteryError } = await supabaseClient
       .from('word_mastery')
-      .select(`
-        mastery_level,
-        updated_at,
-        words:word_id (
-          id,
-          word,
-          phonetic,
-          part_of_speech,
-          meaning,
-          example,
-          translation,
-          collocations,
-          synonyms,
-          antonyms,
-          frequency_level,
-          created_at
-        )
-      `)
+      .select('word_id, mastery_level, updated_at')
       .eq('user_id', userId)
       .gte('mastery_level', 5)
       .order('updated_at', { ascending: false })
       .range(from, to);
 
-    if (error) {
-      console.error('[WordService] mastered query error:', error);
+    if (masteryError) {
+      console.error('[WordService] mastered query error:', masteryError);
       return { words: [], total: 0 };
     }
 
-    if (data && data.length > 0) {
-      const wordsWithMastery = data.map((row: any) => ({
-        ...row.words,
-        mastery_level: row.mastery_level,
-      })).filter((w: any) => w && w.id != null);
-      return { words: wordsWithMastery, total: data.length };
+    if (!masteryData || masteryData.length === 0) {
+      return { words: [], total: 0 };
     }
-    return { words: [], total: 0 };
+
+    // 步骤2：用 IN 查询获取单词详情
+    const wordIds = masteryData.map(r => r.word_id);
+    const { data: wordsData, error: wordsError } = await supabaseClient
+      .from('words')
+      .select('*')
+      .in('id', wordIds);
+
+    if (wordsError) {
+      console.error('[WordService] words query error:', wordsError);
+      return { words: [], total: 0 };
+    }
+
+    // 合并 mastery 信息
+    const masteryMap = new Map(masteryData.map(r => [r.word_id, r.mastery_level]));
+    const wordsWithMastery = (wordsData || []).map((w: any) => ({
+      ...w,
+      mastery_level: masteryMap.get(w.id) || 5,
+    }));
+
+    return { words: wordsWithMastery, total: masteryData.length };
   }
 
   query = query.range(from, to).order('word');
@@ -691,35 +691,43 @@ async function getWordStatsWithMasteredFallback(
 }> {
   const today = new Date().toISOString().split('T')[0];
 
-  // 一次性获取所有数据（使用并发 Promise.all，但只有 2 个请求）
-  const [statsResult, masteredResult] = await Promise.all([
-    // 统计查询 - 全部并发执行
-    Promise.all([
-      supabaseClient!.from('words').select('*', { count: 'exact', head: true }),
-      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gt('mastery_level', 0),
-      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('mastery_level', 5),
-      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).lt('mastery_level', 5).lte('next_review', today),
-      supabaseClient!.from('word_learning_records').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', `${today}T00:00:00`),
-      supabaseClient!.from('word_learning_records').select('created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(365),
-    ]),
-    // 已掌握单词查询 - 使用 JOIN 一次性获取（避免 IN 查询）
-    supabaseClient!.from('word_mastery')
-      .select(`
-        mastery_level,
-        words:word_id (
-          id, word, phonetic, part_of_speech, meaning, example, translation,
-          collocations, synonyms, antonyms, frequency_level, created_at
-        )
-      `)
-      .eq('user_id', userId)
-      .gte('mastery_level', 5)
-      .order('updated_at', { ascending: false })
-      .range(offset, offset + limit - 1),
-  ]);
+  // 顺序查询，避免免费层并发限制导致部分查询超时
+  const totalResult = await supabaseClient!.from('words').select('*', { count: 'exact', head: true });
+  const learnedResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gt('mastery_level', 0);
+  const masteredCountResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('mastery_level', 5);
+  const reviewResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).lt('mastery_level', 5).lte('next_review', today);
+  const todayResult = await supabaseClient!.from('word_learning_records').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', `${today}T00:00:00`);
+  const streakResult = await supabaseClient!.from('word_learning_records').select('created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(365);
+
+  // 两步查询已掌握单词（绕过外键限制）
+  const masteredWords: WordRecord[] = [];
+  const { data: masteryData } = await supabaseClient!.from('word_mastery')
+    .select('word_id, mastery_level')
+    .eq('user_id', userId)
+    .gte('mastery_level', 5)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (masteryData && masteryData.length > 0) {
+    const wordIds = masteryData.map(r => r.word_id);
+    const { data: wordsData } = await supabaseClient!.from('words')
+      .select('*')
+      .in('id', wordIds);
+
+    if (wordsData) {
+      const masteryMap = new Map(masteryData.map(r => [r.word_id, r.mastery_level]));
+      for (const w of wordsData as any[]) {
+        if (w.id != null) {
+          masteredWords.push({
+            ...w,
+            mastery_level: masteryMap.get(w.id) || 5,
+          });
+        }
+      }
+    }
+  }
 
   // 解析统计数据
-  const [totalResult, learnedResult, masteredCountResult, reviewResult, todayResult, streakResult] = statsResult;
-
   const totalWords = totalResult.count || 0;
   const learned = learnedResult.count || 0;
   const mastered = masteredCountResult.count || 0;
@@ -738,19 +746,6 @@ async function getWordStatsWithMasteredFallback(
     while (dates.has(checkDate.toISOString().split('T')[0])) {
       streakDays++;
       checkDate.setDate(checkDate.getDate() - 1);
-    }
-  }
-
-  // 解析已掌握单词
-  const masteredWords: WordRecord[] = [];
-  if (masteredResult.data && masteredResult.data.length > 0) {
-    for (const row of masteredResult.data as any[]) {
-      if (row.words && row.words.id != null) {
-        masteredWords.push({
-          ...row.words,
-          mastery_level: row.mastery_level,
-        });
-      }
     }
   }
 
