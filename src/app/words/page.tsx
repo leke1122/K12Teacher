@@ -733,7 +733,7 @@ export default function WordsPage() {
   const [frequency, setFrequency] = useState<'high' | 'medium' | 'low' | 'all'>('high');
   const [mode, setMode] = useState<'learn' | 'practice'>('learn');
   const [reviewWords, setReviewWords] = useState<WordRecord[]>([]);
-  const [dailyGoal, setDailyGoal] = useState(20);
+  const [dailyGoal, setDailyGoal] = useState(30);
   const [wrongCount, setWrongCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
@@ -787,7 +787,9 @@ export default function WordsPage() {
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
-        setWords(data.words || []);
+        // 防御性过滤：确保只有真正的未掌握词（mastery_level === 0 且未出现在 word_mastery 中）才显示
+        const unlearnedWords = (data.words || []).filter((w: any) => !w.mastery_level || w.mastery_level === 0);
+        setWords(unlearnedWords);
         // 只更新 total（未学习数），保留其他本地 stats
         setStats(prev => ({ ...prev, total: data.stats.total }));
         setCurrentIndex(0);
@@ -801,14 +803,12 @@ export default function WordsPage() {
   
   const fetchReviewWords = useCallback(async () => {
     try {
-      // 获取所有单词，API 会附加 mastery_level
-      const params = new URLSearchParams({ status: 'all', limit: '100' });
+      const params = new URLSearchParams({ status: 'mastered', limit: '100' });
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
-        // 过滤出已学习的单词（mastery_level > 0）
-        const learnedWords = data.words?.filter((w: any) => w.mastery_level > 0) || [];
-        setReviewWords(learnedWords);
+        const masteredWords = (data.words || []).filter((w: any) => w.mastery_level >= 5);
+        setReviewWords(masteredWords);
       }
     } catch (err) {
       console.error('Failed to fetch review words:', err);
@@ -877,8 +877,14 @@ export default function WordsPage() {
       const newWordsList = words.filter(w => w.id !== currentWord.id);
       setWords(newWordsList);
 
-      // 同步维护练习词池，避免旧词仍可进入复习
-      setReviewWords(prev => prev.filter(w => w.id !== currentWord.id));
+      // 同步维护练习词池，将新掌握的单词加入复习列表
+      setReviewWords(prev => {
+        const alreadyIn = prev.some(w => w.id === currentWord.id);
+        if (!alreadyIn) {
+          return [{ ...currentWord, mastery_level: 5 }, ...prev];
+        }
+        return prev;
+      });
 
       // 更新当前索引
       let newIndex = currentIndex;
@@ -889,7 +895,7 @@ export default function WordsPage() {
       }
       setCurrentIndex(newIndex);
 
-      // 后台刷新一次统计数据，以服务端为准
+      // 强制刷新统计数据，确保前端与数据库一致
       await refreshStats();
     } catch (err) {
       console.error('[Words] Failed to mark as mastered:', err);
@@ -921,7 +927,7 @@ export default function WordsPage() {
     try {
       const res = await fetch('/api/words/list?status=mastered&limit=999');
       const data = await res.json();
-      const masteredWords = data.success ? (data.words || []) : [];
+      const masteredWords = (data.success ? (data.words || []) : []).filter((w: any) => w.mastery_level >= 5);
       setReviewWords(masteredWords);
     } catch (err) {
       console.error('[Words] Failed to load mastered words:', err);

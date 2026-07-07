@@ -96,6 +96,41 @@ export async function getWords(params: {
   // 分页
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+
+  // 关联 mastery 表获取每个单词的掌握状态
+  let masteryMap: Map<string, number> = new Map();
+  let masteries: { word_id: string; mastery_level: number }[] = [];
+
+  // 特殊处理 mastered：直接从 word_mastery 表查，避免从 words 表截断导致漏取
+  if (status === 'mastered' && supabaseClient) {
+    const { data: masteryData } = await supabaseClient
+      .from('word_mastery')
+      .select('word_id, mastery_level')
+      .eq('user_id', userId)
+      .gte('mastery_level', 5)
+      .order('updated_at', { ascending: false })
+      .range(from, to);
+
+    masteries = masteryData || [];
+    const masteredIds = masteries.map(m => m.word_id);
+    if (masteredIds.length > 0) {
+      const { data: wordsData, error: wordsError } = await supabaseClient
+        .from('words')
+        .select('*')
+        .in('id', masteredIds);
+
+      if (!wordsError && wordsData) {
+        masteryMap = new Map(masteries.map(m => [m.word_id, m.mastery_level]));
+        const wordsWithMastery = wordsData.map(w => ({
+          ...w,
+          mastery_level: masteryMap.get(w.id) || 0,
+        }));
+        return { words: wordsWithMastery, total: masteries.length };
+      }
+    }
+    return { words: [], total: 0 };
+  }
+
   query = query.range(from, to).order('word');
 
   const { data, error, count } = await query;
@@ -108,14 +143,14 @@ export async function getWords(params: {
   // 关联 mastery 表获取每个单词的掌握状态
   if (data && data.length > 0) {
     const wordIds = data.map(w => w.id);
-    const { data: masteries } = await supabaseClient
+    const { data: masteryData } = await supabaseClient
       .from('word_mastery')
       .select('word_id, mastery_level')
       .eq('user_id', userId)
       .in('word_id', wordIds);
 
-    const masteryMap = new Map();
-    masteries?.forEach(m => masteryMap.set(m.word_id, m.mastery_level));
+    masteries = masteryData || [];
+    masteryMap = new Map(masteries.map(m => [m.word_id, m.mastery_level]));
 
     // 为每个单词附加 mastery_level 字段
     const wordsWithMastery = data.map(w => ({

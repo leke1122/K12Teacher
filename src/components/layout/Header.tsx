@@ -29,7 +29,6 @@ const SUBJECT_PATHS: Record<string, { id: string; name: string; icon: string }> 
   '/learn/chinese': { id: 'chinese', name: '语文', icon: '📖' },
   '/learn/biology': { id: 'biology', name: '生物', icon: '🧬' },
   '/learn/geography': { id: 'geography', name: '地理', icon: '🌍' },
-  '/learn/politics': { id: 'politics', name: '政治', icon: '📜' },
   '/learn/history': { id: 'history', name: '历史', icon: '🏛️' },
 };
 
