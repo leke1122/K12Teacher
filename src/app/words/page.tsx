@@ -926,36 +926,32 @@ export default function WordsPage() {
     setPracticeLoading(true);
 
     try {
-      const res = await fetch('/api/words/list?status=mastered&limit=999');
+      // 使用新的统一 API，一次请求获取统计和已掌握单词
+      const res = await fetch('/api/words/practice-data');
       const data = await res.json();
-      
-      // 数据存在性检查
-      if (!data.success || !data.words || data.words.length === 0) {
-        // 如果 API 返回空，尝试用 stats 判断是否真的有已掌握单词
+
+      if (data.success && data.words && data.words.length > 0) {
+        // 用新 API 返回的数据更新 stats（确保数据一致）
+        setStats(prev => ({
+          ...prev,
+          total: data.stats?.total ?? prev.total,
+          mastered: data.stats?.mastered ?? data.words.length,
+        }));
+        setReviewWords(data.words);
+      } else {
+        // API 返回空或失败，检查 stats 是否显示有已掌握单词
         const statsRes = await fetch('/api/words/stats');
         const statsData = await statsRes.json();
-        if (statsData.success && statsData.stats.mastered > 0) {
-          // stats 显示有已掌握单词但列表为空，说明映射有问题
+        if (statsData.success && (statsData.stats?.mastered || 0) > 0) {
+          // stats 有单词但列表为空，说明数据不一致
           toast('已掌握单词加载失败，尝试重新同步...', 'error');
-          // 强制刷新后重试
           await refreshStats();
-          // 等待后重试一次
-          const retryRes = await fetch('/api/words/list?status=mastered&limit=999');
-          const retryData = await retryRes.json();
-          if (retryData.success && retryData.words?.length > 0) {
-            const masteredWords = retryData.words.filter((w: any) => w.mastery_level >= 5);
-            setReviewWords(masteredWords);
-            setPracticeLoading(false);
-            return;
-          }
         }
         setReviewWords([]);
-      } else {
-        const masteredWords = data.words.filter((w: any) => w.mastery_level >= 5);
-        setReviewWords(masteredWords);
       }
     } catch (err) {
-      console.error('[Words] Failed to load mastered words:', err);
+      console.error('[Words] Failed to load practice data:', err);
+      toast('加载失败，请重试', 'error');
       setReviewWords([]);
     } finally {
       setPracticeLoading(false);

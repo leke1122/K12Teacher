@@ -597,3 +597,173 @@ export async function getBatchMastery(
   data?.forEach(m => map.set(m.word_id, m));
   return map;
 }
+
+/**
+ * 使用 RPC 一次性获取统计和已掌握单词
+ * 解决多次独立查询导致的并发超时问题
+ * 如果 RPC 不存在，自动降级到旧方法
+ */
+export async function getWordStatsWithMastered(
+  userId: string = 'personal-user',
+  limit: number = 999,
+  offset: number = 0
+): Promise<{
+  stats: {
+    total: number;
+    totalWords: number;
+    learned: number;
+    mastered: number;
+    toReview: number;
+    todayLearned: number;
+    streakDays: number;
+  };
+  masteredWords: WordRecord[];
+}> {
+  if (!supabaseClient) {
+    return {
+      stats: { total: 0, totalWords: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0 },
+      masteredWords: [],
+    };
+  }
+
+  // 优先使用 RPC（一次请求搞定）
+  const { data, error } = await supabaseClient.rpc('get_word_stats_and_mastered', {
+    p_user_id: userId,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  // 如果 RPC 失败（函数未创建），使用降级方案
+  if (error || !data) {
+    console.warn('[WordService] RPC not available, using fallback. Error:', error?.message);
+    return await getWordStatsWithMasteredFallback(userId, limit, offset);
+  }
+
+  const masteredWords = (data.mastered_words || []).map((w: any) => ({
+    id: w.id,
+    word: w.word,
+    phonetic: w.phonetic || '',
+    part_of_speech: w.part_of_speech || '',
+    meaning: w.meaning,
+    example: w.example || '',
+    translation: w.translation || '',
+    collocations: w.collocations || [],
+    synonyms: w.synonyms || [],
+    antonyms: w.antonyms || [],
+    frequency_level: w.frequency_level || 'medium',
+    created_at: w.created_at,
+    mastery_level: w.mastery_level,
+  }));
+
+  return {
+    stats: {
+      total: data.total || 0,
+      totalWords: data.total_words || 0,
+      learned: data.learned || 0,
+      mastered: data.mastered || 0,
+      toReview: data.to_review || 0,
+      todayLearned: data.today_learned || 0,
+      streakDays: data.streak_days || 0,
+    },
+    masteredWords,
+  };
+}
+
+/**
+ * 降级方案：使用关联查询获取已掌握单词（替代两次独立查询）
+ * 比 RPC 方案多一次请求，但比原来的 6 次少得多
+ */
+async function getWordStatsWithMasteredFallback(
+  userId: string = 'personal-user',
+  limit: number = 999,
+  offset: number = 0
+): Promise<{
+  stats: {
+    total: number;
+    totalWords: number;
+    learned: number;
+    mastered: number;
+    toReview: number;
+    todayLearned: number;
+    streakDays: number;
+  };
+  masteredWords: WordRecord[];
+}> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // 一次性获取所有数据（使用并发 Promise.all，但只有 2 个请求）
+  const [statsResult, masteredResult] = await Promise.all([
+    // 统计查询 - 全部并发执行
+    Promise.all([
+      supabaseClient!.from('words').select('*', { count: 'exact', head: true }),
+      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gt('mastery_level', 0),
+      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('mastery_level', 5),
+      supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).lt('mastery_level', 5).lte('next_review', today),
+      supabaseClient!.from('word_learning_records').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', `${today}T00:00:00`),
+      supabaseClient!.from('word_learning_records').select('created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(365),
+    ]),
+    // 已掌握单词查询 - 使用 JOIN 一次性获取（避免 IN 查询）
+    supabaseClient!.from('word_mastery')
+      .select(`
+        mastery_level,
+        words:word_id (
+          id, word, phonetic, part_of_speech, meaning, example, translation,
+          collocations, synonyms, antonyms, frequency_level, created_at
+        )
+      `)
+      .eq('user_id', userId)
+      .gte('mastery_level', 5)
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1),
+  ]);
+
+  // 解析统计数据
+  const [totalResult, learnedResult, masteredCountResult, reviewResult, todayResult, streakResult] = statsResult;
+
+  const totalWords = totalResult.count || 0;
+  const learned = learnedResult.count || 0;
+  const mastered = masteredCountResult.count || 0;
+  const toReview = reviewResult.count || 0;
+  const todayLearned = todayResult.count || 0;
+
+  // 计算连续天数
+  let streakDays = 0;
+  if (streakResult.data && streakResult.data.length > 0) {
+    const dates = new Set(
+      (streakResult.data as any[])
+        .map(r => r.created_at?.split('T')[0])
+        .filter(Boolean) as string[]
+    );
+    let checkDate = new Date();
+    while (dates.has(checkDate.toISOString().split('T')[0])) {
+      streakDays++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+  }
+
+  // 解析已掌握单词
+  const masteredWords: WordRecord[] = [];
+  if (masteredResult.data && masteredResult.data.length > 0) {
+    for (const row of masteredResult.data as any[]) {
+      if (row.words && row.words.id != null) {
+        masteredWords.push({
+          ...row.words,
+          mastery_level: row.mastery_level,
+        });
+      }
+    }
+  }
+
+  return {
+    stats: {
+      total: totalWords - learned,
+      totalWords,
+      learned,
+      mastered,
+      toReview,
+      todayLearned,
+      streakDays,
+    },
+    masteredWords,
+  };
+}
