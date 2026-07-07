@@ -121,7 +121,11 @@ export async function getWords(params: {
 
       if (!wordsError && wordsData) {
         masteryMap = new Map(masteries.map(m => [m.word_id, m.mastery_level]));
-        const wordsWithMastery = wordsData.map(w => ({
+        // IN 查询不保证返回顺序与 masteredIds 一致，必须按 masteredIds 排序
+        const sortedWords = masteredIds
+          .map(id => wordsData.find((w: any) => w.id === id))
+          .filter(Boolean);
+        const wordsWithMastery = sortedWords.map((w: any) => ({
           ...w,
           mastery_level: masteryMap.get(w.id) || 0,
         }));
