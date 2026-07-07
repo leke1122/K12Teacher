@@ -17,6 +17,10 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toast';
 
+// 本地缓存键名
+const MASTERED_CACHE_KEY = 'edumind_mastered_words_v2';
+const STATS_CACHE_KEY = 'edumind_stats_v2';
+
 interface WordRecord {
   id: string;
   word: string;
@@ -40,6 +44,46 @@ interface Stats {
   streakDays: number;
   weeklyLearned: number;
   totalAccuracy: number;
+}
+
+interface PracticeResult {
+  word: WordRecord;
+  correct: boolean;
+  userAnswer: string;
+}
+
+// ==================== 本地缓存管理 ====================
+
+interface CachedMasteredData {
+  words: WordRecord[];
+  count: number;
+  updatedAt: string;
+}
+
+function loadMasteredCache(): CachedMasteredData {
+  try {
+    const raw = localStorage.getItem(MASTERED_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // 缓存超过7天视为过期
+      const age = Date.now() - new Date(parsed.updatedAt).getTime();
+      if (age < 7 * 24 * 60 * 60 * 1000) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return { words: [], count: 0, updatedAt: new Date().toISOString() };
+}
+
+function saveMasteredCache(words: WordRecord[]) {
+  try {
+    const data: CachedMasteredData = {
+      words,
+      count: words.length,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(MASTERED_CACHE_KEY, JSON.stringify(data));
+  } catch {}
 }
 
 interface PracticeResult {
@@ -745,8 +789,16 @@ export default function WordsPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [isMastering, setIsMastering] = useState(false);
   const [practiceLoading, setPracticeLoading] = useState(false);
-  
-  const currentWord = words[currentIndex] || null;
+  const masteredCacheRef = useRef<WordRecord[]>(loadMasteredCache().words);
+
+  // 初始化：从本地缓存加载已掌握单词
+  useEffect(() => {
+    const cached = loadMasteredCache();
+    if (cached.words.length > 0) {
+      masteredCacheRef.current = cached.words;
+      setReviewWords(cached.words);
+    }
+  }, []);
   
   // 加载设置
   useEffect(() => {
@@ -773,7 +825,9 @@ export default function WordsPage() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [mode, loading]);
-  
+
+  const currentWord = words[currentIndex] || null;
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -879,13 +933,11 @@ export default function WordsPage() {
       setWords(newWordsList);
 
       // 同步维护练习词池，将新掌握的单词加入复习列表
-      setReviewWords(prev => {
-        const alreadyIn = prev.some(w => w.id === currentWord.id);
-        if (!alreadyIn) {
-          return [{ ...currentWord, mastery_level: 5 }, ...prev];
-        }
-        return prev;
-      });
+      const newMasteredWord = { ...currentWord, mastery_level: 5 };
+      const newReviewList = [{ ...currentWord, mastery_level: 5 }, ...reviewWords];
+      setReviewWords(newReviewList);
+      masteredCacheRef.current = newReviewList;
+      saveMasteredCache(newReviewList);
 
       // 更新当前索引
       let newIndex = currentIndex;
@@ -925,44 +977,69 @@ export default function WordsPage() {
     setStudyTime(0);
     setPracticeLoading(true);
 
+    // 策略1：先显示本地缓存（秒开，用户立即可练习）
+    const cached = loadMasteredCache();
+    if (cached.words.length > 0) {
+      setReviewWords(cached.words);
+      masteredCacheRef.current = cached.words;
+      // 静默后台刷新，服务端有更新就合并
+      refreshMasteredCache();
+    } else {
+      // 策略2：缓存为空，从服务端加载
+      await loadMasteredFromServer();
+    }
+
+    setPracticeLoading(false);
+  };
+
+  // 后台刷新缓存
+  const refreshMasteredCache = async () => {
     try {
-      // 使用新的统一 API，一次请求获取统计和已掌握单词
       const res = await fetch('/api/words/practice-data');
       const data = await res.json();
-
       if (data.success && data.words && data.words.length > 0) {
-        // 用新 API 返回的数据更新 stats（确保数据一致）
+        const newWords = data.words;
+        // 合并：服务端有则加进去，本地缓存有而服务端没有的也保留
+        const existingIds = new Set(masteredCacheRef.current.map(w => w.id));
+        const merged = [
+          ...masteredCacheRef.current,
+          ...newWords.filter((w: WordRecord) => !existingIds.has(w.id))
+        ];
+        masteredCacheRef.current = merged;
+        saveMasteredCache(merged);
+        setReviewWords(merged);
+        // 同步更新 stats
         setStats(prev => ({
           ...prev,
-          total: data.stats?.total ?? prev.total,
+          mastered: merged.length,
+        }));
+      }
+    } catch {}
+  };
+
+  // 从服务端加载
+  const loadMasteredFromServer = async () => {
+    try {
+      const res = await fetch('/api/words/practice-data');
+      const data = await res.json();
+      if (data.success && data.words && data.words.length > 0) {
+        masteredCacheRef.current = data.words;
+        saveMasteredCache(data.words);
+        setReviewWords(data.words);
+        setStats(prev => ({
+          ...prev,
           mastered: data.stats?.mastered ?? data.words.length,
         }));
-        setReviewWords(data.words);
-      } else {
-        // API 返回空或失败，检查 stats 是否显示有已掌握单词
-        const statsRes = await fetch('/api/words/stats');
-        const statsData = await statsRes.json();
-        if (statsData.success && (statsData.stats?.mastered || 0) > 0) {
-          // stats 有单词但列表为空，说明数据不一致
-          toast('已掌握单词加载失败，尝试重新同步...', 'error');
-          await refreshStats();
-        }
-        setReviewWords([]);
       }
-    } catch (err) {
-      console.error('[Words] Failed to load practice data:', err);
-      toast('加载失败，请重试', 'error');
-      setReviewWords([]);
-    } finally {
-      setPracticeLoading(false);
+    } catch {
+      // 网络失败时保持缓存为空，不显示错误
     }
   };
-  
+
   // 手动同步已掌握单词数据
   const syncMasteredWords = async () => {
     toast('正在同步数据...', 'success');
-    await refreshStats();
-    await fetchReviewWords();
+    await loadMasteredFromServer();
     toast('同步完成', 'success');
   };
   
