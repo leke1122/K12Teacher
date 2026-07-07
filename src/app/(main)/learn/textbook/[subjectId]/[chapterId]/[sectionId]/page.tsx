@@ -21,6 +21,7 @@ import { getBantuMathB1Range, normalizeChapters, normalizeSectionId } from '@/li
 import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 interface PDFData {
   full_text?: string;
@@ -87,6 +88,31 @@ function TextbookPageContent() {
   const startTimeRef = useRef(Date.now());
   const [duration, setDuration] = useState(0);
   const [recordId, setRecordId] = useState<string | null>(null);
+
+  // ============================================================
+  // 学习记录
+  // ============================================================
+  const learningRecordRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const currentSubject = useSubjectStore.getState()?.currentSubject;
+    startLearning({
+      subjectId,
+      subjectName: getSubjectName(currentSubject || subjectId),
+      activityType: 'textbook',
+      chapterId,
+      sectionId: decodedSectionId,
+      activityDetail: { sectionTitle, subSectionTitle },
+    }).then(id => { learningRecordRef.current = id; });
+
+    const handleUnload = () => { if (learningRecordRef.current) endLearning(learningRecordRef.current); };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
+    };
+  }, [subjectId, chapterId, decodedSectionId]);
 
   // ============================================================
   // 计时器

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, ListChecks, BarChart3, Link2, BookMarked, GraduationCap, Home, Ruler } from "lucide-react";
+import { Settings, ListChecks, BarChart3, Link2, BookMarked, GraduationCap, Headphones, Home, Ruler, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS, useSubjectStore } from "@/stores/subjectStore";
 
@@ -99,6 +99,24 @@ export function Sidebar() {
               英语学习中心
             </Button>
           </Link>
+          <Link href="/learn/english/listening" className="block">
+            <Button
+              variant={pathname === "/learn/english/listening" ? "secondary" : "ghost"}
+              className="w-full justify-start py-3 px-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <Headphones className="h-5 w-5 mr-3" />
+              英语听力训练
+            </Button>
+          </Link>
+          <Link href="/words" className="block">
+            <Button
+              variant={pathname === "/words" ? "secondary" : "ghost"}
+              className="w-full justify-start py-3 px-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <BookOpen className="h-5 w-5 mr-3" />
+              英语单词
+            </Button>
+          </Link>
           <Link href="/learn/math/geogebra" className="block">
             <Button
               variant={pathname.startsWith("/learn/math/geogebra") ? "secondary" : "ghost"}
@@ -106,6 +124,15 @@ export function Sidebar() {
             >
               <Ruler className="h-5 w-5 mr-3" />
               GeoGebra
+            </Button>
+          </Link>
+          <Link href="/history" className="block">
+            <Button
+              variant={pathname === "/history" ? "secondary" : "ghost"}
+              className="w-full justify-start py-3 px-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <BookOpen className="h-5 w-5 mr-3" />
+              学习记录
             </Button>
           </Link>
         </div>

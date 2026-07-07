@@ -3,13 +3,15 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   BookOpen, Clock, CheckCircle, AlertCircle,
   Play, Eye, GraduationCap, Calendar, ArrowLeft,
-  X, Trash2, AlertTriangle
+  X, Trash2, AlertTriangle, BarChart3, BookMarked
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,8 @@ import { useSubjectStore } from '@/stores/subjectStore';
 import { useHistoryStore } from '@/stores/historyStore';
 import { LearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { formatDuration } from '@/components/learning/Timer';
+import { getLearningStats, type LearningRecord as NewRecord } from '@/lib/learningService';
+import ReactECharts from 'echarts-for-react';
 
 interface LocalLearningRecord extends LearningRecord {}
 
@@ -35,21 +39,51 @@ const modeColors: Record<string, string> = {
   PRACTICE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
 };
 
+const SUBJECT_COLORS: Record<string, string> = {
+  '英语': '#3b82f6', '数学': '#8b5cf6', '物理': '#06b6d4',
+  '化学': '#10b981', '语文': '#f59e0b', '生物': '#ef4444',
+  '地理': '#84cc16', '政治': '#ec4899', '历史': '#a855f7',
+};
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  words: '单词学习', knowledge: '知识点学习',
+  textbook: '课本还原', practice: '练习', other: '其他',
+};
+
 export default function HistoryPage() {
+  const [view, setView] = useState<'detail' | 'stats'>('detail');
+
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>}>
-      <HistoryPageContent />
+      <HistoryPageContent view={view} onViewChange={setView} />
     </Suspense>
   );
 }
 
-function HistoryPageContent() {
+function HistoryPageContent({
+  view, onViewChange
+}: {
+  view: 'detail' | 'stats';
+  onViewChange: (v: 'detail' | 'stats') => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentSubject } = useSubjectStore();
   const { records, loading, setRecords, setLoading, addRecord, removeRecord, setStats, setLoading: setHistoryLoading } = useHistoryStore();
   const [filter, setFilter] = useState<string>('all');
   const [selectedRecord, setSelectedRecord] = useState<LocalLearningRecord | null>(null);
+
+  // 新学习记录统计
+  const [stats, setStats2] = useState<{
+    totalMinutes: number; recordCount: number;
+    subjects: Record<string, number>; dailyMinutes: { date: string; minutes: number }[];
+  }>({ totalMinutes: 0, recordCount: 0, subjects: {}, dailyMinutes: [] });
+
+  useEffect(() => {
+    if (view === 'stats') {
+      getLearningStats('week').then(setStats2);
+    }
+  }, [view]);
 
   useEffect(() => {
     const resumeId = searchParams.get('recordId');
@@ -222,32 +256,50 @@ function HistoryPageContent() {
               <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
                 📋 学习记录
               </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={view === 'detail' ? 'default' : 'outline'}
+                onClick={() => onViewChange('detail')}
+                className="gap-1"
+              >
+                <BookMarked className="h-4 w-4" />详情
+              </Button>
+              <Button
+                size="sm"
+                variant={view === 'stats' ? 'default' : 'outline'}
+                onClick={() => onViewChange('stats')}
+                className="gap-1"
+              >
+                <BarChart3 className="h-4 w-4" />统计
+              </Button>
               <Link href="/wrong-questions">
                 <Button variant="outline" size="sm" className="gap-1 text-amber-600 border-amber-200 hover:bg-amber-50">
                   <AlertTriangle className="h-4 w-4" />错题集
                 </Button>
               </Link>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>全部</Button>
-              <Button size="sm" variant={filter === 'KNOWLEDGE' ? 'default' : 'outline'} onClick={() => setFilter('KNOWLEDGE')}>知识点</Button>
-            </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        {loading ? (
-          <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>
-        ) : filteredRecords.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"><BookOpen className="h-8 w-8 text-slate-400" /></div>
-            <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">暂无学习记录</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-500 mb-4">开始学习后，记录会显示在这里</p>
-            <Button onClick={() => router.push('/')}>去学习</Button>
-          </div>
+        {view === 'stats' ? (
+          <StatsView stats={stats} />
         ) : (
-          <div className="space-y-4">
+          <>
+            {loading ? (
+              <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>
+            ) : filteredRecords.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"><BookOpen className="h-8 w-8 text-slate-400" /></div>
+                <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">暂无学习记录</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-500 mb-4">开始学习后，记录会显示在这里</p>
+                <Button onClick={() => router.push('/')}>去学习</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
             {filteredRecords.map((record) => {
               const ModeIcon = modeLabels[record.mode]?.icon || BookOpen;
               const accuracy = calculateAccuracy(record);
@@ -304,6 +356,8 @@ function HistoryPageContent() {
             })}
           </div>
         )}
+        </>
+        )}
       </div>
 
       <Dialog open={!!selectedRecord} onOpenChange={(open) => !open && setSelectedRecord(null)}>
@@ -358,4 +412,140 @@ function HistoryPageContent() {
 
 function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
+}
+
+function formatDurationNew(seconds: number | null): string {
+  if (!seconds) return '--';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}小时${m}分`;
+  if (m > 0) return `${m}分`;
+  return `${seconds}秒`;
+}
+
+// 新学习记录统计视图
+function StatsView({
+  stats,
+}: {
+  stats: {
+    totalMinutes: number; recordCount: number;
+    subjects: Record<string, number>; dailyMinutes: { date: string; minutes: number }[];
+  };
+}) {
+  return (
+    <div className="space-y-6">
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white border-0">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{stats.totalMinutes}</p>
+            <p className="text-xs opacity-80 mt-1">总学习(分钟)</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{stats.recordCount}</p>
+            <p className="text-xs opacity-80 mt-1">学习记录(条)</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-500 to-teal-500 text-white border-0">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{Object.keys(stats.subjects).length}</p>
+            <p className="text-xs opacity-80 mt-1">已学学科</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500 to-orange-500 text-white border-0">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{Math.round(stats.totalMinutes / Math.max(stats.recordCount, 1))}</p>
+            <p className="text-xs opacity-80 mt-1">平均时长(分钟)</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 图表 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">学科分布</CardTitle></CardHeader>
+          <CardContent>
+            {Object.keys(stats.subjects).length > 0 ? (
+              <ReactECharts
+                option={{
+                  tooltip: { trigger: 'item', formatter: '{b}: {c}分钟 ({d}%)' },
+                  legend: { bottom: 0, type: 'scroll' as const },
+                  series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: Object.entries(stats.subjects).map(([name, seconds]) => ({
+                      name,
+                      value: Math.round(seconds / 60),
+                      itemStyle: { color: SUBJECT_COLORS[name] || '#94a3b8' },
+                    })),
+                  }],
+                }}
+                style={{ height: 220 }}
+              />
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-slate-400">暂无数据</div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">每日学习时长趋势</CardTitle></CardHeader>
+          <CardContent>
+            {stats.dailyMinutes.length > 0 ? (
+              <ReactECharts
+                option={{
+                  tooltip: { trigger: 'axis' as const },
+                  xAxis: {
+                    type: 'category' as const,
+                    data: stats.dailyMinutes.map(d => d.date.slice(5)),
+                    axisLabel: { fontSize: 10 },
+                  },
+                  yAxis: { type: 'value' as const, name: '分钟', axisLabel: { fontSize: 10 } },
+                  series: [{
+                    type: 'bar',
+                    data: stats.dailyMinutes.map(d => ({
+                      value: d.minutes,
+                      itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] },
+                    })),
+                  }],
+                  grid: { left: 50, right: 20, top: 20, bottom: 40 },
+                }}
+                style={{ height: 220 }}
+              />
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-slate-400">暂无数据</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 学科汇总 */}
+      {Object.keys(stats.subjects).length > 0 && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">各学科学习时长</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {Object.entries(stats.subjects)
+              .sort(([, a], [, b]) => b - a)
+              .map(([name, seconds]) => {
+                const minutes = Math.round(seconds / 60);
+                const pct = Math.min(100, Math.round((minutes / Math.max(stats.totalMinutes, 1)) * 100));
+                return (
+                  <div key={name}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: SUBJECT_COLORS[name] || '#94a3b8' }} />
+                        {name}
+                      </span>
+                      <span className="text-slate-500">{formatDurationNew(minutes * 60)}</span>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                  </div>
+                );
+              })}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

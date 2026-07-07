@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { ImageUploader } from '@/components/practice/ImageUploader';
 import { addWrongQuestion, addOrUpdateWeakPoint, addPracticeRecord, getWrongQuestions } from '@/services/practiceService';
 import type { PracticeQuestion, PracticeAnswer, WrongQuestion } from '@/services/practiceService';
 import { cn } from '@/lib/utils';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 type Difficulty = 'simple' | 'medium' | 'hard';
 
@@ -75,6 +76,27 @@ function PracticePageContent() {
   const [inputMethod, setInputMethod] = useState<'handwriting' | 'upload' | 'choice'>('choice');
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState<any>(null);
+  const learningRecordRef = useRef<string | null>(null);
+
+  // 学习记录：进入时开始，离开时结束
+  useEffect(() => {
+    startLearning({
+      subjectId,
+      subjectName: getSubjectName(subjectId),
+      activityType: 'practice',
+      chapterId,
+      sectionId,
+      activityDetail: { sectionTitle, subSectionTitle },
+    }).then(id => { learningRecordRef.current = id; });
+
+    const handleUnload = () => { if (learningRecordRef.current) endLearning(learningRecordRef.current); };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
+    };
+  }, [subjectId, chapterId, sectionId]);
 
   // 获取教材内容
   useEffect(() => {

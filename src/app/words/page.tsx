@@ -12,10 +12,11 @@ import {
 import {
   BookOpen, Volume2, Shuffle, ChevronLeft, ChevronRight,
   CheckCircle, RotateCcw, SkipForward, Sparkles, Target,
-  Flame, Award, Trophy, AlertCircle, Clock, Zap, Bell, RefreshCw
+  Flame, Award, Trophy, AlertCircle, Clock, Zap, Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toast';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 // 本地缓存键名
 const MASTERED_CACHE_KEY = 'edumind_mastered_words_v2';
@@ -44,46 +45,6 @@ interface Stats {
   streakDays: number;
   weeklyLearned: number;
   totalAccuracy: number;
-}
-
-interface PracticeResult {
-  word: WordRecord;
-  correct: boolean;
-  userAnswer: string;
-}
-
-// ==================== 本地缓存管理 ====================
-
-interface CachedMasteredData {
-  words: WordRecord[];
-  count: number;
-  updatedAt: string;
-}
-
-function loadMasteredCache(): CachedMasteredData {
-  try {
-    const raw = localStorage.getItem(MASTERED_CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // 缓存超过7天视为过期
-      const age = Date.now() - new Date(parsed.updatedAt).getTime();
-      if (age < 7 * 24 * 60 * 60 * 1000) {
-        return parsed;
-      }
-    }
-  } catch {}
-  return { words: [], count: 0, updatedAt: new Date().toISOString() };
-}
-
-function saveMasteredCache(words: WordRecord[]) {
-  try {
-    const data: CachedMasteredData = {
-      words,
-      count: words.length,
-      updatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(MASTERED_CACHE_KEY, JSON.stringify(data));
-  } catch {}
 }
 
 interface PracticeResult {
@@ -152,6 +113,37 @@ function SpeakButton({ text, className }: { text: string; className?: string }) 
       )}
     </Button>
   );
+}
+
+interface CachedMasteredData {
+  words: WordRecord[];
+  count: number;
+  updatedAt: string;
+}
+
+function loadMasteredCache(): CachedMasteredData {
+  try {
+    const raw = localStorage.getItem(MASTERED_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const age = Date.now() - new Date(parsed.updatedAt).getTime();
+      if (age < 7 * 24 * 60 * 60 * 1000) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return { words: [], count: 0, updatedAt: new Date().toISOString() };
+}
+
+function saveMasteredCache(words: WordRecord[]) {
+  try {
+    const data: CachedMasteredData = {
+      words,
+      count: words.length,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(MASTERED_CACHE_KEY, JSON.stringify(data));
+  } catch {}
 }
 
 // 横向双栏单词卡片组件
@@ -778,7 +770,7 @@ export default function WordsPage() {
   const [frequency, setFrequency] = useState<'high' | 'medium' | 'low' | 'all'>('high');
   const [mode, setMode] = useState<'learn' | 'practice'>('learn');
   const [reviewWords, setReviewWords] = useState<WordRecord[]>([]);
-  const [dailyGoal, setDailyGoal] = useState(30);
+  const [dailyGoal, setDailyGoal] = useState(20);
   const [wrongCount, setWrongCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
@@ -790,6 +782,7 @@ export default function WordsPage() {
   const [isMastering, setIsMastering] = useState(false);
   const [practiceLoading, setPracticeLoading] = useState(false);
   const masteredCacheRef = useRef<WordRecord[]>(loadMasteredCache().words);
+  const learningRecordRef = useRef<string | null>(null);
 
   // 初始化：从本地缓存加载已掌握单词
   useEffect(() => {
@@ -799,7 +792,38 @@ export default function WordsPage() {
       setReviewWords(cached.words);
     }
   }, []);
-  
+
+  // 学习记录：进入时开始，离开时结束
+  useEffect(() => {
+    // 页面挂载：开始学习记录
+    startLearning({
+      subjectId: 'english',
+      subjectName: '英语',
+      activityType: 'words',
+      activityDetail: {},
+    }).then(recordId => {
+      learningRecordRef.current = recordId;
+    });
+
+    // 页面卸载：结束学习记录
+    const handleBeforeUnload = () => {
+      if (learningRecordRef.current) {
+        endLearning(learningRecordRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (learningRecordRef.current) {
+        endLearning(learningRecordRef.current);
+        learningRecordRef.current = null;
+      }
+    };
+  }, []);
+
+  const currentWord = words[currentIndex] || null;
+
   // 加载设置
   useEffect(() => {
     const savedGoal = localStorage.getItem('dailyGoal');
@@ -825,9 +849,7 @@ export default function WordsPage() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [mode, loading]);
-
-  const currentWord = words[currentIndex] || null;
-
+  
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -842,9 +864,7 @@ export default function WordsPage() {
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
-        // 防御性过滤：确保只有真正的未掌握词（mastery_level === 0 且未出现在 word_mastery 中）才显示
-        const unlearnedWords = (data.words || []).filter((w: any) => !w.mastery_level || w.mastery_level === 0);
-        setWords(unlearnedWords);
+        setWords(data.words || []);
         // 只更新 total（未学习数），保留其他本地 stats
         setStats(prev => ({ ...prev, total: data.stats.total }));
         setCurrentIndex(0);
@@ -858,12 +878,14 @@ export default function WordsPage() {
   
   const fetchReviewWords = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ status: 'mastered', limit: '100' });
+      // 获取所有单词，API 会附加 mastery_level
+      const params = new URLSearchParams({ status: 'all', limit: '100' });
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
-        const masteredWords = (data.words || []).filter((w: any) => w.mastery_level >= 5);
-        setReviewWords(masteredWords);
+        // 过滤出已学习的单词（mastery_level > 0）
+        const learnedWords = data.words?.filter((w: any) => w.mastery_level > 0) || [];
+        setReviewWords(learnedWords);
       }
     } catch (err) {
       console.error('Failed to fetch review words:', err);
@@ -932,12 +954,8 @@ export default function WordsPage() {
       const newWordsList = words.filter(w => w.id !== currentWord.id);
       setWords(newWordsList);
 
-      // 同步维护练习词池，将新掌握的单词加入复习列表
-      const newMasteredWord = { ...currentWord, mastery_level: 5 };
-      const newReviewList = [{ ...currentWord, mastery_level: 5 }, ...reviewWords];
-      setReviewWords(newReviewList);
-      masteredCacheRef.current = newReviewList;
-      saveMasteredCache(newReviewList);
+      // 同步维护练习词池，避免旧词仍可进入复习
+      setReviewWords(prev => prev.filter(w => w.id !== currentWord.id));
 
       // 更新当前索引
       let newIndex = currentIndex;
@@ -948,7 +966,7 @@ export default function WordsPage() {
       }
       setCurrentIndex(newIndex);
 
-      // 强制刷新统计数据，确保前端与数据库一致
+      // 后台刷新一次统计数据，以服务端为准
       await refreshStats();
     } catch (err) {
       console.error('[Words] Failed to mark as mastered:', err);
@@ -970,7 +988,6 @@ export default function WordsPage() {
     if (words.length > 0) setCurrentIndex((prev) => (prev - 1 + words.length) % words.length);
   };
   
-  // 核心：Supabase优先，本地缓存兜底，永不报错
   const startPractice = async () => {
     setPracticeResults([]);
     setPracticeMode('practice');
@@ -978,56 +995,17 @@ export default function WordsPage() {
     setStudyTime(0);
     setPracticeLoading(true);
 
-    // 策略1：优先从 Supabase 获取
     try {
-      const res = await fetch('/api/words/practice-data');
+      const res = await fetch('/api/words/list?status=mastered&limit=999');
       const data = await res.json();
-      if (data.success && data.words && data.words.length > 0) {
-        const words = data.words;
-        // 更新缓存
-        saveMasteredCache(words);
-        masteredCacheRef.current = words;
-        setReviewWords(words);
-        // 更新 stats
-        setStats(prev => ({
-          ...prev,
-          mastered: data.stats?.mastered ?? words.length,
-        }));
-        setPracticeLoading(false);
-        return;
-      }
-    } catch {}
-
-    // 策略2：Supabase无数据或失败，降级到本地缓存
-    const cached = loadMasteredCache();
-    if (cached.words.length > 0) {
-      masteredCacheRef.current = cached.words;
-      setReviewWords(cached.words);
+      const masteredWords = data.success ? (data.words || []) : [];
+      setReviewWords(masteredWords);
+    } catch (err) {
+      console.error('[Words] Failed to load mastered words:', err);
+      setReviewWords([]);
+    } finally {
       setPracticeLoading(false);
-      return;
     }
-
-    // 策略3：没有任何数据，静默显示空状态（不报错）
-    setReviewWords([]);
-    setPracticeLoading(false);
-  };
-
-  // 手动同步数据
-  const syncMasteredWords = async () => {
-    toast('正在同步数据...', 'success');
-    try {
-      const res = await fetch('/api/words/practice-data');
-      const data = await res.json();
-      if (data.success && data.words && data.words.length > 0) {
-        saveMasteredCache(data.words);
-        masteredCacheRef.current = data.words;
-        setReviewWords(data.words);
-        toast('同步完成', 'success');
-        return;
-      }
-    } catch {}
-    // 同步失败也静默
-    toast('同步完成', 'success');
   };
   
   const startWrongReview = async () => {
@@ -1192,17 +1170,11 @@ export default function WordsPage() {
                 </div>
               </div>
             ) : reviewWords.length === 0 ? (
-              <div className="text-center py-12 space-y-4">
-                <Award className="h-16 w-16 text-slate-300 mx-auto" />
-                <h3 className="text-xl font-medium text-slate-600">暂无已掌握单词</h3>
-                <p className="text-slate-400">先去学习一些新单词并标记为已掌握，再回来练习吧</p>
-                <div className="flex justify-center gap-3">
-                  <Button variant="outline" onClick={syncMasteredWords} className="gap-2">
-                    <RefreshCw className="h-4 w-4" />
-                    同步数据
-                  </Button>
-                  <Button onClick={() => setMode('learn')}>进入学习模式</Button>
-                </div>
+              <div className="text-center py-12">
+                <Award className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-medium text-slate-600 mb-2">暂无已掌握单词</h3>
+                <p className="text-slate-400 mb-4">先去学习一些新单词并标记为已掌握，再回来练习吧</p>
+                <Button onClick={() => setMode('learn')}>进入学习模式</Button>
               </div>
             ) : (
               <PracticeMode key={reviewWords.map(w => w.id).join(',')} words={reviewWords} onComplete={handlePracticeComplete} />

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { 
+import {
   ArrowLeft, GraduationCap, BookOpen, ChevronLeft, ChevronRight,
   CheckCircle, AlertTriangle, Loader2, Save, RotateCcw, Trophy, Lock, Sparkles
 } from 'lucide-react';
@@ -25,6 +25,7 @@ import { getSectionPageRange, normalizeChapters, normalizeSectionId } from '@/li
 import { LearningRecord, saveLearningRecord, getLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 interface KnowledgePointData {
   id: string | number;
@@ -127,6 +128,27 @@ function KnowledgePageContent() {
   const resumeRecordId = searchParams.get('recordId');
   const shouldResume = searchParams.get('resume') === 'true';
   const [recordId, setRecordId] = useState<string | null>(resumeRecordId);
+  const learningRecordRef = useRef<string | null>(null);
+
+  // 学习记录：进入时开始，离开时结束
+  useEffect(() => {
+    const currentSubject = useSubjectStore.getState()?.currentSubject;
+    startLearning({
+      subjectId: subjectId,
+      subjectName: getSubjectName(currentSubject || subjectId),
+      activityType: 'knowledge',
+      chapterId: chapterId,
+      sectionId: decodedSectionId,
+    }).then(id => { learningRecordRef.current = id; });
+
+    const handleUnload = () => { if (learningRecordRef.current) endLearning(learningRecordRef.current); };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
+    };
+  }, [subjectId, chapterId, decodedSectionId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
