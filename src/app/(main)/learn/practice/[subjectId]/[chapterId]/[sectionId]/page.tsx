@@ -287,8 +287,14 @@ function PracticePageContent() {
 
   // ===== 计算题处理 =====
   const handleCalcSubmit = async (imageData: string) => {
-    if (!currentQuestion || !settings?.deepseekKey) return;
+    if (!currentQuestion) return;
+    // 同时需要 deepseekKey（用于题库）和 qwenKey（用于视觉识别）
+    if (!settings?.deepseekKey && !settings?.qwenKey) {
+      alert('请先在设置页面配置 API Key');
+      return;
+    }
     setIsRecognizing(true);
+    console.log('[手写识别] 开始识别，API Key 存在:', !!settings?.qwenKey || !!settings?.deepseekKey);
     try {
       const response = await fetch('/api/recognize-math', {
         method: 'POST',
@@ -298,10 +304,12 @@ function PracticePageContent() {
           question: currentQuestion.text,
           correctAnswer: currentQuestion.correctAnswer,
           knowledgePoint: currentQuestion.knowledgePoint,
-          apiKey: settings.deepseekKey,
+          // 优先使用 qwenKey，没有则用 deepseekKey
+          apiKey: settings?.qwenKey || settings?.deepseekKey,
         }),
       });
       const data = await response.json();
+      console.log('[手写识别] 响应:', data);
       if (data.success) {
         setRecognitionResult(data);
         const isCorrect = data.isCorrect;
@@ -324,8 +332,17 @@ function PracticePageContent() {
             difficulty: currentQuestion.difficulty,
           }]);
         }
+      } else {
+        // API 返回 success=false，显示错误信息
+        setRecognitionResult({
+          isCorrect: false,
+          recognizedText: data.recognizedText || '（识别失败）',
+          feedback: data.feedback || data.error || '识别服务暂时不可用',
+        });
+        console.warn('[手写识别] API 调用失败:', data.error, data.wrongReason);
       }
-    } catch {
+    } catch (err) {
+      console.error('[手写识别] 网络错误:', err);
       setRecognitionResult({
         isCorrect: false,
         recognizedText: '（识别失败）',

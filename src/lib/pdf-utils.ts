@@ -4,7 +4,14 @@
 
 // 数学符号乱码修复映射表（PDF字体编码错误 → 正确符号）
 // pdf-parse 在解析某些中文字体时，会把数学符号映射到错误的 Unicode 码点
+// 注意：'元' → '∈' 映射已禁用，改由 protectAndFixElements 统一处理，避免"元素"被误转换为"∈∈素"
 const MATH_SYMBOL_MAP: Record<string, string> = {
+  // 用户指定补充映射（已移除 '元'：元→A 由 protectAndFixElements 统一处理）
+  '犅': 'B',
+  '犆': 'C',
+  '犪': 'a',
+  '犫': 'b',
+  '犮': 'c',
   // 集合论符号（人民教育出版社 A031 Times New Roman 字体映射错误）
   '\u{e064}': '∅', // 乱码 → 空集
   '\u{e0b6}': '∉', // 乱码 → 不属于
@@ -13,6 +20,10 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{e0b9}': '⊂', // 乱码 → 真包含于
   '\u{e0ba}': '⊇', // 乱码 → 包含
   '\u{e0bb}': '⊃', // 乱码 → 真包含
+  // ∈ 的另一种渲染方式（直接渲染成了汉字"元"，见高中数学教材）
+  // 注意：此映射已禁用，改由 protectAndFixElements 统一处理
+  // 原因：如果保留此映射，会把"元素"中的"元"也错误转成"∈"，产生"∈∈素"乱码
+  // '元': '∈',
   // 运算符号
   '\u{e0a0}': '±',  // 加减号
   '\u{e0a1}': '×',  // 乘号
@@ -74,7 +85,27 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{e025}': '】',
   '\u{e026}': '《',
   '\u{e027}': '》',
+  // 数学符号（新发现）
+  '\u{e011}': '|',   // 分隔符/竖线
+  '\u{e05b}': '∈',  // 属于（另一种编码）
+  // 下标数字（下标数字是 ∈ 的另一种渲染方式：₀=₁=₂=₃=∈）
+  '\u{e4f3}': '∈',  // 下标0 → 属于
+  '\u{e4f4}': '∈',  // 下标1 → 属于
+  '\u{e4f5}': '∈',  // 下标2 → 属于
+  '\u{e4f6}': '∈',  // 下标3 → 属于
+  '\u{e4f7}': '∈',  // 下标4 → 属于
+  '\u{e4f8}': '∈',  // 下标5 → 属于
+  '\u{e4f9}': '∈',  // 下标6 → 属于
+  '\u{e4fa}': '∈',  // 下标7 → 属于
+  '\u{e4fb}': '∈',  // 下标8 → 属于
+  // 真实的 Unicode 下标字符也是 ∈ 的渲染（₀=₁=₂=₃=∈）
+  '₀': '∈', '₁': '∈', '₂': '∈', '₃': '∈', '₄': '∈',
+  '₅': '∈', '₆': '∈', '₇': '∈', '₈': '∈', '₉': '∈',
+  // 上标数字
+  '\u{e7f2}': '²',  // 上标2（平方）
+  '\u{e7f3}': '³',  // 上标3（立方）
   // 字母乱码（某些PDF字体把拉丁字母映射到汉字偏旁/部首区）
+  // 大写字母
   '\u{41e5}': 'A',
   '\u{41e7}': 'B',
   '\u{41e8}': 'C',
@@ -100,6 +131,8 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{41ff}': 'X',
   '\u{41e6}': 'Y',
   '\u{4200}': 'Z',
+  // 小写字母
+  // 小写字母（使用正确的 Private Use Area 码点）
   '\u{41da}': 'a',
   '\u{41db}': 'b',
   '\u{41dc}': 'c',
@@ -111,27 +144,137 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{41e2}': 'i',
   '\u{41e3}': 'j',
   '\u{41e4}': 'k',
-  // l: \u{41e5} 已被大写A占用，小写l无独立码点
-  '\u{6d}': 'm',
-  '\u{5f62}': 'n',
-  '\u{72ae}': 'o',
-  '\u{72b0}': 'p',
-  '\u{72b1}': 'q',
-  '\u{72b2}': 'r',
-  '\u{72b3}': 's',
-  '\u{72b4}': 't',
-  '\u{72b5}': 'u',
-  '\u{72b6}': 'v',
-  '\u{72b8}': 'w',
-  '\u{72b9}': 'x',
-  '\u{72ba}': 'y',
-  '\u{72bb}': 'z',
+  '\u{e0f0}': 'l',  // 小写l（专用码点）
+  '\u{e0f1}': 'm',  // 小写m
+  '\u{e0f2}': 'n',  // 小写n
+  '\u{e0f3}': 'o',  // 小写o
+  '\u{e0f4}': 'p',  // 小写p
+  '\u{e0f5}': 'q',  // 小写q
+  '\u{e0f6}': 'r',  // 小写r
+  '\u{e0f7}': 's',  // 小写s
+  '\u{e0f8}': 't',  // 小写t
+  '\u{e0f9}': 'u',  // 小写u
+  '\u{e0fa}': 'v',  // 小写v
+  '\u{e0fb}': 'w',  // 小写w
+  '\u{e0fc}': 'x',  // 小写x
+  '\u{e0fd}': 'y',  // 小写y
+  '\u{e0fe}': 'z',  // 小写z
+  // 扩展字母映射（人民教育出版社数学教材特有的字体编码）
+  // 大写希腊字母/特殊字体
+  '\u{4E43}': 'A',  // 犃
+  '\u{72D3}': 'x',   // 狓
+  '\u{e100}': 'A',  // 额外的大写A
+  '\u{e101}': 'B',  // 额外的大写B
+  '\u{e102}': 'C',  // 额外的大写C
+  '\u{e103}': 'D',  // 额外的大写D
+  '\u{7B49}': '等',
+  '\u{53EF}': '可',
+  '\u{96C6}': '集',
+  '\u{5408}': '合',
+  '\u{5143}': '元',
+  '\u{7D20}': '素',
+  '\u{662F}': '是',
+  '\u{5927}': '大',
+  '\u{4E8E}': '于',
+  '\u{6570}': '数',
+  '\u{5373}': '即',
+  '\u{7684}': '的',
+  '\u{6216}': '或',
+  '\u{FF5B}': '{',
+  '\u{FF5C}': '|',
+  '\u{FF5D}': '}',
+  '\u{FF0C}': ',',
+  '\u{FF1E}': ';',
+  '\u{FF1D}': '=',
+  '\u{72D7}': '独',
+  '\u{7283}': '元',
+  // 数学教材常用汉字
+  '\u{4EE5}': '以',
+  '\u{628A}': '把',
+  '\u{8868}': '表',
+  '\u{793A}': '示',
+  '\u{4E3A}': '为',
+  // 更多可能的乱码映射
+  '\u{5B57}': '字',
+  '\u{6B63}': '正',
+  '\u{786E}': '确',
+  '\u{5B9A}': '定',
+  '\u{6027}': '性',
+  '\u{4E92}': '互',
+  '\u{5F02}': '异',
+  '\u{65E0}': '无',
+  '\u{5E8F}': '序',
+  // 数集相关
+  '\u{81EA}': '自',
+  '\u{7136}': '然',
+  '\u{6574}': '整',
+  '\u{6709}': '有',
+  '\u{7406}': '理',
+  '\u{5B9E}': '实',
+  // 其他常见汉字
+  '\u{4E14}': '且',
+  '\u{4E0D}': '不',
+  '\u{5C5E}': '属',
   // 省略号
   '\u{e030}': '……',  // 省略号（两个点）
   '\u{e031}': '⋯',    // 竖省略号
-  // 常用乱码模式（根据实际PDF样本）
-  '\ufffd': '',  // Unicode替换字符（包含short form \ufffd 和 long form \u{fffd}）
+  // Unicode替换字符
+  '\ufffd': '',  // Unicode替换字符
 };
+
+// 字体映射表（PDF字体编码错误 → 正确ASCII字符）
+const FONT_MAPPING: Record<string, string> = {
+  // 大写字母
+  '犃': 'A', '犅': 'B', '犆': 'C', '犇': 'D', '犈': 'E',
+  '犉': 'F', '犌': 'G', '犎': 'H', '犐': 'I', '犑': 'J',
+  '犓': 'K', '犔': 'L', '犕': 'M', '犖': 'N', '犗': 'O',
+  '犘': 'P', '犙': 'Q', '犚': 'R', '犛': 'S', '犜': 'T',
+  '犝': 'U', '犞': 'V', '犠': 'W', '犡': 'X', '犢': 'Y',
+  '犣': 'Z',
+  // 小写字母
+  '犪': 'a', '犫': 'b', '犮': 'c', '犱': 'd', '犲': 'e',
+  '犳': 'f', '犵': 'g', '犺': 'h', '犻': 'i', '犼': 'j',
+  '犽': 'k', '犾': 'l', '犿': 'm', '狀': 'n', '狅': 'o',
+  '狆': 'p', '狇': 'q', '狉': 'r', '狊': 's', '狋': 't',
+  '狌': 'u', '狏': 'v', '狑': 'w', '狓': 'x', '狔': 'y',
+  '狕': 'z',
+  // 数字
+  '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
+  '５': '5', '６': '6', '７': '7', '８': '8', '９': '9',
+};
+
+/**
+ * 清理PDF提取文本中的格式控制字符
+ */
+export function cleanPDFText(text: string): string {
+  if (!text) return '';
+
+  let cleaned = text;
+
+  // 1. 移除不可见控制字符（保留换行和Tab）
+  cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // 2. 移除PDF内部格式标记（如 !．!!"# 等）
+  cleaned = cleaned.replace(/[!．"#\uFF01-\uFF0F]+/g, ' ');
+
+  // 3. 清理多余空格
+  cleaned = cleaned.replace(/\s+/g, ' ');
+
+  return cleaned;
+}
+
+/**
+ * 修复PDF字体映射导致的字母乱码（犪→a, 犅→B 等）
+ */
+function fixFontMapping(text: string): string {
+  if (!text) return text;
+
+  let fixed = text;
+  for (const [garbled, correct] of Object.entries(FONT_MAPPING)) {
+    fixed = fixed.split(garbled).join(correct);
+  }
+  return fixed;
+}
 
 /**
  * 修复 PDF 解析后的数学符号乱码
@@ -142,19 +285,77 @@ export function fixMathSymbols(text: string): string {
 
   let fixed = text;
 
-  // 1. 先处理精确的字符映射
+  // 0. 预保护"元素"（必须在任何字符映射之前，防止'元→∈'破坏"元素"）
+  fixed = fixed.replace(/元素/g, '\u200B元素\u200B');
+
+  // 1. 先处理精确的字符映射（字体乱码 → 正确符号）
   for (const [garbled, correct] of Object.entries(MATH_SYMBOL_MAP)) {
     fixed = fixed.split(garbled).join(correct);
   }
 
-  // 2. 处理常见的组合乱码模式（多个错误码点连在一起）
-  // 例如某些PDF会把 "∈" 解析为连续的 Private Use Area 字符
+  // 2. 处理常见的组合乱码模式（全角数字 + ∈/∉/⊆ 等联合输出）
+  //   必须在全角→半角转换之前执行
   fixed = fixCombinedGarbledSymbols(fixed);
 
-  // 3. 处理全角数字（在数学教材中很常见）
+  // 3. 处理全角数字（放在组合乱码处理之后）
   fixed = fixFullWidthNumbers(fixed);
 
+  // 4. 字体映射修复（犪→a, 犅→B 等）
+  fixed = fixFontMapping(fixed);
+
+  // 5. 精确后处理 —— 保护"元素"，只替换独立的集合符号"元"
+  //   注意：此时"元素"已被步骤0保护（带\u200B），所以不会误伤
+  fixed = protectAndFixElements(fixed);
+
+  // 6. 清理格式控制字符
+  fixed = cleanPDFText(fixed);
+
   return fixed;
+}
+
+/**
+ * 上下文感知地修复元/元素问题：
+ * - "元素" 整个词保留不变
+ * - 单独的 "元"（表示集合符号）→ "A"
+ * - PDF 误拆的 "元 素"（有空格）→ "元素"
+ * - 误替换产生的 "A素" / "A 素" → "元素"
+ */
+function protectAndFixElements(text: string): string {
+  let result = text;
+
+  // 步骤1：保护"元素"
+  result = result.replace(/元素/g, '\u200B元素\u200B');
+
+  // 步骤2：修复 PDF 误拆产生的 "A素" / "A 素" / "A　素"
+  result = result.replace(/A([\s　]+)素/g, '元素');
+  result = result.replace(/A素/g, '元素');
+
+  // 步骤3：精准替换集合符号"元" → "A"
+  // (a) 独立符号元：元前后有分隔符/运算符 → 替换为 A
+  const leftSep  = '([\\s　,，;。.!！？、…—–于\\(\\[∈∉⊆⊂⊇⊃∩∪])';
+  const rightSep = '([\\s　,，;。.!！？、…—–\\)\\]∈∉⊆⊂⊇⊃∩∪]|$)';
+  result = result.replace(new RegExp(leftSep + '元' + rightSep, 'g'), '$1A$2');
+  // (a') 句首独立符号元
+  result = result.replace(new RegExp('^元' + rightSep, 'g'), 'A$1');
+  // (b) 元元相连：PDF把∈渲染成了元，两个元都要替换为A
+  result = result.replace(/元元([。.!！？、…;，)）\]])?/g, 'AA$1');
+  result = result.replace(/([(（\[{])元元/g, '$1AA');
+  result = result.replace(/^元元/g, 'AA');
+  // (c) ∈元 直接相连：∈ 后紧跟元（∈被渲染成元导致∈元相连）
+  result = result.replace(/∈元/g, '∈A');
+
+  // (d) 修复"∈∈素"乱码：∈∈素 是 MATH_SYMBOL_MAP 中 '元': '∈' 把"元素"的"元"错误转换后的产物
+  result = result.replace(/∈∈素/g, '元素');
+  // (d') 修复"∈素"乱码：单个 ∈ 紧跟素（∈是元被转换，素保留）
+  result = result.replace(/∈素/g, '元素');
+
+  // 步骤4：兜底还原——受保护的"元" + 空格/不可见 + "素" → "元素"
+  result = result.replace(/(\u200B元)[\s　]+(素)/g, '$1$2');
+
+  // 移除所有零宽空格
+  result = result.replace(/\u200B/g, '');
+
+  return result;
 }
 
 /**
@@ -326,7 +527,7 @@ export function findSectionContent(
   }
 
   return {
-    content: fullText.substring(startIndex, endIndex),
+    content: fixMathSymbols(fullText.substring(startIndex, endIndex)),
     startPos: startIndex,
     endPos: endIndex,
   };
@@ -517,15 +718,19 @@ export function extractSectionContent(
 ): string {
   // 优先使用 pages 数组
   if (pdfData.pages && Array.isArray(pdfData.pages) && pdfData.pages.length > 0) {
-    const pageContents = pdfData.pages
+    const filteredPages = pdfData.pages
       .filter(p => p.pageNumber >= startPage && p.pageNumber <= endPage)
-      .sort((a, b) => a.pageNumber - b.pageNumber)
-      .map(p => fixMathSymbols(p.content))
-      .join('\n\n');
-
-    if (pageContents.length > 100) {
-      console.log(`[PDFUtils] 从 pages 数组提取 ${pageContents.length} 字符`);
-      return pageContents;
+      .sort((a, b) => a.pageNumber - b.pageNumber);
+    
+    if (filteredPages.length > 0) {
+      const pageContents = filteredPages
+        .map(p => `【第${p.pageNumber}页】\n${fixMathSymbols(p.content)}`)
+        .join('\n\n');
+      
+      if (pageContents.length > 100) {
+        console.log(`[PDFUtils] 从 pages 数组提取 ${pageContents.length} 字符，页数: ${filteredPages.length}, 范围: ${startPage}-${endPage}`);
+        return pageContents;
+      }
     }
   }
 

@@ -104,14 +104,16 @@ ${knowledgePoint || '高中数学'}
       });
     } catch (apiError) {
       console.error('[RecognizeMath] API调用失败:', apiError);
-      // API失败时返回友好提示
+      const errorMessage = apiError instanceof Error ? apiError.message : '未知错误';
+      // API失败时返回友好提示，但标记 success=false 以便前端区分
       return NextResponse.json({
-        success: true,
+        success: false,
+        error: `API调用失败: ${errorMessage}`,
         recognizedText: '（API调用失败，请检查API配置）',
         isCorrect: false,
         stepAnalysis: [],
         wrongStep: '识别服务暂时不可用',
-        wrongReason: '可能的原因：API Key配置错误、额度不足、网络问题',
+        wrongReason: `可能的原因：API Key配置错误、额度不足、网络问题（${errorMessage.substring(0, 50)}）`,
         correctSolution: correctAnswer || '请参考教材答案',
         score: 0,
         feedback: 'AI识别服务暂时不可用，建议手动对照答案检查解题步骤。',

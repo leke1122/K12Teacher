@@ -68,10 +68,112 @@ const CHINESE_B1_ORDERED_CLASSICAL: string[] = [
 ];
 
 // ============================================================
+// 章节ID标准化（处理各种格式的章节ID）
+// ============================================================
+
+/**
+ * 建立 lesson → sectionId 的映射
+ * "第1课" → "1.1.1", "第2课" → "1.1.2", ...
+ * 基于 orderedSections 列表
+ */
+function buildLessonToSectionMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  const mathOrderedSections = SUBJECT_MAPPINGS.math?.orderedSections || [];
+  mathOrderedSections.forEach((sectionId, index) => {
+    map[`第${index + 1}课`] = sectionId;
+  });
+  console.log('[normalizeSectionId] 构建 lesson→section 映射:', map);
+  return map;
+}
+
+// 缓存映射表
+let lessonToSectionCache: Record<string, string> | null = null;
+
+function getLessonToSectionMap(): Record<string, string> {
+  if (!lessonToSectionCache) {
+    lessonToSectionCache = buildLessonToSectionMap();
+  }
+  return lessonToSectionCache;
+}
+
+/**
+ * 将各种格式的章节ID标准化为 "X.Y.Z" 格式
+ * 例如：
+ * - "第1课" + chapterId="2" → "2.1.1"
+ * - "第1课" → "1.1.1"（无 chapterId 时的回退）
+ * - "第1.1节" → "1.1"
+ * - "1.1.1" → "1.1.1"
+ * - "1.1" → "1.1"
+ */
+export function normalizeSectionId(sectionId: string, chapterId?: string): string {
+  if (!sectionId) return '';
+
+  const cleaned = sectionId.trim();
+  console.log('[normalizeSectionId] 输入:', cleaned, 'chapterId:', chapterId);
+
+  // 如果已经是 X.Y.Z 或 X.Y 格式，直接返回
+  if (/^\d+\.\d+(\.\d+)?$/.test(cleaned)) {
+    console.log('[normalizeSectionId] 已是标准格式:', cleaned);
+    return cleaned;
+  }
+
+  // 第X课 → 优先结合 chapterId 生成带章节前缀的节号
+  const lessonMatch = cleaned.match(/^第(\d+)课$/);
+  if (lessonMatch) {
+    const lessonNum = parseInt(lessonMatch[1], 10);
+
+    if (chapterId) {
+      const result = `${chapterId}.${lessonNum}.${lessonNum}`;
+      console.log(`[normalizeSectionId] 第X课(章节感知): "${cleaned}" → "${result}"`);
+      return result;
+    }
+
+    // 回退：使用全局 lesson→section 映射
+    const lessonMap = getLessonToSectionMap();
+    const mapped = lessonMap[cleaned];
+    if (mapped) {
+      console.log(`[normalizeSectionId] 第X课映射: "${cleaned}" → "${mapped}"`);
+      return mapped;
+    }
+
+    const num = lessonMatch[1];
+    console.log(`[normalizeSectionId] 第X课无映射，使用默认: "${cleaned}" → "${num}.1.1"`);
+    return `${num}.1.1`;
+  }
+  
+  // 第X.Y节 → X.Y
+  const sectionMatch = cleaned.match(/^第([\d.]+)节?$/);
+  if (sectionMatch) {
+    console.log('[normalizeSectionId] 第X.Y节格式:', sectionMatch[1]);
+    return sectionMatch[1];
+  }
+  
+  // 第X章 → X
+  const chapterMatch = cleaned.match(/^第(\d+)章$/);
+  if (chapterMatch) {
+    console.log('[normalizeSectionId] 第X章格式:', chapterMatch[1]);
+    return chapterMatch[1];
+  }
+  
+  // 如果都不匹配，返回原始值
+  console.log('[normalizeSectionId] 无匹配，返回原始值:', cleaned);
+  return cleaned;
+}
+
+// ============================================================
 // 全局映射注册表
 // ============================================================
 export const SUBJECT_MAPPINGS: Record<string, SubjectMapping> = {
-  // 高中数学 B 版必修第一册
+  // 高中数学 B 版必修第一册（兼容 'math' 和 'math_b1' 两个 key）
+  math: {
+    bookName: '普通高中教科书·数学（B版）必修 第一册',
+    sections: MATH_B1_SECTIONS,
+    orderedSections: [
+      '1.1.1','1.1.2','1.1.3','1.2.1','1.2.2','1.2.3',
+      '2.1.1','2.1.2','2.1.3','2.2.1','2.2.2','2.2.3','2.2.4',
+      '3.1.1','3.1.2','3.1.3','3.2','3.3','3.4',
+    ],
+  },
   math_b1: {
     bookName: '普通高中教科书·数学（B版）必修 第一册',
     sections: MATH_B1_SECTIONS,
@@ -110,16 +212,39 @@ export function getBantuMathB1Range(sectionId: string): PageRange2 | null {
 
 /**
  * 根据 subjectId + sectionId 查找页码范围
- * @param subjectId 学科标识（如 "math_b1", "physics_b1"）
+ * @param subjectId 学科标识（如 "math", "math_b1", "physics_b1"）
  * @param sectionId 小节编号（如 "1.1.1"）
  */
 export function getSectionPageRange(
   subjectId: string,
   sectionId: string
 ): PageRange2 | null {
-  const mapping = SUBJECT_MAPPINGS[subjectId];
-  if (!mapping) return null;
-  return mapping.sections[sectionId] ?? null;
+  // 尝试直接匹配
+  let mapping = SUBJECT_MAPPINGS[subjectId];
+  
+  // 如果没有匹配，尝试添加后缀
+  if (!mapping && !subjectId.includes('_')) {
+    mapping = SUBJECT_MAPPINGS[`${subjectId}_b1`];
+  }
+  
+  // 如果还是没有匹配，遍历查找
+  if (!mapping) {
+    for (const key of Object.keys(SUBJECT_MAPPINGS)) {
+      if (key.startsWith(subjectId)) {
+        mapping = SUBJECT_MAPPINGS[key];
+        break;
+      }
+    }
+  }
+  
+  if (!mapping) {
+    console.log(`[getSectionPageRange] 未找到学科映射: subjectId="${subjectId}", sectionId="${sectionId}"`);
+    return null;
+  }
+  
+  const result = mapping.sections[sectionId] ?? null;
+  console.log(`[getSectionPageRange] 找到: subjectId="${subjectId}", sectionId="${sectionId}", range=`, result);
+  return result;
 }
 
 /**

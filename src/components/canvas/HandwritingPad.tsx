@@ -54,7 +54,7 @@ export function HandwritingPad({ onSave, onCancel, loading, className }: Handwri
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* 工具栏（紧凑） */}
+      {/* ??????? */}
       <div className="flex items-center gap-2 mb-2 flex-shrink-0 flex-wrap">
         <input
           type="color"
@@ -72,14 +72,16 @@ export function HandwritingPad({ onSave, onCancel, loading, className }: Handwri
         />
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={handleUndo} disabled={undoStack.length === 0} className="gap-1 text-xs h-7 px-2">
-          <Undo2 className="h-3 w-3" />撤销
+          <Undo2 className="h-3 w-3" />
+          ??
         </Button>
         <Button variant="outline" size="sm" onClick={handleClear} className="gap-1 text-xs h-7 px-2">
-          <RotateCcw className="h-3 w-3" />清空
+          <RotateCcw className="h-3 w-3" />
+          ??
         </Button>
       </div>
 
-      {/* 画布（占满剩余空间） */}
+      {/* ?????????? */}
       <div className="flex-1 border-2 border-indigo-100 dark:border-indigo-800/50 rounded-lg overflow-hidden bg-white relative min-h-0">
         <SignatureCanvas
           ref={sigCanvas}
@@ -94,17 +96,17 @@ export function HandwritingPad({ onSave, onCancel, loading, className }: Handwri
         />
         {isEmpty && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-slate-300 text-sm">请在此处书写解题步骤</p>
+            <p className="text-slate-300 text-sm">??????????</p>
           </div>
         )}
       </div>
 
-      {/* 操作栏 */}
+      {/* ??? */}
       <div className="flex items-center justify-between mt-2 flex-shrink-0">
-        <p className="text-xs text-slate-400">💡 书写解题过程，点击提交由AI识别</p>
+        <p className="text-xs text-slate-400">?? ????????????AI??</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onCancel} className="h-7 text-xs gap-1">
-            取消
+            ??
           </Button>
           <Button
             size="sm"
@@ -113,11 +115,11 @@ export function HandwritingPad({ onSave, onCancel, loading, className }: Handwri
             className="h-7 text-xs bg-indigo-500 hover:bg-indigo-600 gap-1"
           >
             {loading ? (
-              <span className="animate-spin inline-block">⟳</span>
+              <span className="animate-spin inline-block">?</span>
             ) : (
               <Upload className="h-3 w-3" />
             )}
-            提交
+            ??
           </Button>
         </div>
       </div>

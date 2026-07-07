@@ -21,8 +21,9 @@ import { extractSectionContent, resolvePageRange, findSectionContent, findNextSe
 import { KnowledgeCard } from '@/components/learning/KnowledgeCard';
 import { QuizQuestion, QuizQuestion as QuizQuestionType } from '@/components/learning/QuizQuestion';
 import { LearningSummary } from '@/components/learning/LearningProgress';
-import { getSectionPageRange, normalizeChapters } from '@/lib/chapterPageMapping';
+import { getSectionPageRange, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, getLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
+import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
 
 interface KnowledgePointData {
@@ -79,6 +80,8 @@ function KnowledgePageContent() {
   const fileStart = searchParams.get('fileStart');
   const fileEnd = searchParams.get('fileEnd');
 
+  const decodedSectionId = sectionId ? decodeURIComponent(sectionId) : sectionId;
+  const decodedChapterId = chapterId ? decodeURIComponent(chapterId) : chapterId;
   const sectionTitle = searchParams.get('sectionTitle') || '';
   const subSectionTitle = searchParams.get('subSectionTitle') || '';
 
@@ -314,7 +317,7 @@ function KnowledgePageContent() {
   const weakCount = Object.values(pointStates).filter(s => s.isWeak).length;
   
   const canGoNext = currentPointState 
-    ? (currentPointState.answered && currentPointState.correct) || currentPointState.isWeak || (currentPointState.attemptCount >= 2)
+    ? currentPointState.answered && currentPointState.correct
     : true;
 
   useEffect(() => {
@@ -322,7 +325,25 @@ function KnowledgePageContent() {
       console.log('[Knowledge] Loading PDF for subjectId:', subjectId, 'textbookId:', textbookId);
       setLoadingPdf(true);
       try {
-        // 优先使用 textbookId 加载
+        // 优先级1: 从 Supabase API 加载（所有学科都走这里）
+        if (textbookId) {
+          try {
+            const response = await fetch(`/api/textbook/pdf?textbookId=${encodeURIComponent(textbookId)}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.pdf) {
+                console.log('[Knowledge] 从 Supabase 加载 PDF 成功');
+                setPdfData(data.pdf);
+                setLoadingPdf(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.log('[Knowledge] Supabase API 加载失败，尝试降级:', e);
+          }
+        }
+
+        // 优先级2: 从本地 localStorage 加载
         if (textbookId) {
           const textbookPdf = await getTextbookPDF(textbookId);
           if (textbookPdf?.fullText) {
@@ -393,21 +414,49 @@ function KnowledgePageContent() {
 
   // 精确匹配键：优先子节标题，其次节标题（路径参数）
   // 例如：从 1.1.2 子节项点进来 → subSectionTitle="1.1.2", sectionId="1.1"
-  const mappingKey = subSectionTitle || sectionId;
+  // 同时标准化 sectionId（如 "第1课" → "1.1.1"）
+  const normalizedSectionId = normalizeSectionId(decodedSectionId, chapterId);
+  const mappingKey = subSectionTitle || normalizedSectionId;
+  
+  console.log('[Knowledge] 章节ID标准化:', {
+    original: sectionId,
+    decoded: decodedSectionId,
+    normalized: normalizedSectionId,
+    mappingKey
+  });
 
   const getSectionContent = useCallback(() => {
-    if (!pdfData) return '';
+    if (!pdfData) {
+      console.log('[Knowledge] ⚠️ pdfData 为空，无法提取章节内容');
+      return '';
+    }
     const fullText = pdfData.full_text || pdfData.fullText || '';
-    if (!fullText) return '';
+    if (!fullText) {
+      console.log('[Knowledge] ⚠️ fullText 为空，pages 数量:', pdfData.pages?.length || 0);
+      return '';
+    }
+
+    console.log('[Knowledge] 📖 开始提取章节内容:', {
+      subjectId,
+      mappingKey,
+      pdfDataLength: fullText.length,
+      hasPages: !!pdfData.pages,
+      pagesCount: pdfData.pages?.length || 0
+    });
 
     // 优先级1：全局硬编码映射（subjectId + sectionId）
     const hardcoded = getSectionPageRange(subjectId, mappingKey);
     if (hardcoded) {
+      console.log(`[Knowledge] ✅ 找到全局映射: 第${hardcoded.startPage}-${hardcoded.endPage}页`);
       const content = extractSectionContent(pdfData, hardcoded.startPage, hardcoded.endPage);
       if (content.length > 100) {
         console.log(`[Knowledge] 全局映射 ${subjectId}/${mappingKey} 第${hardcoded.startPage}-${hardcoded.endPage}页，${content.length}字符`);
         return truncateAtSectionBoundary(content, mappingKey);
+      } else {
+        console.log(`[Knowledge] ⚠️ 全局映射内容过短 (${content.length}字符)，尝试其他方法`);
       }
+    } else {
+      console.log(`[Knowledge] ⚠️ 未找到全局映射: subjectId="${subjectId}", sectionId="${mappingKey}"`);
     }
 
     // 优先级2：按小节标题全文定位（subSectionTitle 优先，其次 sectionTitle）
@@ -613,9 +662,30 @@ function KnowledgePageContent() {
         if (result.correct) {
           setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: true, attemptCount: newAttemptCount, isWeak: false } }));
           setCorrectAttempts(prev => prev + 1);
-        } else if (result.nextAction === 'mark-weak' || newAttemptCount > 2) {
-          setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], answered: true, correct: false, attemptCount: newAttemptCount, isWeak: true } }));
         } else {
+          // 答错时立即记录错题（无论第几次答错）
+          const wrongQ: WrongQuestion = {
+            id: `wq_k_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            subjectId,
+            chapterId,
+            sectionId: decodedSectionId,
+            question: currentQuestion.question,
+            options: currentQuestion.options,
+            userAnswer: answer,
+            correctAnswer: currentQuestion.correctAnswer,
+            wrongReason: result.explanation || '解题思路有误',
+            knowledgePoint: currentPoint.name,
+            weakPoint: currentPoint.name,
+            stepAnalysis: result.hint || '',
+            solutionSteps: '',
+            difficulty: 'medium',
+            createdAt: new Date().toISOString(),
+            isMastered: false,
+          };
+          console.log('[知识点学习-错题记录] 记录错题:', wrongQ);
+          addWrongQuestion(wrongQ); // 异步存储，会同步到 Supabase
+
+          // 答错不标记为薄弱项，用户必须答对才能继续
           setPointStates(prev => ({ ...prev, [currentPoint.name]: { ...prev[currentPoint.name], attemptCount: newAttemptCount } }));
         }
         setTotalAttempts(prev => prev + 1);
@@ -830,7 +900,7 @@ function KnowledgePageContent() {
               </Link>
               <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
               <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{isChapter ? `第 ${chapterId} 章` : `第 ${chapterId} 章 第 ${sectionId} 节`}</h1>
+                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{isChapter ? `第 ${decodedChapterId} 章` : `第 ${decodedChapterId} 章 第 ${decodedSectionId} 节`}</h1>
                 <p className="text-sm text-slate-500">{knowledgePoints.length > 0 ? `共 ${knowledgePoints.length} 个知识点` : '点击生成知识点开始学习'}</p>
               </div>
             </div>
@@ -921,7 +991,12 @@ function KnowledgePageContent() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className={cn('text-sm font-medium truncate', status === 'current' ? 'text-indigo-600' : 'text-slate-700 dark:text-slate-300')}>{kp.name}</p>
-                              <Badge variant="outline" className="text-xs mt-0.5">{kp.type}</Badge>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge variant="outline" className="text-xs">{kp.type}</Badge>
+                                {(kp as { page?: number }).page && (
+                                  <span className="text-xs text-slate-400">📖 {(kp as { page?: number }).page}页</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>

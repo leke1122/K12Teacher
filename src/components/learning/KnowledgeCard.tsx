@@ -11,6 +11,7 @@ export interface KnowledgePoint {
   type: string;
   description: string;
   keyPoints?: string[];
+  page?: number | null;
 }
 
 // 动态生成的讲解内容
@@ -119,9 +120,15 @@ export function KnowledgeCard({
                 <Badge variant="outline" className={cn('ml-2 text-sm', typeInfo.color)}>
                   {typeInfo.icon} {knowledge.type}
                 </Badge>
+                {knowledge.page && (
+                  <Badge variant="secondary" className="ml-2 text-xs bg-slate-100 text-slate-600">
+                    第 {knowledge.page} 页
+                  </Badge>
+                )}
               </CardTitle>
               <p className="text-sm text-slate-500 mt-1">
                 {isCompleted ? '✅ 已掌握' : isWeak ? '⚠️ 待巩固' : '学习中'}
+                {knowledge.page && <span className="ml-2">📖 第 {knowledge.page} 页</span>}
               </p>
             </div>
           </div>

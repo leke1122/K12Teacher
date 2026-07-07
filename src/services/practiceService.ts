@@ -1,7 +1,10 @@
 /**
  * 章节练习服务
  * 独立服务，不影响已有功能
+ * 支持 localStorage 和 Supabase 双存储
  */
+
+import { supabase } from '@/lib/supabase';
 
 export interface PracticeQuestion {
   id: string;
@@ -72,41 +75,194 @@ export interface WeakPoint {
 const WRONG_QUESTIONS_KEY = 'practice_wrong_questions';
 const WEAK_POINTS_KEY = 'practice_weak_points';
 const PRACTICE_RECORDS_KEY = 'practice_records';
+const USER_ID = 'personal-user';
+
+// ===== Supabase 错题表操作 =====
+
+async function syncWrongQuestionsToSupabase(wq: WrongQuestion): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('wrong_questions').upsert({
+      id: wq.id,
+      user_id: USER_ID,
+      subject_id: wq.subjectId,
+      chapter_id: wq.chapterId,
+      section_id: wq.sectionId,
+      question: wq.question,
+      options: wq.options || [],
+      user_answer: wq.userAnswer,
+      correct_answer: wq.correctAnswer,
+      wrong_reason: wq.wrongReason,
+      knowledge_point: wq.knowledgePoint,
+      weak_point: wq.weakPoint,
+      step_analysis: wq.stepAnalysis,
+      solution_steps: wq.solutionSteps,
+      difficulty: wq.difficulty,
+      is_mastered: wq.isMastered,
+      created_at: wq.createdAt,
+    }, { onConflict: 'id' });
+  } catch (err) {
+    console.error('[PracticeService] Sync wrong question to Supabase failed:', err);
+  }
+}
+
+async function deleteWrongQuestionFromSupabase(id: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('wrong_questions').delete().eq('id', id);
+  } catch (err) {
+    console.error('[PracticeService] Delete wrong question from Supabase failed:', err);
+  }
+}
+
+async function loadWrongQuestionsFromSupabase(): Promise<WrongQuestion[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('wrong_questions')
+      .select('*')
+      .eq('user_id', USER_ID)
+      .order('created_at', { ascending: false });
+    
+    if (error || !data) return [];
+    
+    return data.map(row => ({
+      id: row.id,
+      subjectId: row.subject_id,
+      chapterId: row.chapter_id,
+      sectionId: row.section_id,
+      question: row.question,
+      options: row.options || [],
+      userAnswer: row.user_answer,
+      correctAnswer: row.correct_answer,
+      wrongReason: row.wrong_reason,
+      knowledgePoint: row.knowledge_point,
+      weakPoint: row.weak_point,
+      stepAnalysis: row.step_analysis,
+      solutionSteps: row.solution_steps,
+      difficulty: row.difficulty,
+      createdAt: row.created_at,
+      isMastered: row.is_mastered,
+    }));
+  } catch (err) {
+    console.error('[PracticeService] Load wrong questions from Supabase failed:', err);
+    return [];
+  }
+}
 
 // ===== 错题管理 =====
 
-export function getWrongQuestions(): WrongQuestion[] {
+let cachedWrongQuestions: WrongQuestion[] | null = null;
+let wrongQuestionsLoaded = false;
+
+export async function getWrongQuestions(): Promise<WrongQuestion[]> {
   if (typeof window === 'undefined') return [];
+  
+  // 如果还没加载过，先从 Supabase 加载
+  if (!wrongQuestionsLoaded) {
+    const supabaseData = await loadWrongQuestionsFromSupabase();
+    if (supabaseData.length > 0) {
+      // 用 Supabase 数据覆盖 localStorage
+      localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(supabaseData));
+      cachedWrongQuestions = supabaseData;
+    } else {
+      // 没有 Supabase 数据，读取 localStorage
+      cachedWrongQuestions = getWrongQuestionsFromLocal();
+    }
+    wrongQuestionsLoaded = true;
+  }
+  
+  return cachedWrongQuestions || getWrongQuestionsFromLocal();
+}
+
+function getWrongQuestionsFromLocal(): WrongQuestion[] {
   try {
     const raw = localStorage.getItem(WRONG_QUESTIONS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
-export function addWrongQuestion(q: WrongQuestion): void {
+// 同步方法（保持向后兼容）
+export function getWrongQuestionsSync(): WrongQuestion[] {
+  if (typeof window === 'undefined') return [];
+  if (cachedWrongQuestions) return cachedWrongQuestions;
+  return getWrongQuestionsFromLocal();
+}
+
+export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   if (typeof window === 'undefined') return;
-  const list = getWrongQuestions();
-  // 去重（相同题目不再重复添加）
+  
+  // 先更新本地缓存
+  const list = await getWrongQuestions();
   if (!list.some(w => w.question === q.question && w.subjectId === q.subjectId)) {
     list.unshift(q);
+    cachedWrongQuestions = list;
     localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+    
+    // 异步同步到 Supabase
+    await syncWrongQuestionsToSupabase(q);
   }
 }
 
-export function updateWrongQuestion(id: string, updates: Partial<WrongQuestion>): void {
+// 同步版本（向后兼容）
+export function addWrongQuestionSync(q: WrongQuestion): void {
   if (typeof window === 'undefined') return;
-  const list = getWrongQuestions().map(w => w.id === id ? { ...w, ...updates } : w);
-  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+  const list = getWrongQuestionsFromLocal();
+  if (!list.some(w => w.question === q.question && w.subjectId === q.subjectId)) {
+    list.unshift(q);
+    cachedWrongQuestions = list;
+    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+    syncWrongQuestionsToSupabase(q); // 异步
+  }
 }
 
-export function deleteWrongQuestion(id: string): void {
+export async function updateWrongQuestion(id: string, updates: Partial<WrongQuestion>): Promise<void> {
   if (typeof window === 'undefined') return;
-  const list = getWrongQuestions().filter(w => w.id !== id);
-  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+  
+  const list = await getWrongQuestions();
+  const index = list.findIndex(w => w.id === id);
+  if (index !== -1) {
+    list[index] = { ...list[index], ...updates };
+    cachedWrongQuestions = list;
+    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+    
+    // 同步到 Supabase
+    if (supabase) {
+      const updateData: Record<string, any> = {};
+      if (updates.isMastered !== undefined) updateData.is_mastered = updates.isMastered;
+      if (updates.wrongReason !== undefined) updateData.wrong_reason = updates.wrongReason;
+      if (updates.stepAnalysis !== undefined) updateData.step_analysis = updates.stepAnalysis;
+      if (updates.solutionSteps !== undefined) updateData.solution_steps = updates.solutionSteps;
+      
+      if (Object.keys(updateData).length > 0) {
+        await supabase.from('wrong_questions').update(updateData).eq('id', id);
+      }
+    }
+  }
 }
 
-export function markWrongQuestionMastered(id: string): void {
-  updateWrongQuestion(id, { isMastered: true });
+export async function deleteWrongQuestion(id: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  
+  const list = await getWrongQuestions();
+  const filtered = list.filter(w => w.id !== id);
+  cachedWrongQuestions = filtered;
+  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(filtered));
+  
+  await deleteWrongQuestionFromSupabase(id);
+}
+
+// 同步版本（向后兼容）
+export function deleteWrongQuestionSync(id: string): void {
+  if (typeof window === 'undefined') return;
+  const list = getWrongQuestionsFromLocal().filter(w => w.id !== id);
+  cachedWrongQuestions = list;
+  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+  deleteWrongQuestionFromSupabase(id);
+}
+
+export async function markWrongQuestionMastered(id: string): Promise<void> {
+  await updateWrongQuestion(id, { isMastered: true });
 }
 
 // ===== 薄弱项管理 =====
@@ -166,12 +322,13 @@ export function deletePracticeRecord(id: string): void {
 
 // ===== 错题按学科筛选 =====
 
-export function getWrongQuestionsBySubject(subjectId: string): WrongQuestion[] {
-  return getWrongQuestions().filter(w => w.subjectId === subjectId);
+export async function getWrongQuestionsBySubject(subjectId: string): Promise<WrongQuestion[]> {
+  const list = await getWrongQuestions();
+  return list.filter(w => w.subjectId === subjectId);
 }
 
-export function getUnmasteredWrongQuestions(subjectId?: string): WrongQuestion[] {
-  const all = getWrongQuestions().filter(w => !w.isMastered);
+export async function getUnmasteredWrongQuestions(subjectId?: string): Promise<WrongQuestion[]> {
+  const all = (await getWrongQuestions()).filter(w => !w.isMastered);
   if (subjectId) return all.filter(w => w.subjectId === subjectId);
   return all;
 }

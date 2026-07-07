@@ -39,8 +39,58 @@ export async function POST(request: NextRequest) {
       attemptCount = 1,  // 尝试次数
       sectionId = '',    // 章节ID（如"1.1.1"）
       chapterContext,    // 可选：传入的章节上下文
-      apiKey             // API密钥
+      apiKey,            // API密钥
+      mode,              // 模式：normal | error_explanation
+      wrongOption,        // 学生选错的选项
+      correctOption       // 正确答案选项
     } = await request.json();
+
+    // ========== 错误讲解模式 ==========
+    if (mode === 'error_explanation' && wrongOption && correctOption && apiKey) {
+      try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              {
+                role: 'system',
+                content: '你是一位耐心的数学老师，帮助学生理解为什么选错了。简洁、直接、不批评学生。'
+              },
+              {
+                role: 'user',
+                content: `请解释为什么学生的选择是错的，以及正确答案为什么对。
+
+原文内容：${content}
+学生选的是：${wrongOption}
+正确答案是：${correctOption}
+
+请输出简短讲解（50字以内），直接说明原因，不要啰嗦。格式：
+{"errorExplanation": "..."}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 200
+          })
+        });
+        const data = await response.json();
+        const text = data?.choices?.[0]?.message?.content?.trim() || '';
+        const match = text.match(/"errorExplanation"\s*:\s*"([^"]+)"/);
+        return NextResponse.json({
+          success: true,
+          errorExplanation: match ? match[1] : `提示：正确答案不是"${wrongOption.replace(/^[A-C]\.\s*/, '')}"，请再读一遍原文和讲解。`
+        });
+      } catch {
+        return NextResponse.json({
+          success: true,
+          errorExplanation: `提示：正确答案不是"${(wrongOption || '').replace(/^[A-C]\.\s*/, '')}"，请再读一遍原文。`
+        });
+      }
+    }
 
     if (!content) {
       return NextResponse.json({ error: '内容不能为空' }, { status: 400 });

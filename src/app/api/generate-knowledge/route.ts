@@ -4,7 +4,7 @@ export async function POST(request: NextRequest) {
   try {
     const { content, apiKey, chapterTitle, startPage, endPage, sectionId: explicitSectionId, subjectId } = await request.json();
 
-    type NormalizedPoint = { id: number; name: string; type: string; description: string; keyPoints?: unknown[] };
+    type NormalizedPoint = { id: number; name: string; type: string; description: string; keyPoints?: unknown[]; page?: number | null };
     let knowledgePoints: NormalizedPoint[] = [];
 
     if (!content) {
@@ -17,111 +17,113 @@ export async function POST(request: NextRequest) {
 
     console.log(`[GenerateKnowledge] 学科=${subjectId || '未知'} | 章节=${chapterTitle || '未知'} | 页码=${startPage || '?'}-${endPage || '?'} | 内容长度=${content.length}`);
 
-    // 优先使用前端传入的显式 sectionId（精确到小节），避免从 chapterTitle 提取时截断成 1.2 造成误匹配
+    // 优先使用前端传入的显式 sectionId
     const resolvedSectionId = resolveExplicitSectionId(explicitSectionId, chapterTitle);
+    const sectionId = resolvedSectionId || explicitSectionId || '';
 
     console.log(`[GenerateKnowledge] 使用章节标识: "${resolvedSectionId}"`);
 
-    // 内容截断策略
-    const MAX_CONTENT_LENGTH = 15000;
-    let processedContent = content;
+    // 构建通用知识点提取提示词（适用于所有数学章节）
+    const systemPrompt = `你是"数学M老师"，正在为学生备课。你拿到教材第 ${startPage} 到 ${endPage} 页的内容。
 
-    if (content.length > MAX_CONTENT_LENGTH) {
-      const exercisePatterns = [/练习[一二三四五六七八九十\d]/i, /习题[一二三四五六七八九十\d]/i, /思考与练习/i];
-      let exerciseIndex = -1;
+## 核心原则：必须按页码顺序提取！
 
-      for (const pattern of exercisePatterns) {
-        const match = content.search(pattern);
-        if (match > 1000 && (exerciseIndex === -1 || match < exerciseIndex)) {
-          exerciseIndex = match;
-        }
-      }
+**提取顺序规则**：
+1. 先看第 ${startPage} 页：从上到下读取，每遇到新概念/符号/规则就提取一个知识点
+2. 再看第 ${startPage + 1} 页：依此类推
+3. 直到第 ${endPage} 页
 
-      if (exerciseIndex > 1000 && exerciseIndex < content.length - 500) {
-        processedContent = content.slice(0, Math.min(exerciseIndex, MAX_CONTENT_LENGTH));
-        console.log(`[GenerateKnowledge] 内容过长，截取至练习前: ${processedContent.length} 字符`);
-      } else {
-        processedContent = content.slice(0, MAX_CONTENT_LENGTH);
-        console.log(`[GenerateKnowledge] 内容过长，直接截取前${MAX_CONTENT_LENGTH}字符`);
-      }
-    }
+**每个知识点必须标注它实际出现在哪一页**
 
-    // 构建通用提示词
-    const systemPrompt = `你是一个精确的知识提取工具，任务是将教材内容逐项拆解为所有独立的知识点，**一个都不能遗漏**。
+## 必须提取的内容（不遗漏！）
 
-## 核心原则
-- 你不是在写摘要，而是在做"逐条盘点"
-- 每个定义、每个符号、每个性质、每个方法都必须单独列为一个知识点
-- 即使是很简短的句子，只要引入了一个新概念，就要提取
-- 不要合并多个概念为一条
+### 第 ${startPage} 页必含：
+- 基本概念定义（如"集合的定义"、"元素的定义"）
+- 基本符号（如"属于"、"不属于"）
+- 符号格式说明
 
-## 必须提取的内容类型
-1. **定义**：所有新概念的准确解释（如"集合的定义"、"元素的定义"）
-2. **符号**：所有符号及其含义（如"∈ 表示属于"、"∉ 表示不属于"）
-3. **性质**：所有特性、规律、定理（如"确定性"、"互异性"、"无序性"）
-4. **方法**：所有表示方法、操作步骤（如"列举法"、"描述法"）
-5. **概念**：所有数学对象名称（如"空集"、"有限集"、"无限集"、"区间"）
-6. **数集符号**：所有数集字母（如"N"、"N*"、"Z"、"Q"、"R"）
-7. **重要结论**：每个"即..."、"也就是说..."后面跟着的都是独立知识点
-8. **注意**：所有补充说明、限定条件、特殊情况
+### 第 ${startPage + 1} 页必含（如果有）：
+- 性质/规则（如"确定性"、"互异性"、"无序性"）
+- 数集符号（如"N自然数集"、"Z整数集"、"Q有理数集"、"R实数集"）
 
-## 类型分类标准
-- 定义：新概念的准确解释
-- 符号：符号表示及其含义
-- 性质：定理、规律、法则、特性
-- 方法：解题方法、操作步骤、表示方法
-- 注意：易错点、特殊情况、限定条件
-- 关系：概念之间的关联、区别
-- 公式：数学公式
-- 概念：基本数学概念
+### 任何页都可能有：
+- 新方法名称（如"列举法"、"描述法"）
+- 方法格式（如"大括号内用逗号分隔"、"竖线左边写元素符号"）
+- 新概念名词
+- 新符号含义
 
-## 提取步骤（严格遵守）
-1. **逐句扫描**：一句话一句话地读，遇到新概念就提取
-2. **遇到定义词（"叫作"、"称为"、"是"）→ 提取定义类知识点
-3. **遇到符号（"∈、∉、⊂、∪、∩"）→ 提取符号类知识点
-4. **遇到特性词（"确定性"、"互异性"、"无序性"）→ 提取性质类知识点
-5. **遇到"用...表示" → 提取方法类知识点
-6. **遇到"注意："、"特别要注意" → 提取注意类知识点
+### 不要提取：
+- 具体数字举例（如"如1,2,3"）
+- 引导性提问（"想一想"、"思考"）
+- 具体例题内容
+
+## 提取示例
+
+教材第10页内容：
+"在数学中，我们经常用'集合'来对所研究的对象进行分类..."
+"集合通常用英文大写字母A，B，C，...表示..."
+"如果a是集合A的元素，就说a属于A，记作a∈A..."
+
+教材第11页内容：
+"集合中的元素具有以下性质：确定性：给定一个集合..."
+"互异性：同一个集合中的元素都是互不相同的。"
+"我们通常用N表示自然数集，用Z表示整数集..."
+
+**正确提取结果**：
+第10页知识点（按顺序）：
+1. "集合的定义" - 第10页
+2. "集合的元素" - 第10页
+3. "集合的表示符号" - 第10页
+4. "属于符号" - 第10页
+5. "不属于符号" - 第10页
+
+第11页知识点（按顺序）：
+6. "确定性" - 第11页
+7. "互异性" - 第11页
+8. "无序性" - 第11页
+9. "自然数集N" - 第11页
+10. "正整数集N*或N+" - 第11页
+11. "整数集Z" - 第11页
+12. "有理数集Q" - 第11页
+13. "实数集R" - 第11页
 
 ## 输出格式
-必须返回严格的JSON数组，每个元素包含：
-{
-  "id": 序号（数字，按教材出现顺序编号）,
-  "name": "知识点名称（简洁，5-20字，如"集合的定义"）",
-  "type": "定义/符号/性质/方法/注意/关系/公式/概念",
-  "description": "简要说明（20-50字），一句话概括核心内容"
-}
+JSON数组格式：
+[
+  {"name": "知识点名称", "page": 页码, "description": "简要说明"}
+]
 
-## 格式要求
-- 只返回JSON数组，不要有任何其他文字
-- 确保JSON格式正确，可以被JSON.parse()解析
-- **按教材顺序返回**
-- **数量要求：每个小节提取 15-35 个知识点，宁多勿少**`;
+## 强制检查清单（输出前必须核对）：
+- [ ] 第一个知识点来自第 ${startPage} 页
+- [ ] 知识点按页码顺序排列（10→11→12...）
+- [ ] "集合的定义"类概念在"描述法"之前
+- [ ] "确定性、互异性、无序性"都已提取
+- [ ] "N、Z、Q、R"等数集符号都已提取
+- [ ] 总数 >= 20 个`;
 
-    const userPrompt = `请从以下教材内容中提取所有知识点。
+    const userPrompt = `教材范围：第 ${startPage} 到 ${endPage} 页
 
-⚠️ 重要提醒：
-1. **逐句扫描**，不要跳读，每句话都要分析
-2. 只提取当前小节（${explicitSectionId || chapterTitle || '本节'}）的知识点，不要提取其他小节的内容
-3. 如果教材内容跨越了多个小节，只提取当前小节的内容
-4. **按教材原文中的出现顺序**提取，保持先后顺序不变
-5. **不要合并**：每个独立概念单独一条（如"集合的概念"和"元素"是两个知识点）
-6. **不要遗漏**：即使是很简短的句子，只要引入了新概念就要提取
-7. **宁多勿少**：宁可多提取几个，也不要漏掉
+请严格按以下步骤提取：
 
-教材内容：
-${processedContent}
+**第一步**：读取第 ${startPage} 页的所有内容，提取每个新概念/符号/规则作为单独知识点
 
-提取完成后，请自检：
-- [ ] 是否包含了所有定义？
-- [ ] 是否包含了所有符号及其含义？
-- [ ] 是否包含了所有性质（确定性、互异性、无序性等）？
-- [ ] 是否包含了所有方法（列举法、描述法等）？
-- [ ] 是否包含了所有数集符号（N、Z、Q、R）？
-- [ ] 是否包含了所有概念（空集、有限集、无限集等）？
-- [ ] 提取数量是否在 15-35 之间？`;
+**第二步**：读取第 ${startPage + 1} 页的所有内容，继续提取
 
-    console.log('[GenerateKnowledge] 发送请求到 DeepSeek API，截断后内容长度:', processedContent.length);
+**第三步**：依此类推直到第 ${endPage} 页
+
+**必须包含**：
+- 基本概念（集合、元素等）
+- 基本符号（属于、不属于）
+- 性质规则（确定性、互异性、无序性）
+- 数集符号（N、Z、Q、R）
+- 方法格式（列举法、描述法）
+
+**教材内容**：
+${content.slice(0, 12000)}
+
+请返回JSON数组，每个元素包含 name、page、description。`;
+
+    console.log('[GenerateKnowledge] 发送请求到 DeepSeek API');
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -136,7 +138,7 @@ ${processedContent}
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 4000
+        max_tokens: 8000
       })
     });
 
@@ -153,7 +155,7 @@ ${processedContent}
       console.error('[GenerateKnowledge] 请求超时:', timeoutError);
       return NextResponse.json({
         error: '请求超时，内容可能过长。请尝试提取更小的章节。',
-        tip: '建议分小节提取，如只提取 1.1.1 而非整个 1.1'
+        tip: '建议分小节提取'
       }, { status: 500 });
     }
 
@@ -166,67 +168,74 @@ ${processedContent}
     const rawContent = (data.choices as Array<{ message?: { content?: string } }>)?.at(0)?.message?.content || '[]';
 
     console.log('[GenerateKnowledge] AI返回原始内容长度:', rawContent.length);
+    console.log('[GenerateKnowledge] AI返回原始内容预览:', rawContent.substring(0, 500));
+
+    // 解析JSON
+    let rawParsed: unknown[] = [];
 
     try {
-      let rawParsed: unknown[] = [];
-
-      try {
-        rawParsed = JSON.parse(rawContent);
-      } catch {
-        const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          try { rawParsed = JSON.parse(jsonMatch[0]); }
-          catch { /* keep empty */ }
-        }
-      }
-
-      if (!Array.isArray(rawParsed) || rawParsed.length === 0) {
-        throw new Error('解析结果不是有效的数组');
-      }
-
-      let normalized: NormalizedPoint[] = (rawParsed as Record<string, unknown>[]).map((kp, index) => ({
-        id: (kp.id as number) || (index + 1),
-        name: String(kp.name || kp.title || `知识点${index + 1}`),
-        type: normalizeType(kp.type as string || (kp.category as string) || '概念'),
-        description: String(kp.description || kp.desc || (kp.content as string) || ''),
-        keyPoints: Array.isArray(kp.keyPoints) ? kp.keyPoints : []
-      }));
-
-      knowledgePoints = normalized;
-      console.log('[GenerateKnowledge] ✅ 最终共提取 ' + knowledgePoints.length + ' 个知识点');
-
-    } catch (parseError) {
-      console.error('[GenerateKnowledge] JSON解析失败:', parseError);
-      console.log('[GenerateKnowledge] 原始内容预览:', rawContent.slice(0, 500));
-
-      try {
-        const fixedContent = rawContent
-          .replace(/^```json\s*/i, '')
-          .replace(/^```\s*/i, '')
-          .replace(/\s*```$/i, '')
-          .trim();
-
-        const parsed = JSON.parse(fixedContent) as Record<string, unknown>[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          knowledgePoints = parsed.map((kp, index) => ({
-            id: (kp.id as number) || (index + 1),
-            name: String(kp.name || kp.title || `知识点${index + 1}`),
-            type: normalizeType(kp.type as string || '概念'),
-            description: String(kp.description || kp.desc || ''),
-            keyPoints: Array.isArray(kp.keyPoints) ? kp.keyPoints : []
-          }));
-          console.log('[GenerateKnowledge] 修复后成功解析，共', knowledgePoints.length, '个知识点');
-        } else {
-          throw new Error('修复后仍不是有效数组');
-        }
-      } catch {
-        return NextResponse.json({
-          error: '知识点解析失败',
-          rawContent: rawContent.slice(0, 1000),
-          parseError: parseError instanceof Error ? parseError.message : '未知错误'
-        }, { status: 500 });
+      rawParsed = JSON.parse(rawContent);
+    } catch {
+      const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        try { rawParsed = JSON.parse(jsonMatch[0]); }
+        catch { /* keep empty */ }
       }
     }
+
+    if (!Array.isArray(rawParsed) || rawParsed.length === 0) {
+      throw new Error('解析结果不是有效的数组');
+    }
+
+    console.log('[GenerateKnowledge] 解析后的知识点原始顺序:');
+    (rawParsed as Record<string, unknown>[]).slice(0, 5).forEach((kp, i) => {
+      console.log(`  ${i + 1}. [${kp.page}页] ${kp.name || kp.title || '未知'}`);
+    });
+
+    // 标准化知识点
+    knowledgePoints = (rawParsed as Record<string, unknown>[]).map((kp, index) => {
+      const page = typeof kp.page === 'number' ? kp.page 
+        : typeof kp.pageNumber === 'number' ? kp.pageNumber 
+        : null;
+      
+      const name = String(kp.name || kp.title || `知识点${index + 1}`);
+      
+      return {
+        id: (kp.id as number) || (index + 1),
+        name,
+        type: normalizeType(kp.type as string || (kp.category as string) || '概念'),
+        description: String(kp.description || kp.desc || (kp.content as string) || ''),
+        keyPoints: Array.isArray(kp.keyPoints) ? kp.keyPoints : [],
+        page,
+      };
+    });
+
+    // 后端强制按页码排序
+    knowledgePoints.sort((a, b) => (a.page || 999) - (b.page || 999));
+
+    console.log('[GenerateKnowledge] 排序后的知识点顺序:');
+    knowledgePoints.slice(0, 5).forEach((kp, i) => {
+      console.log(`  ${i + 1}. [${kp.page}页] ${kp.name}`);
+    });
+
+    // 第一个知识点校验 - 检查是否从起始页开始
+    if (knowledgePoints.length > 0) {
+      const first = knowledgePoints[0];
+      const firstPage = first.page;
+      
+      if (firstPage && firstPage !== startPage) {
+        console.warn(`[GenerateKnowledge] 警告: 第一个知识点页码不正确: 第${firstPage}页，预期第${startPage}页`);
+        console.warn(`[GenerateKnowledge] 知识点名: "${first.name}"`);
+      } else {
+        console.log(`[GenerateKnowledge] 第一个知识点页码正确: 第${startPage}页 "${first.name}"`);
+      }
+    }
+
+    console.log('[GenerateKnowledge] 最终共提取 ' + knowledgePoints.length + ' 个知识点');
+    console.log('[GenerateKnowledge] 页码范围验证:', {
+      expectedRange: `${startPage}-${endPage}`,
+      actualPages: knowledgePoints.map(kp => kp.page).filter(Boolean).slice(0, 5)
+    });
 
     return NextResponse.json({
       knowledgePoints,
@@ -242,7 +251,6 @@ ${processedContent}
   }
 }
 
-/** 优先使用前端传入的显式 sectionId，避免 chapterTitle 中的 "1.2" 被错误扩展为 "1.1" */
 function resolveExplicitSectionId(explicitId: unknown, chapterTitle: string): string {
   const raw = String(explicitId || '').trim();
   if (raw) return raw;
@@ -254,7 +262,6 @@ function extractSectionId(title: string): string | null {
   return match ? match[1] : null;
 }
 
-/** 类型标准化函数 */
 function normalizeType(type: string): string {
   const typeMap: Record<string, string> = {
     '概念': '概念', '定义': '定义', '符号': '符号', '性质': '性质',
