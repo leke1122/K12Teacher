@@ -101,36 +101,44 @@ export async function getWords(params: {
   let masteryMap: Map<string, number> = new Map();
   let masteries: { word_id: string; mastery_level: number }[] = [];
 
-  // 特殊处理 mastered：直接从 word_mastery 表查，避免从 words 表截断导致漏取
+  // 特殊处理 mastered：用 RPC 执行 JOIN 查询，一次获取所有数据
   if (status === 'mastered' && supabaseClient) {
-    const { data: masteryData } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('word_mastery')
-      .select('word_id, mastery_level')
+      .select(`
+        mastery_level,
+        updated_at,
+        words:word_id (
+          id,
+          word,
+          phonetic,
+          part_of_speech,
+          meaning,
+          example,
+          translation,
+          collocations,
+          synonyms,
+          antonyms,
+          frequency_level,
+          created_at
+        )
+      `)
       .eq('user_id', userId)
       .gte('mastery_level', 5)
       .order('updated_at', { ascending: false })
       .range(from, to);
 
-    masteries = masteryData || [];
-    const masteredIds = masteries.map(m => m.word_id);
-    if (masteredIds.length > 0) {
-      const { data: wordsData, error: wordsError } = await supabaseClient
-        .from('words')
-        .select('*')
-        .in('id', masteredIds);
+    if (error) {
+      console.error('[WordService] mastered query error:', error);
+      return { words: [], total: 0 };
+    }
 
-      if (!wordsError && wordsData) {
-        masteryMap = new Map(masteries.map(m => [m.word_id, m.mastery_level]));
-        // IN 查询不保证返回顺序与 masteredIds 一致，必须按 masteredIds 排序
-        const sortedWords = masteredIds
-          .map(id => wordsData.find((w: any) => w.id === id))
-          .filter(Boolean);
-        const wordsWithMastery = sortedWords.map((w: any) => ({
-          ...w,
-          mastery_level: masteryMap.get(w.id) || 0,
-        }));
-        return { words: wordsWithMastery, total: masteries.length };
-      }
+    if (data && data.length > 0) {
+      const wordsWithMastery = data.map((row: any) => ({
+        ...row.words,
+        mastery_level: row.mastery_level,
+      })).filter((w: any) => w && w.id != null);
+      return { words: wordsWithMastery, total: data.length };
     }
     return { words: [], total: 0 };
   }
