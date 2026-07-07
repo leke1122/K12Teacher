@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { data, error } = await supabase
-      .from('learning_records')
+      .from('learning_sessions')
       .select('*')
       .eq('user_id', USER_ID)
       .gte('start_time', `${startDate}T00:00:00`)

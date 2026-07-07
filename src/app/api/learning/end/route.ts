@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest) {
     const end_time = endTime ? new Date(endTime) : new Date();
 
     const { data: existing } = await supabase
-      .from('learning_records')
+      .from('learning_sessions')
       .select('start_time')
       .eq('id', recordId)
       .eq('user_id', USER_ID)
@@ -33,7 +33,7 @@ export async function PUT(req: NextRequest) {
     const durationSeconds = Math.round((end_time.getTime() - startTime.getTime()) / 1000);
 
     const { error } = await supabase
-      .from('learning_records')
+      .from('learning_sessions')
       .update({
         end_time: end_time.toISOString(),
         duration_seconds: durationSeconds,

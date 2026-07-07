@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data, error } = await supabase
-      .from('learning_records')
+      .from('learning_sessions')
       .insert({
         user_id: USER_ID,
         subject_id: subjectId,

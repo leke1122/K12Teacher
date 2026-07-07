@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get('subject');
 
     let query = supabase
-      .from('learning_records')
+      .from('learning_sessions')
       .select('*', { count: 'exact' })
       .eq('user_id', USER_ID)
       .order('start_time', { ascending: false });
