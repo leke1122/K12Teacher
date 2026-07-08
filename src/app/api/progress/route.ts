@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 // In-memory store for dev mode (persists across API calls in same process)
 // Key: `${subjectId}_${chapterId}_${sectionId}_${timestamp}`
 const progressStore: Record<string, object> = {};

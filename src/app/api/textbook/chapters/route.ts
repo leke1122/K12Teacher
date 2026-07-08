@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextbook } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/textbook/chapters?textbookId=history_1234567890
 export async function GET(request: NextRequest) {
   try {

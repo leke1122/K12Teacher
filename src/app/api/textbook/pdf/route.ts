@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTextbook as getSupabaseTextbook, isSupabaseConfigured } from '@/lib/supabase';
 import { getTextbookPDF, getTextbooks } from '@/lib/textbookStorage.server';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/textbook/pdf?textbookId=xxx
 export async function GET(request: NextRequest) {
   try {

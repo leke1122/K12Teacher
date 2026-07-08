@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateMastery, recordLearningAction } from '@/lib/wordService';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   console.log('[API/words/mastery] Request received');
   console.log('[API/words/mastery] Supabase configured:', isSupabaseConfigured);
