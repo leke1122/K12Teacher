@@ -142,10 +142,15 @@ export async function getWords(params: {
 
     // 步骤3：获取没有 mastery 记录的单词
     console.log('[WordService] getWords unmastered: querying words table...');
-    let q = supabaseClient.from('words').select('*', { count: 'exact' });
-    if (frequency !== 'all') q = q.eq('frequency_level', frequency);
-    q = q.range(from, to);
-    const { data: allWords, count: allCount, error: error3 } = await q;
+    try {
+      let q = supabaseClient.from('words').select('*', { count: 'exact' });
+      if (frequency !== 'all') {
+        q = q.eq('frequency_level', frequency);
+      }
+      q = q.range(from, to);
+      console.log('[WordService] getWords unmastered: executing query, from =', from, 'to =', to);
+      const { data: allWords, count: allCount, error: error3 } = await q;
+      console.log('[WordService] getWords unmastered: query completed, allWords length =', allWords?.length, 'count =', allCount, 'error =', error3);
 
     if (error3) {
       console.error('[WordService] getWords unmastered step3 error:', error3);
@@ -166,16 +171,18 @@ export async function getWords(params: {
     console.log('[WordService] getWords unmastered: filtered count =', unmasteredWords.length);
 
     // 统计总数（排除已掌握）
-    const { count: totalWords, error: error4 } = await supabaseClient
-      .from('words').select('*', { count: 'exact', head: true })
-      .eq('frequency_level', frequency !== 'all' ? frequency : undefined);
+    let countQuery = supabaseClient.from('words').select('*', { count: 'exact', head: true });
+    if (frequency !== 'all') {
+      countQuery = countQuery.eq('frequency_level', frequency);
+    }
+    const { count: totalWords, error: error4 } = await countQuery;
 
     if (error4) {
       console.error('[WordService] getWords unmastered step4 error:', error4);
     }
 
     // 确保 total 不为负数
-    const unmasteredTotal = Math.max(0, (totalWords || 0) - masteredIdSet.size);
+    const unmasteredTotal = Math.max(0, (totalWords ?? 0) - masteredIdSet.size);
     console.log('[WordService] getWords unmastered: totalWords =', totalWords, 'masteredIdSet.size =', masteredIdSet.size, 'final total =', unmasteredTotal);
 
     return { words: unmasteredWords, total: unmasteredTotal };
