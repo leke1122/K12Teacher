@@ -80,7 +80,6 @@ export async function getWords(params: {
     console.error('[WordService] getWords: supabaseClient is null!');
     return { words: [], total: 0 };
   }
-  console.log('[WordService] getWords: supabaseClient initialized, supabaseUrl =', !!supabaseClient.supabaseUrl);
   const { page = 1, limit = 20, frequency = 'all', status = 'all', search = '', userId = 'personal-user' } = params;
 
   let query = supabaseClient
@@ -107,11 +106,10 @@ export async function getWords(params: {
 
   // 特殊处理 unmastered：查所有未掌握的单词（排除 mastery_level >= 5）
   if (status === 'unmastered' && supabaseClient) {
-    try {
-      console.log('[WordService] getWords unmastered: starting...');
+    console.log('[WordService] getWords unmastered: starting...');
 
-      // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
-      const { data: masteredIds, error: error1 } = await supabaseClient
+    // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
+    const { data: masteredIds, error: error1 } = await supabaseClient
       .from('word_mastery')
       .select('word_id')
       .eq('user_id', userId)
@@ -142,20 +140,19 @@ export async function getWords(params: {
 
     // 步骤3：获取没有 mastery 记录的单词
     console.log('[WordService] getWords unmastered: querying words table...');
-    try {
-      let q = supabaseClient.from('words').select('*', { count: 'exact' });
-      if (frequency !== 'all') {
-        q = q.eq('frequency_level', frequency);
-      }
-      q = q.range(from, to);
-      console.log('[WordService] getWords unmastered: executing query, from =', from, 'to =', to);
-      const { data: allWords, count: allCount, error: error3 } = await q;
-      console.log('[WordService] getWords unmastered: query completed, allWords length =', allWords?.length, 'count =', allCount, 'error =', error3);
+    let q = supabaseClient.from('words').select('*', { count: 'exact' });
+    if (frequency !== 'all') {
+      q = q.eq('frequency_level', frequency);
+    }
+    q = q.range(from, to);
+    console.log('[WordService] getWords unmastered: executing query, from =', from, 'to =', to);
+    const { data: allWords, count: allCount, error: error3 } = await q;
+    console.log('[WordService] getWords unmastered: query completed, allWords length =', allWords?.length, 'count =', allCount, 'error =', error3);
 
     if (error3) {
       console.error('[WordService] getWords unmastered step3 error:', error3);
+      return { words: [], total: 0 };
     }
-    console.log('[WordService] getWords unmastered: allWords count =', allWords?.length, 'count =', allCount);
 
     if (!allWords) return { words: [], total: 0 };
 
