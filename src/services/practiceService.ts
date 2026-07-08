@@ -152,27 +152,13 @@ async function loadWrongQuestionsFromSupabase(): Promise<WrongQuestion[]> {
 
 // ===== 错题管理 =====
 
-let cachedWrongQuestions: WrongQuestion[] | null = null;
-let wrongQuestionsLoaded = false;
-
+// 直接从 Supabase 读取，保证跨浏览器一致性
 export async function getWrongQuestions(): Promise<WrongQuestion[]> {
   if (typeof window === 'undefined') return [];
   
-  // 如果还没加载过，先从 Supabase 加载
-  if (!wrongQuestionsLoaded) {
-    const supabaseData = await loadWrongQuestionsFromSupabase();
-    if (supabaseData.length > 0) {
-      // 用 Supabase 数据覆盖 localStorage
-      localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(supabaseData));
-      cachedWrongQuestions = supabaseData;
-    } else {
-      // 没有 Supabase 数据，读取 localStorage
-      cachedWrongQuestions = getWrongQuestionsFromLocal();
-    }
-    wrongQuestionsLoaded = true;
-  }
-  
-  return cachedWrongQuestions || getWrongQuestionsFromLocal();
+  // 始终从 Supabase 获取最新数据
+  const supabaseData = await loadWrongQuestionsFromSupabase();
+  return supabaseData.length > 0 ? supabaseData : getWrongQuestionsFromLocal();
 }
 
 function getWrongQuestionsFromLocal(): WrongQuestion[] {
@@ -185,79 +171,47 @@ function getWrongQuestionsFromLocal(): WrongQuestion[] {
 // 同步方法（保持向后兼容）
 export function getWrongQuestionsSync(): WrongQuestion[] {
   if (typeof window === 'undefined') return [];
-  if (cachedWrongQuestions) return cachedWrongQuestions;
   return getWrongQuestionsFromLocal();
 }
 
 export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  // 先更新本地缓存
-  const list = await getWrongQuestions();
-  if (!list.some(w => w.question === q.question && w.subjectId === q.subjectId)) {
-    list.unshift(q);
-    cachedWrongQuestions = list;
-    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
-    
-    // 异步同步到 Supabase
-    await syncWrongQuestionsToSupabase(q);
-  }
+  // 直接写入 Supabase，跨浏览器同步
+  await syncWrongQuestionsToSupabase(q);
 }
 
 // 同步版本（向后兼容）
 export function addWrongQuestionSync(q: WrongQuestion): void {
   if (typeof window === 'undefined') return;
-  const list = getWrongQuestionsFromLocal();
-  if (!list.some(w => w.question === q.question && w.subjectId === q.subjectId)) {
-    list.unshift(q);
-    cachedWrongQuestions = list;
-    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
-    syncWrongQuestionsToSupabase(q); // 异步
-  }
+  syncWrongQuestionsToSupabase(q);
 }
 
 export async function updateWrongQuestion(id: string, updates: Partial<WrongQuestion>): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  const list = await getWrongQuestions();
-  const index = list.findIndex(w => w.id === id);
-  if (index !== -1) {
-    list[index] = { ...list[index], ...updates };
-    cachedWrongQuestions = list;
-    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
+  // 直接更新 Supabase
+  if (supabase) {
+    const updateData: Record<string, any> = {};
+    if (updates.isMastered !== undefined) updateData.is_mastered = updates.isMastered;
+    if (updates.wrongReason !== undefined) updateData.wrong_reason = updates.wrongReason;
+    if (updates.stepAnalysis !== undefined) updateData.step_analysis = updates.stepAnalysis;
+    if (updates.solutionSteps !== undefined) updateData.solution_steps = updates.solutionSteps;
     
-    // 同步到 Supabase
-    if (supabase) {
-      const updateData: Record<string, any> = {};
-      if (updates.isMastered !== undefined) updateData.is_mastered = updates.isMastered;
-      if (updates.wrongReason !== undefined) updateData.wrong_reason = updates.wrongReason;
-      if (updates.stepAnalysis !== undefined) updateData.step_analysis = updates.stepAnalysis;
-      if (updates.solutionSteps !== undefined) updateData.solution_steps = updates.solutionSteps;
-      
-      if (Object.keys(updateData).length > 0) {
-        await supabase.from('wrong_questions').update(updateData).eq('id', id);
-      }
+    if (Object.keys(updateData).length > 0) {
+      await supabase.from('wrong_questions').update(updateData).eq('id', id);
     }
   }
 }
 
 export async function deleteWrongQuestion(id: string): Promise<void> {
   if (typeof window === 'undefined') return;
-  
-  const list = await getWrongQuestions();
-  const filtered = list.filter(w => w.id !== id);
-  cachedWrongQuestions = filtered;
-  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(filtered));
-  
   await deleteWrongQuestionFromSupabase(id);
 }
 
 // 同步版本（向后兼容）
 export function deleteWrongQuestionSync(id: string): void {
   if (typeof window === 'undefined') return;
-  const list = getWrongQuestionsFromLocal().filter(w => w.id !== id);
-  cachedWrongQuestions = list;
-  localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(list));
   deleteWrongQuestionFromSupabase(id);
 }
 

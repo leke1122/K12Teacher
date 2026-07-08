@@ -18,9 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { startLearning, endLearning } from '@/lib/learningService';
 
-// 本地缓存键名
-const MASTERED_CACHE_KEY = 'edumind_mastered_words_v2';
-const STATS_CACHE_KEY = 'edumind_stats_v2';
+// 仅保留 localStorage 作为设置存储（不影响核心学习数据）
 
 interface WordRecord {
   id: string;
@@ -115,36 +113,6 @@ function SpeakButton({ text, className }: { text: string; className?: string }) 
   );
 }
 
-interface CachedMasteredData {
-  words: WordRecord[];
-  count: number;
-  updatedAt: string;
-}
-
-function loadMasteredCache(): CachedMasteredData {
-  try {
-    const raw = localStorage.getItem(MASTERED_CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const age = Date.now() - new Date(parsed.updatedAt).getTime();
-      if (age < 7 * 24 * 60 * 60 * 1000) {
-        return parsed;
-      }
-    }
-  } catch {}
-  return { words: [], count: 0, updatedAt: new Date().toISOString() };
-}
-
-function saveMasteredCache(words: WordRecord[]) {
-  try {
-    const data: CachedMasteredData = {
-      words,
-      count: words.length,
-      updatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(MASTERED_CACHE_KEY, JSON.stringify(data));
-  } catch {}
-}
 
 // 横向双栏单词卡片组件
 function WordCard({
@@ -781,17 +749,8 @@ export default function WordsPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [isMastering, setIsMastering] = useState(false);
   const [practiceLoading, setPracticeLoading] = useState(false);
-  const masteredCacheRef = useRef<WordRecord[]>(loadMasteredCache().words);
   const learningRecordRef = useRef<string | null>(null);
 
-  // 初始化：从本地缓存加载已掌握单词
-  useEffect(() => {
-    const cached = loadMasteredCache();
-    if (cached.words.length > 0) {
-      masteredCacheRef.current = cached.words;
-      setReviewWords(cached.words);
-    }
-  }, []);
 
   // 学习记录：进入时开始，离开时结束
   useEffect(() => {
