@@ -76,7 +76,11 @@ export async function getWords(params: {
   search?: string;
   userId?: string;
 }): Promise<{ words: WordRecord[]; total: number }> {
-  if (!supabaseClient) return { words: [], total: 0 };
+  if (!supabaseClient) {
+    console.error('[WordService] getWords: supabaseClient is null!');
+    return { words: [], total: 0 };
+  }
+  console.log('[WordService] getWords: supabaseClient initialized, supabaseUrl =', !!supabaseClient.supabaseUrl);
   const { page = 1, limit = 20, frequency = 'all', status = 'all', search = '', userId = 'personal-user' } = params;
 
   let query = supabaseClient
@@ -103,9 +107,11 @@ export async function getWords(params: {
 
   // 特殊处理 unmastered：查所有未掌握的单词（排除 mastery_level >= 5）
   if (status === 'unmastered' && supabaseClient) {
-    // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
-    // 注意：word_id 可能是字符串类型，需要统一转为字符串比较
-    const { data: masteredIds, error: error1 } = await supabaseClient
+    try {
+      console.log('[WordService] getWords unmastered: starting...');
+
+      // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
+      const { data: masteredIds, error: error1 } = await supabaseClient
       .from('word_mastery')
       .select('word_id')
       .eq('user_id', userId)
@@ -132,8 +138,10 @@ export async function getWords(params: {
     }
 
     const lowMasteryMap = new Map((lowMastery || []).map(r => [String(r.word_id), r.mastery_level]));
+    console.log('[WordService] getWords unmastered: lowMastery count =', lowMasteryMap.size);
 
     // 步骤3：获取没有 mastery 记录的单词
+    console.log('[WordService] getWords unmastered: querying words table...');
     let q = supabaseClient.from('words').select('*', { count: 'exact' });
     if (frequency !== 'all') q = q.eq('frequency_level', frequency);
     q = q.range(from, to);
@@ -166,7 +174,11 @@ export async function getWords(params: {
       console.error('[WordService] getWords unmastered step4 error:', error4);
     }
 
-    return { words: unmasteredWords, total: (totalWords || 0) - masteredIdSet.size };
+    // 确保 total 不为负数
+    const unmasteredTotal = Math.max(0, (totalWords || 0) - masteredIdSet.size);
+    console.log('[WordService] getWords unmastered: totalWords =', totalWords, 'masteredIdSet.size =', masteredIdSet.size, 'final total =', unmasteredTotal);
+
+    return { words: unmasteredWords, total: unmasteredTotal };
   }
 
   // 特殊处理 mastered：先查 mastery IDs，再查单词详情（绕过外键限制）
