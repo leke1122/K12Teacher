@@ -104,13 +104,14 @@ export async function getWords(params: {
   // 特殊处理 unmastered：查所有未掌握的单词（排除 mastery_level >= 5）
   if (status === 'unmastered' && supabaseClient) {
     // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
+    // 注意：word_id 可能是字符串类型，需要统一转为字符串比较
     const { data: masteredIds } = await supabaseClient
       .from('word_mastery')
       .select('word_id')
       .eq('user_id', userId)
       .gte('mastery_level', 5);
 
-    const masteredIdSet = new Set((masteredIds || []).map(r => r.word_id));
+    const masteredIdSet = new Set((masteredIds || []).map(r => String(r.word_id)));
 
     // 步骤2：获取所有未掌握的单词 ID（mastery_level < 5，包括无记录）
     const { data: lowMastery } = await supabaseClient
@@ -121,7 +122,7 @@ export async function getWords(params: {
       .order('mastery_level', { ascending: true })
       .range(from, to);
 
-    const lowMasteryMap = new Map((lowMastery || []).map(r => [r.word_id, r.mastery_level]));
+    const lowMasteryMap = new Map((lowMastery || []).map(r => [String(r.word_id), r.mastery_level]));
 
     // 步骤3：获取没有 mastery 记录的单词
     let q = supabaseClient.from('words').select('*', { count: 'exact' });
@@ -131,13 +132,13 @@ export async function getWords(params: {
 
     if (!allWords) return { words: [], total: 0 };
 
-    // 过滤掉已掌握的单词
+    // 过滤掉已掌握的单词（ID 转为字符串比较）
     const unmasteredWords = (allWords || [])
-      .filter((w: any) => !masteredIdSet.has(w.id))
+      .filter((w: any) => !masteredIdSet.has(String(w.id)))
       .slice(0, limit)
       .map((w: any) => ({
         ...w,
-        mastery_level: lowMasteryMap.get(w.id) || 0,
+        mastery_level: lowMasteryMap.get(String(w.id)) || 0,
       }));
 
     // 统计总数（排除已掌握）
@@ -169,22 +170,22 @@ export async function getWords(params: {
     }
 
     // 步骤2：用 IN 查询获取单词详情
-    const wordIds = masteryData.map(r => r.word_id);
+    const wordIds = masteryData.map(r => String(r.word_id));
     const { data: wordsData, error: wordsError } = await supabaseClient
       .from('words')
       .select('*')
-      .in('id', wordIds);
+      .in('id', wordIds.map(id => parseInt(id)));
 
     if (wordsError) {
       console.error('[WordService] words query error:', wordsError);
       return { words: [], total: 0 };
     }
 
-    // 合并 mastery 信息
-    const masteryMap = new Map(masteryData.map(r => [r.word_id, r.mastery_level]));
+    // 合并 mastery 信息（统一使用字符串 ID）
+    const masteryMap = new Map(masteryData.map(r => [String(r.word_id), r.mastery_level]));
     const wordsWithMastery = (wordsData || []).map((w: any) => ({
       ...w,
-      mastery_level: masteryMap.get(w.id) || 5,
+      mastery_level: masteryMap.get(String(w.id)) || 5,
     }));
 
     return { words: wordsWithMastery, total: masteryData.length };
@@ -209,12 +210,13 @@ export async function getWords(params: {
       .in('word_id', wordIds);
 
     masteries = masteryData || [];
-    masteryMap = new Map(masteries.map(m => [m.word_id, m.mastery_level]));
+    // 统一使用字符串 ID
+    masteryMap = new Map(masteries.map(m => [String(m.word_id), m.mastery_level]));
 
     // 为每个单词附加 mastery_level 字段
     const wordsWithMastery = data.map(w => ({
       ...w,
-      mastery_level: masteryMap.get(w.id) || 0,
+      mastery_level: masteryMap.get(String(w.id)) || 0,
     }));
 
     // 如果需要状态筛选
@@ -641,7 +643,7 @@ export async function getBatchMastery(
     .in('word_id', wordIds);
 
   const map = new Map<string, WordMastery>();
-  data?.forEach(m => map.set(m.word_id, m));
+  data?.forEach(m => map.set(String(m.word_id), m));
   return map;
 }
 
@@ -762,12 +764,12 @@ async function getWordStatsWithMasteredFallback(
       .in('id', wordIds);
 
     if (wordsData) {
-      const masteryMap = new Map(masteryData.map(r => [r.word_id, r.mastery_level]));
+      const masteryMap = new Map(masteryData.map(r => [String(r.word_id), r.mastery_level]));
       for (const w of wordsData as any[]) {
         if (w.id != null) {
           masteredWords.push({
             ...w,
-            mastery_level: masteryMap.get(w.id) || 5,
+            mastery_level: masteryMap.get(String(w.id)) || 5,
           });
         }
       }
