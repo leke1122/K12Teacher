@@ -105,16 +105,21 @@ export async function getWords(params: {
   if (status === 'unmastered' && supabaseClient) {
     // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
     // 注意：word_id 可能是字符串类型，需要统一转为字符串比较
-    const { data: masteredIds } = await supabaseClient
+    const { data: masteredIds, error: error1 } = await supabaseClient
       .from('word_mastery')
       .select('word_id')
       .eq('user_id', userId)
       .gte('mastery_level', 5);
 
+    if (error1) {
+      console.error('[WordService] getWords unmastered step1 error:', error1);
+    }
+
     const masteredIdSet = new Set((masteredIds || []).map(r => String(r.word_id)));
+    console.log('[WordService] getWords unmastered: masteredIds count =', masteredIdSet.size);
 
     // 步骤2：获取所有未掌握的单词 ID（mastery_level < 5，包括无记录）
-    const { data: lowMastery } = await supabaseClient
+    const { data: lowMastery, error: error2 } = await supabaseClient
       .from('word_mastery')
       .select('word_id, mastery_level')
       .eq('user_id', userId)
@@ -122,13 +127,22 @@ export async function getWords(params: {
       .order('mastery_level', { ascending: true })
       .range(from, to);
 
+    if (error2) {
+      console.error('[WordService] getWords unmastered step2 error:', error2);
+    }
+
     const lowMasteryMap = new Map((lowMastery || []).map(r => [String(r.word_id), r.mastery_level]));
 
     // 步骤3：获取没有 mastery 记录的单词
     let q = supabaseClient.from('words').select('*', { count: 'exact' });
     if (frequency !== 'all') q = q.eq('frequency_level', frequency);
     q = q.range(from, to);
-    const { data: allWords, count: allCount } = await q;
+    const { data: allWords, count: allCount, error: error3 } = await q;
+
+    if (error3) {
+      console.error('[WordService] getWords unmastered step3 error:', error3);
+    }
+    console.log('[WordService] getWords unmastered: allWords count =', allWords?.length, 'count =', allCount);
 
     if (!allWords) return { words: [], total: 0 };
 
@@ -141,10 +155,16 @@ export async function getWords(params: {
         mastery_level: lowMasteryMap.get(String(w.id)) || 0,
       }));
 
+    console.log('[WordService] getWords unmastered: filtered count =', unmasteredWords.length);
+
     // 统计总数（排除已掌握）
-    const { count: totalWords } = await supabaseClient
+    const { count: totalWords, error: error4 } = await supabaseClient
       .from('words').select('*', { count: 'exact', head: true })
       .eq('frequency_level', frequency !== 'all' ? frequency : undefined);
+
+    if (error4) {
+      console.error('[WordService] getWords unmastered step4 error:', error4);
+    }
 
     return { words: unmasteredWords, total: (totalWords || 0) - masteredIdSet.size };
   }
