@@ -41,8 +41,6 @@ interface Stats {
   toReview: number;
   todayLearned: number;
   streakDays: number;
-  weeklyLearned: number;
-  totalAccuracy: number;
 }
 
 interface PracticeResult {
@@ -636,6 +634,7 @@ function StatsDashboard({
   onStatsClick,
   notificationsEnabled,
   onEnableNotifications,
+  onShowMastered,
 }: { 
   stats: Stats; 
   dailyGoal: number;
@@ -645,6 +644,7 @@ function StatsDashboard({
   onStatsClick: () => void;
   notificationsEnabled: boolean;
   onEnableNotifications: () => void;
+  onShowMastered: () => void;
 }) {
   const goalProgress = Math.min((stats.todayLearned / dailyGoal) * 100, 100);
   const goalReached = stats.todayLearned >= dailyGoal;
@@ -701,11 +701,6 @@ function StatsDashboard({
           <p className="text-lg font-bold text-slate-800">{stats.mastered}</p>
           <p className="text-xs text-slate-500">已掌握</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-2.5 text-center">
-          <Zap className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-          <p className="text-lg font-bold text-slate-800">{stats.weeklyLearned}</p>
-          <p className="text-xs text-slate-500">本周</p>
-        </div>
         <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-100 rounded-xl p-2.5 text-center">
           <Flame className="h-4 w-4 mx-auto mb-1 text-red-500" />
           <p className="text-lg font-bold text-slate-800">{stats.streakDays}</p>
@@ -715,6 +710,10 @@ function StatsDashboard({
       
       {/* 操作按钮 */}
       <div className="flex gap-2">
+        <Button variant="outline" className="flex-1 justify-start text-green-600 border-green-200 hover:bg-green-50" onClick={onShowMastered}>
+          <Award className="h-4 w-4 mr-2" />
+          已掌握单词 ({stats.mastered})
+        </Button>
         {wrongCount > 0 && (
           <Button variant="outline" className="flex-1 justify-start text-red-600 border-red-200 hover:bg-red-50" onClick={onWrongReview}>
             <AlertCircle className="h-4 w-4 mr-2" />
@@ -731,7 +730,7 @@ function StatsDashboard({
 export default function WordsPage() {
   const [words, setWords] = useState<WordRecord[]>([]);
   const [stats, setStats] = useState<Stats>({
-    total: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0, weeklyLearned: 0, totalAccuracy: 0
+    total: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0
   });
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -744,12 +743,38 @@ export default function WordsPage() {
   
   const [practiceResults, setPracticeResults] = useState<PracticeResult[]>([]);
   const [practiceMode, setPracticeMode] = useState<'practice' | 'complete'>('practice');
+  const [showMastered, setShowMastered] = useState(false);
+  const [masteredWords, setMasteredWords] = useState<WordRecord[]>([]);
+  const [masteredLoading, setMasteredLoading] = useState(false);
   
   const [studyTime, setStudyTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [isMastering, setIsMastering] = useState(false);
   const [practiceLoading, setPracticeLoading] = useState(false);
   const learningRecordRef = useRef<string | null>(null);
+
+  // 加载已掌握单词列表
+  const fetchMasteredWords = useCallback(async () => {
+    setMasteredLoading(true);
+    try {
+      const res = await fetch('/api/words/list?status=mastered&limit=999');
+      const data = await res.json();
+      if (data.success) {
+        setMasteredWords(data.words || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch mastered words:', err);
+    } finally {
+      setMasteredLoading(false);
+    }
+  }, []);
+
+  const handleShowMastered = () => {
+    if (!showMastered && masteredWords.length === 0) {
+      fetchMasteredWords();
+    }
+    setShowMastered(!showMastered);
+  };
 
 
   // 学习记录：进入时开始，离开时结束
@@ -1073,7 +1098,50 @@ export default function WordsPage() {
             onStatsClick={() => window.location.href = '/words/stats'}
             notificationsEnabled={notificationsEnabled}
             onEnableNotifications={handleEnableNotifications}
+            onShowMastered={handleShowMastered}
           />
+          
+          {/* 已掌握单词列表 */}
+          {showMastered && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                  <Award className="h-5 w-5 text-green-500" />
+                  已掌握单词 ({masteredWords.length})
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowMastered(false)}>收起</Button>
+              </div>
+              
+              {masteredLoading ? (
+                <div className="flex items-center justify-center h-48">
+                  <div className="h-8 w-8 border-4 border-green-200 border-t-green-500 rounded-full animate-spin" />
+                </div>
+              ) : masteredWords.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  暂无已掌握单词，继续学习吧！
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {masteredWords.map((word) => (
+                    <Card key={word.id} className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-bold text-lg text-slate-800">{word.word}</h3>
+                            {word.phonetic && (
+                              <p className="text-sm text-slate-500">{word.phonetic}</p>
+                            )}
+                          </div>
+                          <Badge className="bg-green-100 text-green-700">已掌握</Badge>
+                        </div>
+                        <p className="text-sm text-slate-600 mt-2 line-clamp-2">{word.meaning}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           
           {/* 主内容区域 */}
           {loading ? (
