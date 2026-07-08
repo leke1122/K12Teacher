@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const frequency = searchParams.get('frequency') as 'high' | 'medium' | 'low' | 'all' || 'all';
-    const status = searchParams.get('status') as 'all' | 'learned' | 'mastered' | 'unlearned' || 'all';
+    const status = searchParams.get('status') as 'all' | 'learned' | 'mastered' | 'unlearned' | 'unmastered' || 'all';
     const search = searchParams.get('search') || '';
 
     const [wordsResult, stats] = await Promise.all([

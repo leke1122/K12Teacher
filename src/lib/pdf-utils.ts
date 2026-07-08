@@ -65,6 +65,8 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{e0ed}': '÷',  // 除号（重复）
   '\u{e0ee}': '～',  // 波浪号
   '\u{e0ef}': '∽',  // 波浪
+  // 根号常见误识别：槡
+  '槡': '√',
   // 数字符号
   '\u{e000}': '０',  // 全角0
   '\u{e001}': '１',
@@ -224,6 +226,19 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
 
 // 字体映射表（PDF字体编码错误 → 正确ASCII字符）
 const FONT_MAPPING: Record<string, string> = {
+  // 全角字母（优先映射，避免被当成普通中文处理）
+  'Ａ': 'A', 'Ｂ': 'B', 'Ｃ': 'C', 'Ｄ': 'D', 'Ｅ': 'E',
+  'Ｆ': 'F', 'Ｇ': 'G', 'Ｈ': 'H', 'Ｉ': 'I', 'Ｊ': 'J',
+  'Ｋ': 'K', 'Ｌ': 'L', 'Ｍ': 'M', 'Ｎ': 'N', 'Ｏ': 'O',
+  'Ｐ': 'P', 'Ｑ': 'Q', 'Ｒ': 'R', 'Ｓ': 'S', 'Ｔ': 'T',
+  'Ｕ': 'U', 'Ｖ': 'V', 'Ｗ': 'W', 'Ｘ': 'X', 'Ｙ': 'Y',
+  'Ｚ': 'Z',
+  'ａ': 'a', 'ｂ': 'b', 'ｃ': 'c', 'ｄ': 'd', 'ｅ': 'e',
+  'ｆ': 'f', 'ｇ': 'g', 'ｈ': 'h', 'ｉ': 'i', 'ｊ': 'j',
+  'ｋ': 'k', 'ｌ': 'l', 'ｍ': 'm', 'ｎ': 'n', 'ｏ': 'o',
+  'ｐ': 'p', 'ｑ': 'q', 'ｒ': 'r', 'ｓ': 's', 'ｔ': 't',
+  'ｕ': 'u', 'ｖ': 'v', 'ｗ': 'w', 'ｘ': 'x', 'ｙ': 'y',
+  'ｚ': 'z',
   // 大写字母
   '犃': 'A', '犅': 'B', '犆': 'C', '犇': 'D', '犈': 'E',
   '犉': 'F', '犌': 'G', '犎': 'H', '犐': 'I', '犑': 'J',
@@ -244,23 +259,68 @@ const FONT_MAPPING: Record<string, string> = {
 };
 
 /**
- * 清理PDF提取文本中的格式控制字符
+ * 临时保护文本中的字母和数字，防止后续清理/替换误删
+ * 返回保护后的文本和还原函数
+ */
+export function protectAlphanumeric(text: string): { protectedText: string; restore: (t: string) => string } {
+  if (!text) return { protectedText: '', restore: (t) => t };
+
+  const placeholders: Array<{ type: 'num' | 'alpha'; ph: string; original: string }> = [];
+  let index = 0;
+
+  // 先保护数字，再保护字母，避免占位符本身被后续正则误伤
+  const protectedText = text
+    .replace(/[0-9]/g, (matched) => {
+      const ph = `__NUM_${index}__`;
+      placeholders[index] = { type: 'num', ph, original: matched };
+      index++;
+      return ph;
+    })
+    .replace(/[A-Za-z]/g, (matched) => {
+      const ph = `__ALPHA_${index}__`;
+      placeholders[index] = { type: 'alpha', ph, original: matched };
+      index++;
+      return ph;
+    });
+
+  const restore = (t: string): string => {
+    let restored = t;
+    for (let i = placeholders.length - 1; i >= 0; i--) {
+      restored = restored.replace(placeholders[i].ph, placeholders[i].original);
+    }
+    return restored;
+  };
+
+  return { protectedText, restore };
+}
+
+/**
+ * 清理PDF提取文本中的格式控制字符（无保护版本）
+ * 内部使用，由公开 cleanPDFText 统一加上字母数字保护
+ */
+function cleanPDFTextUnprotected(text: string): string {
+  if (!text) return '';
+
+  // 1. 移除不可见控制字符（保留换行、回车、Tab，方便后续分段）
+  let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // 2. 仅移除常见 PDF 格式噪声，不触碰字母、数字和正文标点
+  cleaned = cleaned.replace(/[!．"#\uFF01-\uFF0F]+/g, ' ');
+
+  // 3. 压缩多余空白，但保留段落分隔
+  cleaned = cleaned.replace(/[^\S\n]{2,}/g, ' ');
+
+  return cleaned;
+}
+
+/**
+ * 清理PDF提取文本中的格式控制字符（公开版本，带字母数字保护）
+ * 只清理格式噪声，不触碰字母、数字和正文标点
  */
 export function cleanPDFText(text: string): string {
   if (!text) return '';
-
-  let cleaned = text;
-
-  // 1. 移除不可见控制字符（保留换行和Tab）
-  cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-
-  // 2. 移除PDF内部格式标记（如 !．!!"# 等）
-  cleaned = cleaned.replace(/[!．"#\uFF01-\uFF0F]+/g, ' ');
-
-  // 3. 清理多余空格
-  cleaned = cleaned.replace(/\s+/g, ' ');
-
-  return cleaned;
+  const { protectedText, restore } = protectAlphanumeric(text);
+  return restore(cleanPDFTextUnprotected(protectedText));
 }
 
 /**
@@ -283,32 +343,50 @@ function fixFontMapping(text: string): string {
 export function fixMathSymbols(text: string): string {
   if (!text) return text;
 
-  let fixed = text;
+  const originalLength = text.length;
 
-  // 0. 预保护"元素"（必须在任何字符映射之前，防止'元→∈'破坏"元素"）
-  fixed = fixed.replace(/元素/g, '\u200B元素\u200B');
+  // 0. 先保护字母和数字，避免任何后续步骤误删
+  const { protectedText, restore } = protectAlphanumeric(text);
 
-  // 1. 先处理精确的字符映射（字体乱码 → 正确符号）
+  // 1. 预保护"元素"（必须在任何字符映射之前，防止'元→∈'破坏"元素"）
+  let fixed = protectedText.replace(/元素/g, '\u200B元素\u200B');
+
+  // 2. 先处理精确的字符映射（字体乱码 → 正确符号）
   for (const [garbled, correct] of Object.entries(MATH_SYMBOL_MAP)) {
     fixed = fixed.split(garbled).join(correct);
   }
 
-  // 2. 处理常见的组合乱码模式（全角数字 + ∈/∉/⊆ 等联合输出）
+  // 3. 处理常见的组合乱码模式（全角数字 + ∈/∉/⊆ 等联合输出）
   //   必须在全角→半角转换之前执行
   fixed = fixCombinedGarbledSymbols(fixed);
 
-  // 3. 处理全角数字（放在组合乱码处理之后）
+  // 4. 处理全角数字（放在组合乱码处理之后）
   fixed = fixFullWidthNumbers(fixed);
 
-  // 4. 字体映射修复（犪→a, 犅→B 等）
+  // 5. 字体映射修复（犪→a, 犅→B 等）
   fixed = fixFontMapping(fixed);
 
-  // 5. 精确后处理 —— 保护"元素"，只替换独立的集合符号"元"
-  //   注意：此时"元素"已被步骤0保护（带\u200B），所以不会误伤
+  // 6. 精确后处理 —— 保护"元素"，只替换独立的集合符号"元"
+  //   注意：此时"元素"已被步骤1保护（带\u200B），所以不会误伤
   fixed = protectAndFixElements(fixed);
 
-  // 6. 清理格式控制字符
-  fixed = cleanPDFText(fixed);
+  // 7. 还原字母和数字
+  fixed = restore(fixed);
+
+  // 8. 清理格式控制字符（此时已还原字母数字，不会误删）
+  fixed = cleanPDFTextUnprotected(fixed);
+
+  const finalLength = fixed.length;
+
+  // 调试日志：检测长度异常变化
+  if (Math.abs(finalLength - originalLength) > 10 || !fixed.match(/[A-Za-z]/)) {
+    console.warn('[PDFUtils] fixMathSymbols 长度变化异常:', {
+      originalLength,
+      finalLength,
+      hasLetters: !!fixed.match(/[A-Za-z]/),
+      sample: fixed.slice(0, 200),
+    });
+  }
 
   return fixed;
 }
@@ -895,4 +973,61 @@ export function validateSectionBoundary(
   }
 
   return { valid: warnings.length === 0, warnings };
+}
+
+/**
+ * 将课本还原文本拆分为独立段落，便于逐段展示
+ */
+export function splitIntoParagraphs(text: string): string[] {
+  if (!text) return [];
+
+  // 优先保留原文换行分段
+  let paragraphs = text
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 10);
+
+  // 如果换行分段过少，则按句末标点+序号规则补分段
+  if (paragraphs.length < 3) {
+    const sentenceSplit = text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split(/(?<=[。！？\n])/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10);
+
+    if (sentenceSplit.length >= 3) {
+      paragraphs = sentenceSplit;
+    }
+  }
+
+  // 若仍不足，再按常见序号切分
+  if (paragraphs.length < 3) {
+    const numberedSplit = text
+      .split(/(?=[\(（]?\d+[\)）])/)
+      .map(p => p.trim())
+      .filter(p => p.length > 10);
+
+    if (numberedSplit.length >= 3) {
+      paragraphs = numberedSplit;
+    }
+  }
+
+  // 兜底：按长度切分，尽量不在句中断开
+  if (paragraphs.length < 2 && text.length > 300) {
+    const chunks: string[] = [];
+    let pos = 0;
+    const chunkSize = 250;
+    while (pos < text.length) {
+      const end = Math.min(pos + chunkSize, text.length);
+      let cut = text.lastIndexOf('。', end);
+      if (cut <= pos) cut = text.lastIndexOf('，', end);
+      if (cut <= pos) cut = end;
+      chunks.push(text.substring(pos, cut + 1).trim());
+      pos = cut + 1;
+    }
+    paragraphs = chunks.filter(p => p.length > 10);
+  }
+
+  return paragraphs;
 }

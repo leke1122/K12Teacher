@@ -72,34 +72,20 @@ const CHINESE_B1_ORDERED_CLASSICAL: string[] = [
 // ============================================================
 
 /**
- * 建立 lesson → sectionId 的映射
- * "第1课" → "1.1.1", "第2课" → "1.1.2", ...
- * 基于 orderedSections 列表
+ * 数学 B 版必修第一册的 chapterId → 小节顺序映射
+ * 用于把“第X课”准确映射到当前章节下的小节编号
  */
-function buildLessonToSectionMap(): Record<string, string> {
-  const map: Record<string, string> = {};
-  const mathOrderedSections = SUBJECT_MAPPINGS.math?.orderedSections || [];
-  mathOrderedSections.forEach((sectionId, index) => {
-    map[`第${index + 1}课`] = sectionId;
-  });
-  console.log('[normalizeSectionId] 构建 lesson→section 映射:', map);
-  return map;
-}
-
-// 缓存映射表
-let lessonToSectionCache: Record<string, string> | null = null;
-
-function getLessonToSectionMap(): Record<string, string> {
-  if (!lessonToSectionCache) {
-    lessonToSectionCache = buildLessonToSectionMap();
-  }
-  return lessonToSectionCache;
-}
+const CHAPTER_SECTIONS: Record<string, string[]> = {
+  '1': ['1.1.1', '1.1.2', '1.1.3', '1.2.1', '1.2.2', '1.2.3'],
+  '2': ['2.1.1', '2.1.2', '2.1.3', '2.2.1', '2.2.2', '2.2.3', '2.2.4'],
+  '3': ['3.1.1', '3.1.2', '3.1.3', '3.2', '3.3', '3.4'],
+};
 
 /**
  * 将各种格式的章节ID标准化为 "X.Y.Z" 格式
  * 例如：
  * - "第1课" + chapterId="2" → "2.1.1"
+ * - "第1课" + chapterId="2" + lessonNum=2 → "2.1.2"
  * - "第1课" → "1.1.1"（无 chapterId 时的回退）
  * - "第1.1节" → "1.1"
  * - "1.1.1" → "1.1.1"
@@ -117,22 +103,28 @@ export function normalizeSectionId(sectionId: string, chapterId?: string): strin
     return cleaned;
   }
 
-  // 第X课 → 优先结合 chapterId 生成带章节前缀的节号
+  // 第X课 → 优先结合 chapterId 映射到该章下第 X 个小节
   const lessonMatch = cleaned.match(/^第(\d+)课$/);
   if (lessonMatch) {
     const lessonNum = parseInt(lessonMatch[1], 10);
 
-    if (chapterId) {
-      const result = `${chapterId}.${lessonNum}.${lessonNum}`;
-      console.log(`[normalizeSectionId] 第X课(章节感知): "${cleaned}" → "${result}"`);
-      return result;
+    if (chapterId && CHAPTER_SECTIONS[chapterId]) {
+      const sections = CHAPTER_SECTIONS[chapterId];
+      const idx = lessonNum - 1;
+      if (idx >= 0 && idx < sections.length) {
+        const result = sections[idx];
+        console.log(`[normalizeSectionId] 第${lessonNum}课(章节感知): "${cleaned}" → "${result}"`);
+        return result;
+      }
+      console.log(`[normalizeSectionId] 第${lessonNum}课超出当前章节小节数，使用最后一个小节`);
+      return sections[sections.length - 1];
     }
 
-    // 回退：使用全局 lesson→section 映射
-    const lessonMap = getLessonToSectionMap();
-    const mapped = lessonMap[cleaned];
-    if (mapped) {
-      console.log(`[normalizeSectionId] 第X课映射: "${cleaned}" → "${mapped}"`);
+    // 回退：基于全局 orderedSections 的顺序映射
+    const mathOrderedSections = SUBJECT_MAPPINGS.math?.orderedSections || [];
+    if (mathOrderedSections.length > 0 && lessonNum <= mathOrderedSections.length) {
+      const mapped = mathOrderedSections[lessonNum - 1];
+      console.log(`[normalizeSectionId] 第X课全局回退: "${cleaned}" → "${mapped}"`);
       return mapped;
     }
 

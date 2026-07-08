@@ -860,7 +860,7 @@ export default function WordsPage() {
   const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ frequency, status: 'unlearned', limit: '100' });
+      const params = new URLSearchParams({ frequency, status: 'unmastered', limit: '100' });
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
@@ -924,7 +924,6 @@ export default function WordsPage() {
     if (!currentWord || isMastering) return;
 
     setIsMastering(true);
-    setLoading(true);
 
     try {
       console.log('[Words] Calling mastery API...');
@@ -972,7 +971,6 @@ export default function WordsPage() {
       console.error('[Words] Failed to mark as mastered:', err);
     } finally {
       setIsMastering(false);
-      setLoading(false);
     }
   };
   

@@ -72,7 +72,7 @@ export async function getWords(params: {
   page?: number;
   limit?: number;
   frequency?: 'high' | 'medium' | 'low' | 'all';
-  status?: 'all' | 'learned' | 'mastered' | 'unlearned';
+  status?: 'all' | 'learned' | 'mastered' | 'unlearned' | 'unmastered';
   search?: string;
   userId?: string;
 }): Promise<{ words: WordRecord[]; total: number }> {
@@ -100,6 +100,77 @@ export async function getWords(params: {
   // 关联 mastery 表获取每个单词的掌握状态
   let masteryMap: Map<string, number> = new Map();
   let masteries: { word_id: string; mastery_level: number }[] = [];
+
+  // 特殊处理 unmastered：查所有未掌握的单词（mastery < 5 或完全无记录）
+  if (status === 'unmastered' && supabaseClient) {
+    // 步骤1：查已知的 mastery < 5 的单词
+    const { data: lowMastery, error: lowError } = await supabaseClient
+      .from('word_mastery')
+      .select('word_id, mastery_level')
+      .eq('user_id', userId)
+      .lt('mastery_level', 5)
+      .order('mastery_level', { ascending: true })
+      .range(from, to);
+
+    if (lowError) {
+      console.error('[WordService] unmastered query error:', lowError);
+      return { words: [], total: 0 };
+    }
+
+    // 步骤2：查完全无记录的单词（在 words 表中但不在 word_mastery 中）
+    const knownIds = new Set((lowMastery || []).map(r => r.word_id));
+
+    let unlearnedWords: any[] = [];
+    if (knownIds.size === 0) {
+      // 全部无记录，直接从 words 表拿
+      let q = supabaseClient.from('words').select('*', { count: 'exact' });
+      if (frequency !== 'all') q = q.eq('frequency_level', frequency);
+      q = q.range(from, to);
+      const r = await q;
+      unlearnedWords = r.data || [];
+      const totalCount = r.count || 0;
+      return {
+        words: unlearnedWords.map((w: any) => ({ ...w, mastery_level: 0 })),
+        total: totalCount,
+      };
+    }
+
+    // 部分有记录：查不在已知集合中的单词
+    let q = supabaseClient.from('words').select('*', { count: 'exact' });
+    if (frequency !== 'all') q = q.eq('frequency_level', frequency);
+    q = q.range(from, to);
+    const { data: allWords, error: allError } = await q;
+
+    if (allError) {
+      console.error('[WordService] unmastered all words error:', allError);
+      return { words: [], total: 0 };
+    }
+
+    const lowMap = new Map((lowMastery || []).map(r => [r.word_id, r.mastery_level]));
+    const wordsWithMastery = (allWords || [])
+      .filter((w: any) => !knownIds.has(w.id))
+      .slice(0, limit)
+      .map((w: any) => ({ ...w, mastery_level: 0 }));
+
+    // 从正在学习的词里补充
+    const lowWithMastery = (lowMastery || []).map((r: any) => {
+      const w = (allWords || []).find((x: any) => x.id === r.word_id);
+      return w ? { ...w, mastery_level: r.mastery_level } : null;
+    }).filter(Boolean);
+
+    const allUnmastered = [...lowWithMastery, ...wordsWithMastery].slice(0, limit);
+
+    // total = 已学习但未掌握 + 完全未学
+    const { count: learningCount } = await supabaseClient
+      .from('word_mastery').select('*', { count: 'exact', head: true })
+      .eq('user_id', userId).lt('mastery_level', 5);
+    const { count: unlearnedTotal } = await supabaseClient
+      .from('words').select('*', { count: 'exact', head: true })
+      .not('id', 'in', `(${Array.from(knownIds).join(',')})`)
+      .eq('frequency_level', frequency !== 'all' ? frequency : undefined);
+
+    return { words: allUnmastered, total: (learningCount || 0) + (unlearnedTotal || 0) };
+  }
 
   // 特殊处理 mastered：先查 mastery IDs，再查单词详情（绕过外键限制）
   if (status === 'mastered' && supabaseClient) {

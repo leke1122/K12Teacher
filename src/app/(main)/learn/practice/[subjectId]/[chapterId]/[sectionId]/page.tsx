@@ -76,6 +76,8 @@ function PracticePageContent() {
   const [inputMethod, setInputMethod] = useState<'handwriting' | 'upload' | 'choice'>('choice');
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState<any>(null);
+  const [handwritingWritingMode, setHandwritingWritingMode] = useState(false);
+  // 数位板映射状态
   const learningRecordRef = useRef<string | null>(null);
 
   // 学习记录：进入时开始，离开时结束
@@ -206,6 +208,26 @@ function PracticePageContent() {
         knowledgePoint: currentQuestion.knowledgePoint,
         difficulty: currentQuestion.difficulty,
       }]);
+      // 立即保存到错题本（同步到 Supabase）
+      const wrongQItem: WrongQuestion = {
+        id: `wq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        subjectId,
+        chapterId,
+        sectionId,
+        question: currentQuestion.text,
+        options: currentQuestion.options,
+        userAnswer: answer,
+        correctAnswer: currentQuestion.correctAnswer,
+        wrongReason: '',
+        knowledgePoint: currentQuestion.knowledgePoint || '',
+        weakPoint: '',
+        stepAnalysis: '',
+        solutionSteps: '',
+        difficulty: (currentQuestion.difficulty as Difficulty) || 'medium',
+        createdAt: new Date().toISOString(),
+        isMastered: false,
+      };
+      addWrongQuestion(wrongQItem);
     }
   };
 
@@ -229,16 +251,18 @@ function PracticePageContent() {
     const wrongQ = wrongQuestions;
     const correct = answers.filter(a => a.correct).length;
 
-    // 保存错题到本地
+    // 补全错题的分析字段（错题已在答题时保存）
     for (const wq of wrongQ) {
-      // 薄弱项分析
       let analysis = { wrongReason: '', weakPoint: '', stepAnalysis: '', solutionSteps: '' };
       if (settings?.deepseekKey) {
         try {
-          const resp = await fetch('/api/analyze-weak-point', {
+          const resp = await fetch('/api/enrich-wrong-question', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              subjectId,
+              chapterId,
+              sectionId,
               question: wq.question,
               userAnswer: wq.userAnswer,
               correctAnswer: wq.correctAnswer,
@@ -254,25 +278,6 @@ function PracticePageContent() {
           }
         } catch { /* ignore */ }
       }
-
-      const wrongQItem: WrongQuestion = {
-        id: `wq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        subjectId,
-        chapterId,
-        sectionId,
-        question: wq.question,
-        userAnswer: wq.userAnswer,
-        correctAnswer: wq.correctAnswer,
-        wrongReason: analysis.wrongReason,
-        knowledgePoint: wq.knowledgePoint || '',
-        weakPoint: analysis.weakPoint,
-        stepAnalysis: analysis.stepAnalysis,
-        solutionSteps: analysis.solutionSteps,
-        difficulty: (wq.difficulty as Difficulty) || 'medium',
-        createdAt: new Date().toISOString(),
-        isMastered: false,
-      };
-      addWrongQuestion(wrongQItem);
     }
 
     // 保存练习记录
@@ -353,6 +358,26 @@ function PracticePageContent() {
             knowledgePoint: currentQuestion.knowledgePoint,
             difficulty: currentQuestion.difficulty,
           }]);
+          // 立即保存到错题本（同步到 Supabase）
+          const wrongQItem: WrongQuestion = {
+            id: `wq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            subjectId,
+            chapterId,
+            sectionId,
+            question: currentQuestion.text,
+            options: currentQuestion.options,
+            userAnswer: data.recognizedText || '（手写内容）',
+            correctAnswer: currentQuestion.correctAnswer,
+            wrongReason: '',
+            knowledgePoint: currentQuestion.knowledgePoint || '',
+            weakPoint: '',
+            stepAnalysis: data.stepAnalysis || '',
+            solutionSteps: data.correctSolution || '',
+            difficulty: (currentQuestion.difficulty as Difficulty) || 'medium',
+            createdAt: new Date().toISOString(),
+            isMastered: false,
+          };
+          addWrongQuestion(wrongQItem);
         }
       } else {
         // API 返回 success=false，显示错误信息
@@ -781,8 +806,9 @@ function PracticePageContent() {
                 </div>
               )}
 
-              {/* 同类型题 */}
-              {showFeedback && selectedAnswer.toUpperCase() !== currentQuestion.correctAnswer?.toUpperCase() && !recognitionResult && (
+              {/* 同类型题：选择题答错 或 计算题识别错误 */}
+              {(showFeedback && selectedAnswer.toUpperCase() !== currentQuestion.correctAnswer?.toUpperCase() && !recognitionResult) ||
+               (showFeedback && recognitionResult && !recognitionResult.isCorrect) ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
@@ -793,9 +819,10 @@ function PracticePageContent() {
                     question={currentQuestion}
                     onComplete={(correct) => { setSimilarCorrect(correct); setSimilarWrong(!correct); }}
                     apiKey={settings?.deepseekKey}
+                    currentQuestionId={currentQuestion.id}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

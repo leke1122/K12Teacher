@@ -16,7 +16,7 @@ import {
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useSubjectStore } from '@/stores/subjectStore';
 import { useHistoryStore } from '@/stores/historyStore';
-import { extractSectionContent, findSectionContent, findNextSectionTitle, extractContentByPageRange, fixMathSymbols } from '@/lib/pdf-utils';
+import { extractSectionContent, findSectionContent, findNextSectionTitle, extractContentByPageRange, fixMathSymbols, splitIntoParagraphs } from '@/lib/pdf-utils';
 import { getBantuMathB1Range, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
@@ -130,6 +130,11 @@ function TextbookPageContent() {
   const currentSection = sections[currentIndex];
   const progressPercent = sections.length > 0
     ? Math.round(((currentIndex + 1) / sections.length) * 100) : 0;
+
+  // ============================================================
+  // 课本原文展示：按段落拆分，避免大段合并
+  // ============================================================
+  const displayParagraphs = splitIntoParagraphs(currentSection?.original || '');
 
   // ============================================================
   // 内容提取
@@ -709,10 +714,21 @@ function TextbookPageContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                  <p className="text-lg leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">
-                    {currentSection.original}
-                  </p>
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700 space-y-3">
+                  {displayParagraphs.length > 0 ? (
+                    displayParagraphs.map((paragraph, index) => (
+                      <p
+                        key={index}
+                        className="text-lg leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words"
+                      >
+                        {paragraph}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-lg leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">
+                      {currentSection.original}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

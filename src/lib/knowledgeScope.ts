@@ -55,7 +55,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.4 命题与量词
-      sectionId: '1.1.4',
+      sectionId: '1.2.1',
       sectionTitle: '命题与量词',
       knowledge: [
         { id: 'k_1_4_1', name: '命题', description: '命题的定义与表示' },
@@ -65,7 +65,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.5 充分条件与必要条件
-      sectionId: '1.1.5',
+      sectionId: '1.2.2',
       sectionTitle: '充分条件与必要条件',
       knowledge: [
         { id: 'k_1_5_1', name: '充分条件', description: '充分条件的定义' },
