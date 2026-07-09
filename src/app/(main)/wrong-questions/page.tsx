@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   ArrowLeft, Trash2, BookOpen, Search, CheckCircle,
-  AlertTriangle, X, Filter, RotateCcw, Sparkles, GraduationCap
+  AlertTriangle, Filter, Sparkles, GraduationCap
 } from 'lucide-react';
 import { getWrongQuestions, deleteWrongQuestion, markWrongQuestionMastered, getWeakPoints, type WrongQuestion } from '@/services/practiceService';
 import { cn } from '@/lib/utils';
@@ -38,13 +38,188 @@ const ACTIVITY_TYPE_MAP: Record<string, { label: string; icon: typeof BookOpen; 
   geogebra: { label: '几何探索', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
 };
 
+// 解析选项：支持 "A. 选项内容" 和纯 "选项内容" 两种格式
+interface ParsedOption {
+  letter: string;
+  content: string;
+  full: string;
+}
+
+function parseOptions(options: string[] | undefined): ParsedOption[] {
+  if (!options || options.length === 0) return [];
+  return options.map(opt => {
+    const trimmed = opt.trim();
+    const letterMatch = trimmed.match(/^([A-Da-d])[.．、)]\s*(.*)/);
+    if (letterMatch) {
+      return { letter: letterMatch[1].toUpperCase(), content: letterMatch[2].trim(), full: trimmed };
+    }
+    // 纯内容，尝试推断字母
+    const firstChar = trimmed[0];
+    if (/[A-Da-d]/.test(firstChar)) {
+      return { letter: firstChar.toUpperCase(), content: trimmed.slice(1).replace(/^[.．、)\s]+/, ''), full: trimmed };
+    }
+    return { letter: '', content: trimmed, full: trimmed };
+  });
+}
+
+// 判断用户是否答错
+function isWrong(wq: WrongQuestion): boolean {
+  const user = (wq.userAnswer || '').toUpperCase().trim();
+  const correct = (wq.correctAnswer || '').toUpperCase().trim();
+  if (!user || !correct) return false;
+  return user !== correct;
+}
+
 // 从 chapterId/sectionId 推断学习类型
 function inferActivityType(wq: WrongQuestion): string {
-  // 如果有 sectionId 通常来自练习或课本
   if (wq.sectionId && wq.chapterId) return 'practice';
   if (wq.chapterId) return 'textbook';
   if (wq.sectionId) return 'knowledge';
-  return 'practice'; // 默认
+  return 'practice';
+}
+
+// 选项列表组件（卡片内用）
+function OptionList({ wq, compact = false }: { wq: WrongQuestion; compact?: boolean }) {
+  const opts = parseOptions(wq.options);
+  const userLetter = (wq.userAnswer || '').toUpperCase().trim();
+  const correctLetter = (wq.correctAnswer || '').toUpperCase().trim();
+  const wrong = isWrong(wq);
+
+  if (opts.length === 0) {
+    // 无选项时，显示纯答案对比
+    return (
+      <div className="flex items-center gap-3 mt-2">
+        <span className={cn(
+          'px-2 py-1 rounded-lg text-xs font-bold border',
+          wrong ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/20' : 'bg-green-50 text-green-600 border-green-200'
+        )}>
+          你的答案：{wq.userAnswer || '未作答'}
+        </span>
+        <span className="px-2 py-1 rounded-lg text-xs font-bold bg-green-50 text-green-600 border border-green-200">
+          正确答案：{wq.correctAnswer}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('space-y-1.5 mt-2', compact ? '' : '')}>
+      {opts.map((opt, i) => {
+        const isUserAnswer = opt.letter === userLetter;
+        const isCorrect = opt.letter === correctLetter;
+        const isWrongChoice = isUserAnswer && !isCorrect;
+
+        if (!isUserAnswer && !isCorrect && !wrong) return null; // 答对时只显示正确答案
+        if (isCorrect && !isWrongChoice) {
+          // 正确答案（用户也选对了）
+          return (
+            <div key={i} className={cn(
+              'flex items-start gap-2 px-3 py-2 rounded-lg text-xs border',
+              'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+            )}>
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">
+                {opt.letter}
+              </span>
+              <span className="text-green-700 dark:text-green-400 font-medium">{opt.content}</span>
+              <span className="ml-auto text-green-500 text-xs">✓ 正确</span>
+            </div>
+          );
+        }
+        if (isWrongChoice) {
+          // 用户的错误选择
+          return (
+            <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs border bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">
+                {opt.letter}
+              </span>
+              <span className="text-red-700 dark:text-red-400 font-medium">{opt.content}</span>
+              <span className="ml-auto text-red-500 text-xs">✗ 你的答案</span>
+            </div>
+          );
+        }
+        if (isCorrect && isWrongChoice) {
+          // 既是正确答案也是错误答案（理论上不会发生但保留）
+          return (
+            <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs border bg-amber-50 border-amber-200">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">
+                {opt.letter}
+              </span>
+              <span className="text-amber-700 font-medium">{opt.content}</span>
+            </div>
+          );
+        }
+        // 未被选中的选项（答对时省略，答错时显示）
+        if (wrong) {
+          return (
+            <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs border border-slate-200 dark:border-slate-700 opacity-50">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-600 text-white flex items-center justify-center text-xs font-bold">
+                {opt.letter}
+              </span>
+              <span className="text-slate-500">{opt.content}</span>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+// 选项列表组件（详情弹窗用，显示所有选项）
+function OptionListDetail({ wq }: { wq: WrongQuestion }) {
+  const opts = parseOptions(wq.options);
+  const userLetter = (wq.userAnswer || '').toUpperCase().trim();
+  const correctLetter = (wq.correctAnswer || '').toUpperCase().trim();
+
+  if (opts.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">选项</p>
+      <div className="space-y-2">
+        {opts.map((opt, i) => {
+          const isUserAnswer = opt.letter === userLetter;
+          const isCorrect = opt.letter === correctLetter;
+          const isWrongChoice = isUserAnswer && !isCorrect;
+
+          let cls = 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800';
+          let letterBg = 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300';
+          let contentCls = 'text-slate-700 dark:text-slate-300';
+          let rightLabel = '';
+
+          if (isCorrect) {
+            cls = 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/20';
+            letterBg = 'bg-green-500 text-white';
+            contentCls = 'text-green-700 dark:text-green-400 font-medium';
+            rightLabel = '正确答案';
+          }
+          if (isWrongChoice) {
+            cls = 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/20';
+            letterBg = 'bg-red-500 text-white';
+            contentCls = 'text-red-700 dark:text-red-400 font-medium';
+            rightLabel = '你的答案';
+          }
+
+          return (
+            <div key={i} className={cn('flex items-center gap-3 px-4 py-3 rounded-xl text-sm border', cls)}>
+              <span className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold', letterBg)}>
+                {opt.letter}
+              </span>
+              <span className={cn('flex-1', contentCls)}>{opt.content}</span>
+              {rightLabel && (
+                <span className={cn(
+                  'flex-shrink-0 text-xs px-2 py-0.5 rounded-md font-medium',
+                  isCorrect ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                )}>
+                  {rightLabel}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function WrongQuestionsContent() {
@@ -70,6 +245,15 @@ function WrongQuestionsContent() {
 
   useEffect(() => { loadData(); }, []);
 
+  // 页面可见时刷新数据（用户从学习页返回时能看到新记录）
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadData();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   const filtered = wrongQuestions
     .filter(wq => {
       if (filter === 'mastered') return wq.isMastered;
@@ -91,7 +275,6 @@ function WrongQuestionsContent() {
       wq.weakPoint?.includes(search)
     );
 
-  // 统计各学科错题数量
   const subjectStats = wrongQuestions.reduce<Record<string, number>>((acc, wq) => {
     acc[wq.subjectId] = (acc[wq.subjectId] || 0) + 1;
     return acc;
@@ -286,7 +469,7 @@ function WrongQuestionsContent() {
                 'border-0 shadow-md transition-all hover:shadow-lg cursor-pointer',
                 wq.isMastered ? 'opacity-70' : ''
               )}>
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0" onClick={() => setSelected(wq)}>
                       {/* 标签行：学科 + 类型 + 难度 */}
@@ -315,23 +498,24 @@ function WrongQuestionsContent() {
                           <Badge className="text-xs bg-green-100 text-green-700 border-green-200">已掌握</Badge>
                         )}
                       </div>
+
+                      {/* 题目 */}
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 line-clamp-2">
                         {wq.question}
                       </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
-                        <span>
-                          你的答案：<span className="text-red-500 font-medium">{wq.userAnswer || '未作答'}</span>
-                        </span>
-                        <span>
-                          正确答案：<span className="text-green-600 font-medium">{wq.correctAnswer}</span>
-                        </span>
-                      </div>
+
+                      {/* 选项（卡片内紧凑展示） */}
+                      <OptionList wq={wq} compact />
+
+                      {/* 薄弱项 */}
                       {wq.weakPoint && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
                           薄弱项：{wq.weakPoint}
                         </p>
                       )}
                     </div>
+
+                    {/* 操作按钮 */}
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {!wq.isMastered && (
                         <Button
@@ -364,7 +548,7 @@ function WrongQuestionsContent() {
 
       {/* 错题详情弹窗 */}
       <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-indigo-500" />
@@ -376,14 +560,17 @@ function WrongQuestionsContent() {
             const actType = inferActivityType(selected);
             const actInfo = ACTIVITY_TYPE_MAP[actType] || ACTIVITY_TYPE_MAP.practice;
             return (
-              <div className="space-y-4 mt-2">
-                {/* 学科+类型标签 */}
+              <div className="space-y-5 mt-2">
+                {/* 标签行 */}
                 <div className="flex gap-2 flex-wrap">
                   <Badge className={cn('text-xs font-medium', subjectInfo.bg, subjectInfo.color)}>{subjectInfo.name}</Badge>
                   <Badge className={cn('text-xs font-medium', actInfo.bg, actInfo.color)}>{actInfo.label}</Badge>
+                  {selected.knowledgePoint && <Badge variant="outline" className="text-xs">{selected.knowledgePoint}</Badge>}
                   {selected.chapterId && <Badge variant="outline" className="text-xs">第{selected.chapterId}章</Badge>}
                   {selected.sectionId && <Badge variant="outline" className="text-xs">第{selected.sectionId}节</Badge>}
                 </div>
+
+                {/* 题目 */}
                 <Card className="bg-slate-50 dark:bg-slate-800/50">
                   <CardContent className="p-4">
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
@@ -391,41 +578,61 @@ function WrongQuestionsContent() {
                     </p>
                   </CardContent>
                 </Card>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">你的答案</p>
-                    <p className="font-bold text-red-600">{selected.userAnswer || '未作答'}</p>
+
+                {/* 选项（详情展示所有选项） */}
+                <OptionListDetail wq={selected} />
+
+                {/* 答案对比（无选项时降级显示） */}
+                {parseOptions(selected.options).length === 0 && (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
+                      <p className="text-xs text-slate-500 mb-1">你的答案</p>
+                      <p className="font-bold text-red-600">{selected.userAnswer || '未作答'}</p>
+                    </div>
+                    <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800">
+                      <p className="text-xs text-slate-500 mb-1">正确答案</p>
+                      <p className="font-bold text-green-600">{selected.correctAnswer}</p>
+                    </div>
                   </div>
-                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-xl">
-                    <p className="text-xs text-slate-500 mb-1">正确答案</p>
-                    <p className="font-bold text-green-600">{selected.correctAnswer}</p>
-                  </div>
-                </div>
+                )}
+
+                {/* 答案解析 */}
                 {selected.wrongReason && (
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">错题原因</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">{selected.wrongReason}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">答案解析</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-950/20 rounded-xl p-3 border border-blue-100 dark:border-blue-900">
+                      {selected.wrongReason}
+                    </p>
                   </div>
                 )}
-                {selected.weakPoint && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">薄弱项</p>
-                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{selected.weakPoint}</p>
-                  </div>
-                )}
+
+                {/* 步骤分析 */}
                 {selected.stepAnalysis && (
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">步骤分析</p>
                     <p className="text-sm text-slate-700 dark:text-slate-300">{selected.stepAnalysis}</p>
                   </div>
                 )}
+
+                {/* 解题思路 */}
                 {selected.solutionSteps && (
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">解题思路</p>
                     <p className="text-sm text-slate-700 dark:text-slate-300">{selected.solutionSteps}</p>
                   </div>
                 )}
-                <div className="flex justify-end gap-2 pt-2">
+
+                {/* 薄弱项 */}
+                {selected.weakPoint && (
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      薄弱项：{selected.weakPoint}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                   {!selected.isMastered && (
                     <Button size="sm" onClick={() => { handleMaster(selected.id); setSelected(null); }} className="gap-1">
                       <CheckCircle className="h-4 w-4" />标记已掌握
