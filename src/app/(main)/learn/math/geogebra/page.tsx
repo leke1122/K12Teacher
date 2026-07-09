@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { GeoGebraTutor } from '@/components/learn/GeoGebraTutor';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { SelectedObject } from '@/types/geogebra';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 export default function GeoGebraUnifiedPage() {
   const router = useRouter();
@@ -68,6 +69,34 @@ export default function GeoGebraUnifiedPage() {
     if (mode === 'basic') {
       setSelectedObjects([]);
     }
+  }, [mode]);
+
+  // Learning tracker
+  const learningRecordRef = useRef<string | null>(null);
+  useEffect(() => {
+    startLearning({
+      subjectId: 'math',
+      subjectName: '数学',
+      activityType: 'geogebra',
+      activityDetail: { mode },
+    }).then(id => {
+      learningRecordRef.current = id;
+    });
+
+    const handleUnload = () => {
+      if (learningRecordRef.current) {
+        endLearning(learningRecordRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (learningRecordRef.current) {
+        endLearning(learningRecordRef.current);
+        learningRecordRef.current = null;
+      }
+    };
   }, [mode]);
 
   // Basic mode handlers

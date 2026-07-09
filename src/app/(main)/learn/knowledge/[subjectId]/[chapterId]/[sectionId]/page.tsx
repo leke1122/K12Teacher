@@ -132,13 +132,19 @@ function KnowledgePageContent() {
 
   // 学习记录：进入时开始，离开时结束
   useEffect(() => {
+    const currentKnowledgePoint = knowledgePoints[currentPointIndex];
     const currentSubject = useSubjectStore.getState()?.currentSubject;
     startLearning({
-      subjectId: subjectId,
+      subjectId,
       subjectName: getSubjectName(currentSubject || subjectId),
       activityType: 'knowledge',
-      chapterId: chapterId,
+      chapterId,
       sectionId: decodedSectionId,
+      activityDetail: {
+        knowledgePoint: currentKnowledgePoint?.name,
+        sectionTitle,
+        subSectionTitle,
+      },
     }).then(id => { learningRecordRef.current = id; });
 
     const handleUnload = () => { if (learningRecordRef.current) endLearning(learningRecordRef.current); };
@@ -148,7 +154,7 @@ function KnowledgePageContent() {
       window.removeEventListener('beforeunload', handleUnload);
       if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
     };
-  }, [subjectId, chapterId, decodedSectionId]);
+  }, [subjectId, chapterId, decodedSectionId, sectionTitle, subSectionTitle, currentPointIndex]);
 
   useEffect(() => {
     const interval = setInterval(() => {

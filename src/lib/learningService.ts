@@ -7,7 +7,7 @@ const BASE_URL = '/api/learning';
 export interface StartLearningParams {
   subjectId: string;
   subjectName: string;
-  activityType: 'words' | 'knowledge' | 'textbook' | 'practice' | 'other';
+  activityType: 'words' | 'knowledge' | 'textbook' | 'practice' | 'geogebra' | 'other';
   chapterId?: string | null;
   sectionId?: string | null;
   activityDetail?: Record<string, unknown>;

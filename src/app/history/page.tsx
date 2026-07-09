@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookOpen, Clock, CheckCircle, AlertCircle,
   Play, Eye, GraduationCap, Calendar, ArrowLeft,
-  X, Trash2, AlertTriangle, BarChart3, BookMarked
+  X, Trash2, AlertTriangle, BarChart3, BookMarked,
+  Filter, Sparkles, GitBranch
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,22 +23,10 @@ import { useSubjectStore } from '@/stores/subjectStore';
 import { useHistoryStore } from '@/stores/historyStore';
 import { LearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { formatDuration } from '@/components/learning/Timer';
-import { getLearningStats, type LearningRecord as NewRecord } from '@/lib/learningService';
+import { getLearningStats, getLearningRecords, type LearningRecord as SessionRecord } from '@/lib/learningService';
 import ReactECharts from 'echarts-for-react';
 
 interface LocalLearningRecord extends LearningRecord {}
-
-const modeLabels: Record<string, { label: string; icon: typeof BookOpen }> = {
-  KNOWLEDGE: { label: '知识点学习', icon: GraduationCap },
-  TEXTBOOK: { label: '课本还原', icon: BookOpen },
-  PRACTICE: { label: '章节练习', icon: AlertCircle }
-};
-
-const modeColors: Record<string, string> = {
-  KNOWLEDGE: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-  TEXTBOOK: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  PRACTICE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-};
 
 const SUBJECT_COLORS: Record<string, string> = {
   '英语': '#3b82f6', '数学': '#8b5cf6', '物理': '#06b6d4',
@@ -45,139 +34,182 @@ const SUBJECT_COLORS: Record<string, string> = {
   '地理': '#84cc16', '政治': '#ec4899', '历史': '#a855f7',
 };
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  words: '单词学习', knowledge: '知识点学习',
-  textbook: '课本还原', practice: '练习', other: '其他',
+const ACTIVITY_CONFIG: Record<string, { label: string; icon: typeof BookOpen; color: string }> = {
+  words: { label: '单词学习', icon: BookOpen, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  knowledge: { label: '知识点学习', icon: GraduationCap, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  textbook: { label: '课本还原', icon: BookOpen, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  practice: { label: '章节练习', icon: AlertCircle, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  geogebra: { label: 'GeoGebra 探索', icon: Sparkles, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  timeline: { label: '时间轴', icon: Clock, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  card: { label: '卡片学习', icon: BookOpen, color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
+  causal: { label: '因果链', icon: GitBranch, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
+  analysis: { label: '材料分析', icon: AlertCircle, color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  essay: { label: '作文', icon: BookOpen, color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' },
+  discrimination: { label: '辨析', icon: AlertCircle, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  synthesis: { label: '综合', icon: GraduationCap, color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
+  'current-affairs': { label: '时政', icon: Clock, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  other: { label: '其他学习', icon: BookOpen, color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400' },
 };
 
-export default function HistoryPage() {
-  const [view, setView] = useState<'detail' | 'stats'>('detail');
+const SUBJECT_OPTIONS = [
+  { id: 'all', name: '全部学科' },
+  { id: 'chinese', name: '语文' },
+  { id: 'math', name: '数学' },
+  { id: 'english', name: '英语' },
+  { id: 'physics', name: '物理' },
+  { id: 'chemistry', name: '化学' },
+  { id: 'biology', name: '生物' },
+  { id: 'politics', name: '政治' },
+  { id: 'history', name: '历史' },
+  { id: 'geography', name: '地理' },
+];
 
+export default function HistoryPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>}>
-      <HistoryPageContent view={view} onViewChange={setView} />
+      <HistoryPageContent />
     </Suspense>
   );
 }
 
-function HistoryPageContent({
-  view, onViewChange
-}: {
-  view: 'detail' | 'stats';
-  onViewChange: (v: 'detail' | 'stats') => void;
-}) {
+function HistoryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentSubject } = useSubjectStore();
   const { records, loading, setRecords, setLoading, addRecord, removeRecord, setStats, setLoading: setHistoryLoading } = useHistoryStore();
-  const [filter, setFilter] = useState<string>('all');
-  const [selectedRecord, setSelectedRecord] = useState<LocalLearningRecord | null>(null);
-
-  // 新学习记录统计
-  const [stats, setStats2] = useState<{
-    totalMinutes: number; recordCount: number;
-    subjects: Record<string, number>; dailyMinutes: { date: string; minutes: number }[];
+  const [view, setView] = useState<'detail' | 'stats'>('detail');
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [selectedRecord, setSelectedRecord] = useState<SessionRecord | null>(null);
+  const [stats, setStatsState] = useState<{
+    totalMinutes: number;
+    recordCount: number;
+    subjects: Record<string, number>;
+    dailyMinutes: { date: string; minutes: number }[];
   }>({ totalMinutes: 0, recordCount: 0, subjects: {}, dailyMinutes: [] });
 
-  useEffect(() => {
-    if (view === 'stats') {
-      getLearningStats('week').then(setStats2);
+  const loadSessions = async () => {
+    setListLoading(true);
+    try {
+      const [listRes, statsRes] = await Promise.all([
+        getLearningRecords(subjectFilter === 'all' ? undefined : { subject: subjectFilter }),
+        getLearningStats('week'),
+      ]);
+      setSessions(listRes.records);
+      setStatsState({
+        totalMinutes: statsRes.totalMinutes,
+        recordCount: statsRes.recordCount,
+        subjects: statsRes.subjects,
+        dailyMinutes: statsRes.dailyMinutes,
+      });
+    } catch (err) {
+      console.error('获取学习记录失败:', err);
+    } finally {
+      setListLoading(false);
     }
-  }, [view]);
+  };
+
+  useEffect(() => {
+    loadSessions();
+  }, [subjectFilter]);
 
   useEffect(() => {
     const resumeId = searchParams.get('recordId');
-    if (resumeId) {
-      // 返回此页时避免重复拉取，直接使用 store 中的记录
-      if (!records.length) loadRecords();
-      return;
+    if (resumeId && !sessions.length && !listLoading) {
+      loadSessions();
     }
-    loadRecords();
-  }, [currentSubject]);
+  }, [searchParams]);
 
-  const loadRecords = async () => {
-    setHistoryLoading(true);
-    setLoading(true);
-    try {
-      const response = await fetch('/api/progress?limit=100');
-      const data = await response.json();
-      let apiRecords: LocalLearningRecord[] = [];
-      if (data.success) apiRecords = (data.data || []) as LocalLearningRecord[];
-      try {
-        const raw = localStorage.getItem('edumind_learning_records');
-        if (raw) {
-          const localRecords = JSON.parse(raw) as LocalLearningRecord[];
-          const apiIds = new Set(apiRecords.map(r => r.id));
-          const uniqueLocal = localRecords.filter(r => !apiIds.has(r.id));
-          const merged = [...apiRecords, ...uniqueLocal].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setRecords(merged);
-        } else {
-          setRecords(apiRecords);
-        }
-      } catch {
-        setRecords(apiRecords);
-      }
-    } catch (err) {
-      console.error('获取学习记录失败:', err);
-      try {
-        const raw = localStorage.getItem('edumind_learning_records');
-        if (raw) setRecords(JSON.parse(raw) as LocalLearningRecord[]);
-      } catch {}
-    } finally {
-      setLoading(false);
-      setHistoryLoading(false);
-    }
+  const groupedSessions = useMemo(() => {
+    const groups: Record<string, SessionRecord[]> = {};
+    sessions.forEach((session) => {
+      const dateKey = session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : '未知日期';
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(session);
+    });
+
+    return Object.entries(groups)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, records]) => ({
+        date,
+        dateLabel: formatDateLabel(date),
+        records: records.sort((a, b) => new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()),
+      }));
+  }, [sessions]);
+
+  const formatDateLabel = (dateKey: string) => {
+    if (dateKey === '未知日期') return dateKey;
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    if (dateKey === today) return '今天';
+    if (dateKey === yesterday) return '昨天';
+    const date = new Date(dateKey);
+    return date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
   };
 
-  const filteredRecords = filter === 'all'
-    ? records
-    : records.filter(r => r.mode === filter);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDateTime = (iso?: string | null) => {
+    if (!iso) return '--';
+    const date = new Date(iso);
     return date.toLocaleString('zh-CN', {
-      year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
-  const calculateAccuracy = (record: LocalLearningRecord) => {
-    // 优先使用保存时计算的精确值
-    if (record.progress.correctRate !== undefined) {
-      return record.progress.correctRate;
+  const renderActivityDescription = (record: SessionRecord) => {
+    const detail = (record.activity_detail || {}) as Record<string, unknown>;
+    const subject = record.subject_name || record.subject_id || '未知学科';
+    const chapter = record.chapter_id ? `第${record.chapter_id}章` : '';
+    const section = record.section_id ? `第${record.section_id}节` : '';
+    const position = [chapter, section].filter(Boolean).join(' › ') || '未指定位置';
+
+    switch (record.activity_type) {
+      case 'words': {
+        const wordCount = typeof detail.wordCount === 'number' ? detail.wordCount : undefined;
+        const masteredCount = typeof detail.masteredCount === 'number' ? detail.masteredCount : undefined;
+        const modeText = detail.mode === 'practice' ? '复习' : '学习';
+        const parts = [`${subject} ${modeText}单词`];
+        if (wordCount !== undefined) parts.push(`共 ${wordCount} 词`);
+        if (masteredCount !== undefined) parts.push(`掌握 ${masteredCount} 词`);
+        return parts.join('，');
+      }
+      case 'knowledge':
+        return `${subject} 知识点学习 · ${position}`;
+      case 'textbook':
+        return `${subject} 课本还原 · ${position}`;
+      case 'practice': {
+        const questionCount = typeof detail.questionCount === 'number' ? detail.questionCount : undefined;
+        const parts = [`${subject} 练习 · ${position}`];
+        if (questionCount !== undefined) parts.push(`共 ${questionCount} 题`);
+        return parts.join('，');
+      }
+      case 'geogebra':
+        return `${subject} 使用 GeoGebra 探索 · ${position || '互动模型'}`;
+      case 'timeline':
+        return `${subject} 时间轴学习 · ${position}`;
+      case 'card':
+        return `${subject} 卡片学习 · ${position}`;
+      case 'causal':
+        return `${subject} 因果链学习 · ${position}`;
+      case 'analysis':
+        return `${subject} 材料分析 · ${position}`;
+      case 'essay':
+        return `${subject} 作文学习`;
+      case 'discrimination':
+        return `${subject} 辨析学习 · ${position}`;
+      case 'synthesis':
+        return `${subject} 综合学习 · ${position}`;
+      case 'current-affairs':
+        return `${subject} 时政学习`;
+      default:
+        return `${subject} 学习 · ${position}`;
     }
-    // 降级：从 history 数组计算
-    const history = record.progress.history || [];
-    if (history.length === 0) return 0;
-    const correct = history.filter(h => h.correct).length;
-    return Math.round(correct / history.length * 100);
   };
 
-  const getProgressText = (record: LocalLearningRecord) => {
-    if (record.mode === 'KNOWLEDGE') {
-      return `${record.progress.completed || 0}/${record.progress.total || 0} 个知识点`;
-    }
-    if (record.mode === 'TEXTBOOK') {
-      return `第 ${(record.progress.currentIndex || 0) + 1} / ${record.progress.totalParagraphs || '-'} 段`;
-    }
-    return '';
-  };
-
-  const handleContinue = (record: LocalLearningRecord) => {
-    const path = record.mode === 'TEXTBOOK'
-      ? `/learn/textbook/${record.subjectId}/${record.chapterId}/${record.sectionId}?recordId=${record.id}&resume=true`
-      : `/learn/knowledge/${record.subjectId}/${record.chapterId}/${record.sectionId}?recordId=${record.id}&resume=true`;
-    router.replace(path);
-  };
-
-  const handleViewDetail = (record: LocalLearningRecord) => {
-    setSelectedRecord(record);
-  };
-
-  const handleDelete = async (record: LocalLearningRecord) => {
+  const handleDelete = async (record: SessionRecord) => {
     if (!confirm('确定要删除这条学习记录吗？')) return;
     try {
       await deleteLearningRecord(record.id);
@@ -192,54 +224,33 @@ function HistoryPageContent({
     } catch {}
     removeRecord(record.id);
     setSelectedRecord(null);
+    loadSessions();
   };
 
-  const getDetailSections = (record: LocalLearningRecord) => {
-    if (record.mode === 'KNOWLEDGE') {
-      const mastered = ((record.progress as any).masteredList || (record.progress as any).completedList || []).slice(0, 20);
-      const weak = (record.progress.wrongList || []).slice(0, 20);
-      return (
-        <div className="space-y-3">
-          <Card className="p-4">
-            <p className="text-xs text-slate-500 mb-2">已学知识点</p>
-            <div className="flex flex-wrap gap-2">
-              {mastered.length ? mastered.map((item: string, idx: number) => (
-                <span key={idx} className="px-2 py-1 rounded-lg bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">{item}</span>
-              )) : <span className="text-xs text-slate-500">暂无</span>}
-            </div>
-          </Card>
-          {weak.length > 0 && (
-            <Card className="p-4">
-              <p className="text-xs text-slate-500 mb-2">薄弱项</p>
-              <div className="flex flex-wrap gap-2">
-                {weak.map((item, idx) => (
-                  <span key={idx} className="px-2 py-1 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs">{item}</span>
-                ))}
-              </div>
-            </Card>
-          )}
-          <Card className="p-4">
-            <p className="text-xs text-slate-500 mb-2">知识点进度</p>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" style={{ width: `${((record.progress.completed || 0) / (record.progress.total || 1)) * 100}%` }} />
-              </div>
-              <span className="text-xs text-slate-500">{record.progress.completed || 0}/{record.progress.total || 0}</span>
-            </div>
-          </Card>
-        </div>
-      );
-    }
+  const renderDetailSections = (record: SessionRecord) => {
+    const detail = (record.activity_detail || {}) as Record<string, unknown>;
+    const sectionTitle = typeof detail.sectionTitle === 'string' ? detail.sectionTitle : null;
+
     return (
-      <Card className="p-4">
-        <p className="text-xs text-slate-500 mb-2">段落进度</p>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" style={{ width: `${((record.progress.currentIndex || 0) / ((record.progress.totalParagraphs || 1))) * 100}%` }} />
-          </div>
-          <span className="text-xs text-slate-500">{record.progress.currentIndex || 0}/{record.progress.totalParagraphs || '-'}</span>
-        </div>
-      </Card>
+      <div className="space-y-3">
+        <Card className="p-4">
+          <p className="text-xs text-slate-500 mb-1">学习内容</p>
+          <p className="text-sm text-slate-700 dark:text-slate-300">{renderActivityDescription(record)}</p>
+        </Card>
+        {sectionTitle && (
+          <Card className="p-4">
+            <p className="text-xs text-slate-500 mb-1">章节标题</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{sectionTitle}</p>
+          </Card>
+        )}
+        <Card className="p-4">
+          <p className="text-xs text-slate-500 mb-1">学习时长</p>
+          <p className="text-sm font-medium flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5 text-slate-400" />
+            {formatDuration(record.duration_seconds || 0)}
+          </p>
+        </Card>
+      </div>
     );
   };
 
@@ -247,7 +258,7 @@ function HistoryPageContent({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
                 <ArrowLeft className="h-4 w-4" />
@@ -257,11 +268,25 @@ function HistoryPageContent({
                 📋 学习记录
               </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1">
+                <Filter className="h-4 w-4 text-slate-500" />
+                <select
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none"
+                >
+                  {SUBJECT_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id} className="text-slate-700">
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Button
                 size="sm"
                 variant={view === 'detail' ? 'default' : 'outline'}
-                onClick={() => onViewChange('detail')}
+                onClick={() => setView('detail')}
                 className="gap-1"
               >
                 <BookMarked className="h-4 w-4" />详情
@@ -269,7 +294,7 @@ function HistoryPageContent({
               <Button
                 size="sm"
                 variant={view === 'stats' ? 'default' : 'outline'}
-                onClick={() => onViewChange('stats')}
+                onClick={() => setView('stats')}
                 className="gap-1"
               >
                 <BarChart3 className="h-4 w-4" />统计
@@ -289,9 +314,9 @@ function HistoryPageContent({
           <StatsView stats={stats} />
         ) : (
           <>
-            {loading ? (
+            {listLoading ? (
               <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>
-            ) : filteredRecords.length === 0 ? (
+            ) : groupedSessions.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"><BookOpen className="h-8 w-8 text-slate-400" /></div>
                 <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">暂无学习记录</h3>
@@ -299,64 +324,55 @@ function HistoryPageContent({
                 <Button onClick={() => router.push('/')}>去学习</Button>
               </div>
             ) : (
-              <div className="space-y-4">
-            {filteredRecords.map((record) => {
-              const ModeIcon = modeLabels[record.mode]?.icon || BookOpen;
-              const accuracy = calculateAccuracy(record);
-              const isComplete = record.mode === 'KNOWLEDGE'
-                ? (record.progress.completed || 0) >= (record.progress.total || 1)
-                : (record.progress.currentIndex || 0) >= ((record.progress.totalParagraphs || 1) - 1);
+              <div className="space-y-6">
+                {groupedSessions.map((group) => (
+                  <div key={group.date} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                      <h2 className="text-base font-semibold text-slate-700 dark:text-slate-300">{group.dateLabel}</h2>
+                      <span className="text-xs text-slate-400">{group.records.length} 条记录</span>
+                    </div>
+                    <div className="space-y-3 pl-5 border-l border-slate-200 dark:border-slate-700">
+                      {group.records.map((record) => {
+                        const config = ACTIVITY_CONFIG[record.activity_type] || ACTIVITY_CONFIG.other;
+                        const Icon = config.icon;
+                        const durationText = formatDuration(record.duration_seconds || 0);
+                        const startLabel = formatDateTime(record.start_time);
+                        const endLabel = record.end_time ? formatDateTime(record.end_time) : '进行中';
 
-              return (
-                <Card key={record.id} className="p-5 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium', modeColors[record.mode] || modeColors.KNOWLEDGE)}>
-                      <ModeIcon className="h-4 w-4" />
-                      <span>{modeLabels[record.mode]?.label || '学习'}</span>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate((record as any).created_at || record.timestamp || record.date)}</span>
-                        <span>{record.subjectName || record.subjectId} · 第{record.chapterId}章 › 第{record.sectionId}节</span>
-                      </div>
-                      <div className="flex items-center gap-6 text-sm">
-                        <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400"><Clock className="h-4 w-4" />学习时长：{formatDuration(record.duration || (record.progress as any)?.duration || 0)}</span>
-                        <span className="text-slate-600 dark:text-slate-400">进度：{getProgressText(record)}</span>
-                        <span className={cn('flex items-center gap-1', accuracy >= 70 ? 'text-green-600' : accuracy >= 50 ? 'text-amber-600' : 'text-red-600')}>正确率：{accuracy}%</span>
-                      </div>
-                      {((record.progress as any)?.wrongList || []).length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                          <span className="text-sm text-red-600 dark:text-red-400">薄弱项：{(record.progress.wrongList || []).slice(0, 3).join('、')}{(record.progress.wrongList || []).length > 3 && `等${(record.progress.wrongList || []).length}项`}</span>
-                        </div>
-                      )}
-                      {((record.progress as any)?.summary) && (
-                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{(record.progress as any).summary}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!isComplete && (
-                        <Button size="sm" onClick={() => handleContinue(record)} className="gap-1"><Play className="h-3.5 w-3.5" />继续学习</Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => handleViewDetail(record)} className="gap-1"><Eye className="h-3.5 w-3.5" />查看详情</Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(record)} className="gap-1 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        return (
+                          <Card key={record.id} className="p-4 hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row md:items-center gap-3">
+                              <div className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium', config.color)}>
+                                <Icon className="h-4 w-4" />
+                                <span>{config.label}</span>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <p className="text-sm text-slate-700 dark:text-slate-300">
+                                  {renderActivityDescription(record)}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {startLabel} - {endLabel} · 时长 {durationText}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setSelectedRecord(record)} className="gap-1">
+                                  <Eye className="h-3.5 w-3.5" />查看
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => handleDelete(record)} className="gap-1 text-red-600 hover:text-red-700">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-slate-500">学习进度</span>
-                      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all" style={{ width: `${(record.progress.completed || 0) / Math.max(record.progress.total || 1, 1) * 100}%` }} />
-                      </div>
-                      <span className="text-xs text-slate-500">{Math.round((record.progress.completed || 0) / Math.max(record.progress.total || 1, 1) * 100)}%</span>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-        </>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -373,33 +389,43 @@ function HistoryPageContent({
               <div className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <Card className="p-4">
-                    <p className="text-xs text-slate-500 mb-1">章节</p>
-                    <p className="text-sm font-medium">第{selectedRecord.chapterId}章 › 第{selectedRecord.sectionId}节</p>
+                    <p className="text-xs text-slate-500 mb-1">学科</p>
+                    <p className="text-sm font-medium">{selectedRecord.subject_name || selectedRecord.subject_id}</p>
                   </Card>
                   <Card className="p-4">
-                    <p className="text-xs text-slate-500 mb-1">学习时间</p>
-                    <p className="text-sm font-medium">{formatDate((selectedRecord as any).created_at || selectedRecord.timestamp || selectedRecord.date)}</p>
+                    <p className="text-xs text-slate-500 mb-1">活动类型</p>
+                    <p className="text-sm font-medium">{ACTIVITY_CONFIG[selectedRecord.activity_type]?.label || selectedRecord.activity_type}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs text-slate-500 mb-1">开始时间</p>
+                    <p className="text-sm font-medium">{formatDateTime(selectedRecord.start_time)}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs text-slate-500 mb-1">结束时间</p>
+                    <p className="text-sm font-medium">{formatDateTime(selectedRecord.end_time)}</p>
                   </Card>
                   <Card className="p-4">
                     <p className="text-xs text-slate-500 mb-1">学习时长</p>
-                    <p className="text-sm font-medium flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-slate-400" />{formatDuration(selectedRecord.duration || (selectedRecord.progress as any)?.duration || 0)}</p>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      {formatDuration(selectedRecord.duration_seconds || 0)}
+                    </p>
                   </Card>
                   <Card className="p-4">
-                    <p className="text-xs text-slate-500 mb-1">正确率</p>
-                    <p className={`text-sm font-medium ${calculateAccuracy(selectedRecord) >= 70 ? 'text-green-600' : calculateAccuracy(selectedRecord) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>{calculateAccuracy(selectedRecord)}%</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-xs text-slate-500 mb-1">答题统计</p>
+                    <p className="text-xs text-slate-500 mb-1">章节</p>
                     <p className="text-sm font-medium">
-                      {selectedRecord.progress.correctAttempts ?? '-'} 对 / {selectedRecord.progress.totalAttempts ?? '-'} 题
+                      {selectedRecord.chapter_id ? `第${selectedRecord.chapter_id}章` : '--'} › {selectedRecord.section_id ? `第${selectedRecord.section_id}节` : '--'}
                     </p>
                   </Card>
                 </div>
-                {getDetailSections(selectedRecord)}
+                {renderDetailSections(selectedRecord)}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => handleDelete(selectedRecord)} className="gap-1"><Trash2 className="h-4 w-4" />删除</Button>
-                  <Button variant="outline" onClick={() => setSelectedRecord(null)}><X className="h-4 w-4 mr-1" />关闭</Button>
-                  <Button onClick={() => { handleContinue(selectedRecord); setSelectedRecord(null); }}><Play className="h-4 w-4 mr-1" />继续学习</Button>
+                  <Button variant="outline" onClick={() => handleDelete(selectedRecord)} className="gap-1">
+                    <Trash2 className="h-4 w-4" />删除
+                  </Button>
+                  <Button variant="outline" onClick={() => setSelectedRecord(null)}>
+                    <X className="h-4 w-4 mr-1" />关闭
+                  </Button>
                 </div>
               </div>
             </>
@@ -423,18 +449,18 @@ function formatDurationNew(seconds: number | null): string {
   return `${seconds}秒`;
 }
 
-// 新学习记录统计视图
 function StatsView({
   stats,
 }: {
   stats: {
-    totalMinutes: number; recordCount: number;
-    subjects: Record<string, number>; dailyMinutes: { date: string; minutes: number }[];
+    totalMinutes: number;
+    recordCount: number;
+    subjects: Record<string, number>;
+    dailyMinutes: { date: string; minutes: number }[];
   };
 }) {
   return (
     <div className="space-y-6">
-      {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white border-0">
           <CardContent className="p-4 text-center">
@@ -462,7 +488,6 @@ function StatsView({
         </Card>
       </div>
 
-      {/* 图表 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">学科分布</CardTitle></CardHeader>
@@ -498,13 +523,13 @@ function StatsView({
                   tooltip: { trigger: 'axis' as const },
                   xAxis: {
                     type: 'category' as const,
-                    data: stats.dailyMinutes.map(d => d.date.slice(5)),
+                    data: stats.dailyMinutes.map((d) => d.date.slice(5)),
                     axisLabel: { fontSize: 10 },
                   },
                   yAxis: { type: 'value' as const, name: '分钟', axisLabel: { fontSize: 10 } },
                   series: [{
                     type: 'bar',
-                    data: stats.dailyMinutes.map(d => ({
+                    data: stats.dailyMinutes.map((d) => ({
                       value: d.minutes,
                       itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] },
                     })),
@@ -520,7 +545,6 @@ function StatsView({
         </Card>
       </div>
 
-      {/* 学科汇总 */}
       {Object.keys(stats.subjects).length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">各学科学习时长</CardTitle></CardHeader>
