@@ -1,0 +1,5 @@
+fix: restore corrupted history page (quote pollution from previous session)
+
+- Rewrote src/app/history/page.tsx to fix malformed JSX/TS with excessive single quotes
+- All code now properly formatted and syntactically correct
+- Build verified: npm run build passed

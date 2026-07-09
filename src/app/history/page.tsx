@@ -112,6 +112,7 @@ function HistoryPageContent() {
 
   useEffect(() => {
     loadSessions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjectFilter]);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ function HistoryPageContent() {
     if (resumeId && !sessions.length && !listLoading) {
       loadSessions();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const groupedSessions = useMemo(() => {
@@ -131,10 +133,10 @@ function HistoryPageContent() {
 
     return Object.entries(groups)
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, records]) => ({
+      .map(([date, recs]) => ({
         date,
         dateLabel: formatDateLabel(date),
-        records: records.sort((a, b) => new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()),
+        records: recs.sort((a, b) => new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()),
       }));
   }, [sessions]);
 
