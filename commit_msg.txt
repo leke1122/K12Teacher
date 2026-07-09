@@ -1,5 +1,7 @@
-fix: move formatDateLabel before useMemo in history page
+feat: wrong-questions page adds subject and activity-type filters
 
-Fixes "Cannot access 'K' before initialization" error in production.
-formatDateLabel was used inside useMemo but defined after it,
-causing TDZ (temporal dead zone) error after minification.
+- Add subject filter (math, english, chinese, etc.) with count badges
+- Add activity type filter (knowledge, textbook, practice, words, geogebra)
+- Add subject and type badges to each wrong question card
+- Show chapter/section info in detail dialog
+- Auto-detect activity type from chapterId/sectionId
