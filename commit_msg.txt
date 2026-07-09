@@ -1,7 +1,5 @@
-fix: add localStorage fallback and fix session tracking for learning records
+fix: correct wrong-question storage - write localStorage first, then async Supabase
 
-Core fixes:
-- learningService: add localStorage dual-write for startLearning/endLearning/getLearningRecords/getLearningStats
-  Supabase writes fail silently → data preserved in localStorage, merged on read
-- knowledge page: remove currentPointIndex from useEffect deps so session doesn't restart per question
-- practiceService: add localStorage fallback for addWrongQuestion, merge local+supabase on read
+- addWrongQuestion: write to localStorage synchronously FIRST (instant, survives page close), then async Supabase
+- syncWrongQuestionsToSupabase: throw on RLS/error so localStorage fallback triggers
+- deleteWrongQuestionFromSupabase: same error-throw fix

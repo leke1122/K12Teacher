@@ -80,39 +80,33 @@ const USER_ID = 'personal-user';
 // ===== Supabase 错题表操作 =====
 
 async function syncWrongQuestionsToSupabase(wq: WrongQuestion): Promise<void> {
-  if (!supabase) return;
-  try {
-    await supabase.from('wrong_questions').upsert({
-      id: wq.id,
-      user_id: USER_ID,
-      subject_id: wq.subjectId,
-      chapter_id: wq.chapterId,
-      section_id: wq.sectionId,
-      question: wq.question,
-      options: wq.options || [],
-      user_answer: wq.userAnswer,
-      correct_answer: wq.correctAnswer,
-      wrong_reason: wq.wrongReason,
-      knowledge_point: wq.knowledgePoint,
-      weak_point: wq.weakPoint,
-      step_analysis: wq.stepAnalysis,
-      solution_steps: wq.solutionSteps,
-      difficulty: wq.difficulty,
-      is_mastered: wq.isMastered,
-      created_at: wq.createdAt,
-    }, { onConflict: 'id' });
-  } catch (err) {
-    console.error('[PracticeService] Sync wrong question to Supabase failed:', err);
-  }
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('wrong_questions').upsert({
+    id: wq.id,
+    user_id: USER_ID,
+    subject_id: wq.subjectId,
+    chapter_id: wq.chapterId,
+    section_id: wq.sectionId,
+    question: wq.question,
+    options: wq.options || [],
+    user_answer: wq.userAnswer,
+    correct_answer: wq.correctAnswer,
+    wrong_reason: wq.wrongReason,
+    knowledge_point: wq.knowledgePoint,
+    weak_point: wq.weakPoint,
+    step_analysis: wq.stepAnalysis,
+    solution_steps: wq.solutionSteps,
+    difficulty: wq.difficulty,
+    is_mastered: wq.isMastered,
+    created_at: wq.createdAt,
+  }, { onConflict: 'id' });
+  if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
 }
 
 async function deleteWrongQuestionFromSupabase(id: string): Promise<void> {
-  if (!supabase) return;
-  try {
-    await supabase.from('wrong_questions').delete().eq('id', id);
-  } catch (err) {
-    console.error('[PracticeService] Delete wrong question from Supabase failed:', err);
-  }
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('wrong_questions').delete().eq('id', id);
+  if (error) throw new Error(`Supabase delete failed: ${error.message}`);
 }
 
 async function loadWrongQuestionsFromSupabase(): Promise<WrongQuestion[]> {
@@ -191,23 +185,25 @@ export function getWrongQuestionsSync(): WrongQuestion[] {
 export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // 优先写入 Supabase，失败则降级到 localStorage
+  // 【关键修复】先同步写 localStorage，确保页面关闭也不会丢
+  try {
+    const local = getWrongQuestionsFromLocal();
+    const existingIdx = local.findIndex(w => w.id === q.id);
+    if (existingIdx >= 0) {
+      local[existingIdx] = q;
+    } else {
+      local.unshift(q);
+    }
+    localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(local.slice(0, 500)));
+  } catch (localErr) {
+    console.error('[PracticeService] localStorage write failed:', localErr);
+  }
+
+  // 异步写 Supabase，失败不影响（已在 localStorage）
   try {
     await syncWrongQuestionsToSupabase(q);
   } catch (err) {
-    console.warn('[PracticeService] Supabase sync failed, saving to localStorage:', err);
-    try {
-      const local = getWrongQuestionsFromLocal();
-      const existingIdx = local.findIndex(w => w.id === q.id);
-      if (existingIdx >= 0) {
-        local[existingIdx] = q;
-      } else {
-        local.unshift(q);
-      }
-      localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(local.slice(0, 500)));
-    } catch (localErr) {
-      console.error('[PracticeService] localStorage fallback also failed:', localErr);
-    }
+    console.warn('[PracticeService] Supabase sync failed (data saved in localStorage):', err);
   }
 }
 
