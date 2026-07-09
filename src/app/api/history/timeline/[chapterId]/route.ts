@@ -20,8 +20,17 @@ interface HistoryEvent {
 
 interface ChapterMeta {
   title: string;
+  sectionId?: string;
   events: HistoryEvent[];
 }
+
+// sectionId -> event filter (each demo event tagged with which lessons it belongs to)
+const EVENT_SECTIONS: Record<string, string[]> = {
+  '第1课': ['opium-war', 'self-strengthening'],
+  '第2课': ['second-opium-war', 'japanese-war'],
+  '第3课': ['hundred-days', 'xinhai-revolution'],
+  '第4课': ['may-fourth', 'founding-prc'],
+};
 
 const CHAPTERS: Record<string, ChapterMeta> = {
   'modern-china': {
@@ -144,15 +153,22 @@ const CHAPTERS: Record<string, ChapterMeta> = {
 };
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { chapterId: string } },
 ) {
   const chapterId = params.chapterId || 'modern-china';
+  const sectionId = request.nextUrl.searchParams.get('sectionId') || '';
+
+  // Normalize sectionId for lookup
+  const normalizedSection = sectionId.replace(/第/g, '').replace(/课/g, '').trim();
+  const sectionKey = normalizedSection ? `第${normalizedSection}课` : '';
 
   try {
-    const cached = getServerData<{ title: string; events: HistoryEvent[] }>(
-      `history_events_${chapterId}`,
-    );
+    // Try cache with sectionId key first
+    const cacheKey = sectionId
+      ? `history_events_${chapterId}_${encodeURIComponent(sectionId)}`
+      : `history_events_${chapterId}`;
+    const cached = getServerData<{ title: string; events: HistoryEvent[] }>(cacheKey);
     if (cached?.events?.length) {
       return NextResponse.json({ success: true, source: 'cache', data: { chapterId, ...cached } });
     }
@@ -168,7 +184,19 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ success: true, source: 'demo', data: { chapterId, ...chapter } });
+  let events = chapter.events;
+
+  // Filter events by sectionId if provided
+  if (sectionKey && EVENT_SECTIONS[sectionKey]) {
+    const allowedIds = new Set(EVENT_SECTIONS[sectionKey]);
+    events = events.filter((e) => allowedIds.has(e.id));
+  }
+
+  const title = sectionId
+    ? `${chapter.title} · ${sectionId.replace(/_/g, ' ')}`
+    : chapter.title;
+
+  return NextResponse.json({ success: true, source: 'demo', data: { chapterId, title, events } });
 }
 
 export async function POST(
@@ -176,6 +204,8 @@ export async function POST(
   { params }: { params: { chapterId: string } },
 ) {
   const chapterId = params.chapterId || 'modern-china';
+  const body = await request.json().catch(() => ({}));
+  const sectionId = String(body.sectionId || '');
 
   try {
     const textbook = await getActiveTextbook('history');
@@ -192,7 +222,28 @@ export async function POST(
     }
 
     const pdf = await getTextbookPDF(textbook.id);
-    const text = pdf?.fullText || '';
+    let text = pdf?.fullText || '';
+
+    // Try to narrow down to the specific section if sectionId is provided
+    if (sectionId && matched.sections) {
+      const decodedSection = decodeURIComponent(sectionId);
+      const section = matched.sections.find(
+        (s) =>
+          s.sectionIndex + '_' + s.sectionTitle === decodedSection ||
+          s.sectionIndex === decodedSection.split('_')[0]
+      );
+      if (section && pdf?.pages?.length) {
+        const startPage = section.pages?.start ?? 0;
+        const endPage = section.pages?.end ?? 9999;
+        const sectionPages = pdf.pages.filter((p) => {
+          const num = Number(p.pageNumber);
+          return num >= startPage && num <= endPage;
+        });
+        if (sectionPages.length > 0) {
+          text = sectionPages.map((p) => p.content).join('\n\n');
+        }
+      }
+    }
 
     if (!text) {
       return NextResponse.json({ success: false, message: '教材内容为空' }, { status: 400 });
@@ -201,8 +252,11 @@ export async function POST(
     const { extractHistoryEvents } = await import('@/lib/historyExtractor');
     const events = await extractHistoryEvents(chapterId, text);
 
+    const cacheKey = sectionId
+      ? `history_events_${chapterId}_${encodeURIComponent(sectionId)}`
+      : `history_events_${chapterId}`;
     const payload = { title: matched.chapterTitle, events };
-    setServerData(`history_events_${chapterId}`, payload);
+    setServerData(cacheKey, payload);
 
     return NextResponse.json({ success: true, source: 'extracted', data: { chapterId, ...payload } });
   } catch (error) {

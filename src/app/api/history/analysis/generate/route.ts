@@ -11,12 +11,23 @@ export interface GenerateAnalysisResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
+    const body: {
+      chapterId?: string;
+      sectionId?: string;
+      difficulty?: string;
+      text?: string;
+      apiKey?: string;
+    } = await request.json().catch(() => ({}));
     const chapterId = String(body.chapterId || 'modern-china');
+    const sectionId = String(body.sectionId || '');
     const difficulty = String(body.difficulty || '中等') as '简单' | '中等' | '困难';
     const sourceText = body.text ? String(body.text) : '';
 
-    const source = await generateAnalysisSource(chapterId, difficulty, sourceText);
+    const cacheKey = sectionId
+      ? `analysis_source_${chapterId}_${difficulty}_${encodeURIComponent(sectionId)}_${Date.now()}`
+      : `analysis_source_${chapterId}_${difficulty}_${Date.now()}`;
+
+    const source = await generateAnalysisSource(chapterId, sectionId, difficulty, sourceText);
     if (!source || !source.questions?.length) {
       return NextResponse.json(
         { success: false, message: '生成材料分析题失败，请重试' },
@@ -24,8 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const keyToSave = `analysis_source_${chapterId}_${difficulty}_${Date.now()}`;
-    setServerData(keyToSave, source);
+    setServerData(cacheKey, source);
 
     return NextResponse.json<GenerateAnalysisResponse>({
       success: true,
@@ -96,11 +106,16 @@ export async function GET(request: NextRequest) {
 
 async function generateAnalysisSource(
   chapterId: string,
+  sectionId: string,
   difficulty: '简单' | '中等' | '困难',
   contextText: string,
 ): Promise<AnalysisSource> {
   const contextHint = contextText
     ? `\n\n### 教材内容（请从中取材）\n${contextText.slice(0, 4000)}`
+    : '';
+
+  const sectionHint = sectionId
+    ? `\n### 课次\n${decodeURIComponent(sectionId).replace(/_/g, ' ')}`
     : '';
 
   const prompt = `你是一位历史教学专家，也是高考材料分析题命题专家。请根据当前学习章节生成一道材料分析训练题。
@@ -109,6 +124,7 @@ async function generateAnalysisSource(
 ${chapterId}
 ### 难度
 ${difficulty}
+${sectionHint}
 ${contextHint}
 
 ### 要求

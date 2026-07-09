@@ -21,13 +21,16 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const eventName = String(body.eventName || '');
   const chapterId = String(body.chapterId || 'modern-china');
+  const sectionId = String(body.sectionId || '');
 
   if (!eventName) {
     return NextResponse.json({ success: false, message: '缺少事件名称' }, { status: 400 });
   }
 
   try {
-    const cacheKey = `causal_chain_${encodeURIComponent(eventName)}`;
+    const cacheKey = sectionId
+      ? `causal_chain_${encodeURIComponent(eventName)}_${encodeURIComponent(sectionId)}`
+      : `causal_chain_${encodeURIComponent(eventName)}`;
     const cached = getServerData<CausalChain>(cacheKey);
     if (cached) {
       return NextResponse.json({ success: true, source: 'cache', data: cached });

@@ -22,6 +22,7 @@ export interface HistoryKnowledgePoint {
 
 interface ExtractRequest {
   chapterId: string;
+  sectionId?: string;
   startPage?: number;
   endPage?: number;
   forceRefresh?: boolean;
@@ -84,17 +85,22 @@ async function getTextbookContentFromSupabase(): Promise<{
 export async function POST(request: NextRequest) {
   try {
     const body: ExtractRequest & { apiKey?: string } = await request.json().catch(() => ({}));
-    const { chapterId, startPage, endPage, forceRefresh, apiKey: requestApiKey } = body;
+    const { chapterId, sectionId, startPage, endPage, forceRefresh, apiKey: requestApiKey } = body;
 
     if (!chapterId) {
       return NextResponse.json({ success: false, message: '缺少章节ID' }, { status: 400 });
     }
 
+    // Build cache key including sectionId
+    const cacheKey = sectionId
+      ? `history_knowledge_${chapterId}_${encodeURIComponent(sectionId)}`
+      : `history_knowledge_${chapterId}`;
+
     // 尝试从缓存获取（除非强制刷新）
     if (!forceRefresh) {
       try {
         const { getServerData } = await import('@/lib/serverStorage');
-        const cached = getServerData<HistoryKnowledgePoint[]>(`history_knowledge_${chapterId}`);
+        const cached = getServerData<HistoryKnowledgePoint[]>(cacheKey);
         if (cached && Array.isArray(cached) && cached.length > 0) {
           return NextResponse.json({ success: true, data: cached, cached: true });
         }
@@ -145,8 +151,12 @@ export async function POST(request: NextRequest) {
 
     // 2. 如果 Supabase 没有，尝试本地 serverStorage
     if (!text) {
+      // Try sectionId first if provided
+      if (sectionId) {
+        text = getLessonContent(sectionId);
+      }
       const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
-      if (isLesson) {
+      if (isLesson && !text) {
         text = getLessonContent(chapterId);
       }
       if (!text) {
@@ -173,6 +183,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 构建包含课次信息的标题
+    const fullTitle = sectionId
+      ? `${title} · ${decodeURIComponent(sectionId).replace(/_/g, ' ')}`
+      : title;
 
     // 历史专用 AI 提示词 - 提取详细知识点
     const prompt = `你是一位严谨的历史教师。请从以下历史教材内容中提取详细的知识点。
@@ -206,7 +221,7 @@ export async function POST(request: NextRequest) {
 - 按教材顺序排列知识点
 - memoryTip 要简洁易记，可以用箭头串联关键要素
 
-## 教材章节：${title}
+## 教材章节：${fullTitle}
 
 ## 教材内容：
 ${text}
@@ -263,7 +278,7 @@ ${text}
     // 保存到缓存
     try {
       const { setServerData } = await import('@/lib/serverStorage');
-      setServerData(`history_knowledge_${chapterId}`, knowledge);
+      setServerData(cacheKey, knowledge);
     } catch {
       // 缓存失败不影响返回
     }

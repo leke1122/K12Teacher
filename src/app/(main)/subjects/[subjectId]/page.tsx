@@ -358,18 +358,21 @@ export default function SubjectPage() {
                         {/* 显示该单元下的所有课 */}
                         {chapter.sections && chapter.sections.length > 0 && (
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                            {chapter.sections.map((section, sIdx) => (
-                              <Button
-                                key={sIdx}
-                                size="sm"
-                                variant="outline"
-                                className="justify-start text-xs h-auto py-2 px-3"
-                                onClick={() => router.push(`/learn/history/knowledge/${chapterId}?lesson=${encodeURIComponent(section.sectionIndex + ' ' + section.sectionTitle)}`)}
-                              >
-                                <span className="font-medium mr-1">{section.sectionIndex}</span>
-                                <span className="truncate">{section.sectionTitle}</span>
-                              </Button>
-                            ))}
+                            {chapter.sections.map((section, sIdx) => {
+                              const sectionId = encodeURIComponent(section.sectionIndex + '_' + section.sectionTitle);
+                              return (
+                                <Button
+                                  key={sIdx}
+                                  size="sm"
+                                  variant="outline"
+                                  className="justify-start text-xs h-auto py-2 px-3"
+                                  onClick={() => router.push(`/learn/history/${chapterId}/${sectionId}`)}
+                                >
+                                  <span className="font-medium mr-1">{section.sectionIndex}</span>
+                                  <span className="truncate">{section.sectionTitle}</span>
+                                </Button>
+                              );
+                            })}
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2 mt-3">
@@ -398,8 +401,23 @@ export default function SubjectPage() {
                             onClick={() => router.push(`/learn/history/practice`)}
                           >
                             <FileQuestion className="h-3.5 w-3.5" />
-                            章节练习
+                            综合练习
                           </Button>
+                          {chapter.sections && chapter.sections.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="gap-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white"
+                              onClick={() => {
+                                const firstSection = chapter.sections![0];
+                                const sectionId = encodeURIComponent(firstSection.sectionIndex + '_' + firstSection.sectionTitle);
+                                router.push(`/learn/history/${chapterId}/${sectionId}`);
+                              }}
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              进入学习
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );

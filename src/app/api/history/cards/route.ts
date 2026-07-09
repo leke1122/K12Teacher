@@ -13,11 +13,13 @@ interface HistoryCardItem {
 
 export async function GET(request: NextRequest) {
   const chapterId = request.nextUrl.searchParams.get('chapterId') || 'modern-china';
+  const sectionId = request.nextUrl.searchParams.get('sectionId') || '';
 
   try {
-    const cached = getServerData<{ chapterId: string; cards: HistoryCardItem[] }>(
-      `history_cards_${chapterId}`,
-    );
+    const cacheKey = sectionId
+      ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
+      : `history_cards_${chapterId}`;
+    const cached = getServerData<{ chapterId: string; cards: HistoryCardItem[] }>(cacheKey);
     if (cached?.cards?.length) {
       return NextResponse.json({ success: true, source: 'cache', data: cached });
     }
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const chapterId = String(body.chapterId || 'modern-china');
+  const sectionId = String(body.sectionId || '');
 
   try {
     const textbook = getActiveTextbook('history');
@@ -46,13 +49,32 @@ export async function POST(request: NextRequest) {
     const pdf = getTextbookPDF(textbook.id);
     let text = pdf?.fullText || '';
 
-    if (matched && pdf?.pages?.length) {
+    // Narrow down to specific section if provided
+    if (sectionId && matched?.sections && pdf?.pages?.length) {
+      const decodedSection = decodeURIComponent(sectionId);
+      const section = matched.sections.find(
+        (s) =>
+          s.sectionIndex + '_' + s.sectionTitle === decodedSection ||
+          s.sectionIndex === decodedSection.split('_')[0]
+      );
+      if (section) {
+        const startPage = section.pages?.start ?? 0;
+        const endPage = section.pages?.end ?? 9999;
+        const sectionPages = pdf.pages.filter((p) => {
+          const num = Number(p.pageNumber);
+          return num >= startPage && num <= endPage;
+        });
+        if (sectionPages.length > 0) {
+          text = sectionPages.map((p) => p.content).join('\n\n');
+        }
+      }
+    } else if (matched && pdf?.pages?.length) {
       const chapterPages = pdf.pages.filter((p) => {
         const num = Number(p.pageNumber);
         return num >= (matched.pages.start || 0) && num <= (matched.pages.end || 9999);
       });
       if (chapterPages.length > 0) {
-        text = chapterPages.map((p) => p.content).join('\n');
+        text = chapterPages.map((p) => p.content).join('\n\n');
       }
     } else if (!matched && chapters && chapters.length > 0 && pdf?.pages?.length) {
       const firstChapter = chapters[0];
@@ -61,7 +83,7 @@ export async function POST(request: NextRequest) {
         return num >= (firstChapter.pages.start || 0) && num <= (firstChapter.pages.end || 9999);
       });
       if (chapterPages.length > 0) {
-        text = chapterPages.map((p) => p.content).join('\n');
+        text = chapterPages.map((p) => p.content).join('\n\n');
       }
     }
 
@@ -69,10 +91,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '教材内容为空' }, { status: 400 });
     }
 
-    const cards = await generateHistoryCards(chapterId, matched?.chapterTitle || '通用', text);
+    const sectionTitle = sectionId ? decodeURIComponent(sectionId).replace(/_/g, ' ') : matched?.chapterTitle || '通用';
+    const cards = await generateHistoryCards(chapterId, sectionTitle, text);
 
+    const cacheKey = sectionId
+      ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
+      : `history_cards_${chapterId}`;
     const payload = { chapterId, cards };
-    setServerData(`history_cards_${chapterId}`, payload);
+    setServerData(cacheKey, payload);
 
     return NextResponse.json({ success: true, source: 'generated', data: payload });
   } catch (error) {
