@@ -1,8 +1,0 @@
-feat: wrong-questions display full option content (A/B/C/D text)
-
-- Add OptionList component for compact inline display in cards
-- Add OptionListDetail component for full options display in detail dialog
-- Each option shows letter badge, content text, and correct/wrong highlight
-- Parse "A. 选项内容" format from AI-generated questions
-- Fallback to plain answer display when no options available
-- Add visibility change listener to refresh data when user returns to tab

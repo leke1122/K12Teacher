@@ -6,149 +6,128 @@
   <title>GeoGebra 3D Viewer</title>
   <style>
     * { box-sizing: border-box; }
-
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #ffffff;
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    #ggb-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-    }
-
-    #ggb-container > div {
-      width: 100% !important;
-      height: 100% !important;
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-    }
-
-    #ggb-container canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block !important;
-    }
-
-    #ggb-container .applet_scaler {
-      transform: none !important;
-      width: 100% !important;
-      height: 100% !important;
-    }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; font-family: 'Segoe UI', sans-serif; }
+    #ggb-container { width: 100%; height: 100%; position: relative; overflow: hidden; }
+    #ggb-container > div { width: 100% !important; height: 100% !important; position: absolute !important; top: 0 !important; left: 0 !important; }
+    #ggb-container canvas { width: 100% !important; height: 100% !important; display: block !important; }
+    #ggb-container .applet_scaler { transform: none !important; width: 100% !important; height: 100% !important; }
 
     #ggb-loader {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: #6c757d;
-      font-size: 16px;
-      z-index: 10;
-      pointer-events: none;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; color: #6c757d; font-size: 16px; z-index: 10; pointer-events: none;
+      transition: opacity 0.3s ease;
     }
-
+    #ggb-loader.hidden { opacity: 0; pointer-events: none; }
     #ggb-loader .spinner {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      border: 4px solid #e9ecef;
-      border-top-color: #007bff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 12px;
+      width: 40px; height: 40px; border: 4px solid #e9ecef; border-top-color: #007bff;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px;
     }
+    #ggb-loader .status { font-size: 13px; margin-top: 8px; color: #adb5bd; }
+    #ggb-loader .detail { font-size: 12px; margin-top: 4px; color: #ced4da; }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    #ggb-error {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; color: #dc3545; font-size: 14px; display: none; padding: 20px;
+      max-width: 400px;
     }
+    #ggb-error.visible { display: block; }
+    #ggb-error button {
+      margin-top: 12px; padding: 6px 16px; background: #007bff; color: white;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    #ggb-error button:hover { background: #0056b3; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div id="ggb-loader">
     <div class="spinner"></div>
-    <div>加载GeoGebra 3D引擎...</div>
+    <div>加载 GeoGebra 3D...</div>
+    <div class="status" id="loader-status">正在初始化...</div>
+    <div class="detail" id="loader-detail">请稍候</div>
+  </div>
+  <div id="ggb-error">
+    <div id="error-msg">GeoGebra 加载失败</div>
+    <div id="error-detail" style="font-size:12px;color:#666;margin-top:6px;"></div>
+    <button onclick="location.reload()">重新加载</button>
   </div>
   <div id="ggb-container"></div>
 
+  <!-- 本地 GeoGebra 引擎（不依赖外部 CDN） -->
   <script src="/geogebra/deployggb.js"></script>
 
   <script>
-    var ggbApplet;
+    var ggbApplet = null;
     var appletApp = null;
     var appletReady = false;
     var initAttempts = 0;
-    var pendingInit = true;
+    var injectAttempts = 0;
+
+    var $status = document.getElementById('loader-status');
+    var $detail = document.getElementById('loader-detail');
+    var $loader = document.getElementById('ggb-loader');
+    var $error = document.getElementById('ggb-error');
+    var $errDetail = document.getElementById('error-detail');
+
+    function setStatus(msg, detail) {
+      if ($status) $status.textContent = msg;
+      if ($detail && detail) $detail.textContent = detail;
+    }
+
+    function showError(msg) {
+      if ($loader) $loader.classList.add('hidden');
+      if ($error) $error.classList.add('visible');
+      if ($errDetail) $errDetail.textContent = msg;
+      console.error('[GeoGebra Loader]', msg);
+    }
+
+    function hideLoader() {
+      if ($loader) $loader.classList.add('hidden');
+    }
 
     function getContainerSize() {
       var c = document.getElementById('ggb-container');
       if (!c) return { w: 0, h: 0 };
-      var w = c.clientWidth;
-      var h = c.clientHeight;
-      return { w: w, h: h };
+      return { w: c.clientWidth, h: c.clientHeight };
     }
 
     function forceResize() {
       try {
         var size = getContainerSize();
         if (size.w <= 0 || size.h <= 0) return;
-
         var container = document.getElementById('ggb-container');
         if (!container) return;
-
-        var canvases = container.querySelectorAll('canvas');
-        canvases.forEach(function(c) {
-          c.style.width = '100%';
-          c.style.height = '100%';
+        container.querySelectorAll('canvas').forEach(function(c) {
+          c.style.width = '100%'; c.style.height = '100%';
         });
-
         var appletScaler = container.querySelector('.applet_scaler');
         if (appletScaler) {
           appletScaler.style.width = size.w + 'px';
           appletScaler.style.height = size.h + 'px';
           appletScaler.style.transform = '';
         }
-
         if (appletApp) {
-          if (typeof appletApp.resize === 'function') {
-            appletApp.resize(size.w, size.h);
-          }
-          if (typeof appletApp.repaintViews === 'function') {
-            appletApp.repaintViews();
-          }
+          if (typeof appletApp.resize === 'function') appletApp.resize(size.w, size.h);
+          if (typeof appletApp.repaintViews === 'function') appletApp.repaintViews();
         }
-      } catch(e) {}
+      } catch(e) { console.warn('[GeoGebra] forceResize:', e); }
     }
-
-    var resizeObserver;
 
     function onAppletReady() {
       if (appletReady) return;
       appletReady = true;
+      hideLoader();
 
-      document.getElementById('ggb-loader')?.remove();
+      try {
+        window.ggbApplet = ggbApplet;
+        appletApp = ggbApplet.getAppletObject();
+        if (appletApp) window.ggbApp = appletApp;
+        ggbApplet.setErrorDialogsActive(false);
+        GGBApplet.setErrorDialogsActive(false);
+      } catch(e) { console.warn('[GeoGebra] onAppletReady:', e); }
 
-      // 暴露全局引用，parent 通过 iframe.contentWindow.ggbApplet 访问
-      window.ggbApplet = ggbApplet;
-
-      appletApp = ggbApplet.getAppletObject();
-      if (appletApp) {
-        window.ggbApp = appletApp;
-      }
-
-      // 禁用内置错误弹窗
-      try { ggbApplet.setErrorDialogsActive(false); } catch(e) {}
-      try { GGBApplet.setErrorDialogsActive(false); } catch(e) {}
-
-      // 立即 + 延迟 2s 后都调用 forceResize
+      setStatus('引擎就绪', '正在渲染图形...');
       forceResize();
       setTimeout(function() { forceResize(); }, 2000);
       setTimeout(function() {
@@ -156,65 +135,86 @@
           ggbApplet.evalCommand('SetViewDirection(Vector((0,0,1)))');
           ggbApplet.evalCommand('ZoomIn()');
         } catch(e) {}
-      }, 1000);
+      }, 1500);
 
-      // 持续监听容器尺寸变化
+      // ResizeObserver 持续监听
       if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(function(entries) {
+        new ResizeObserver(function(entries) {
           for (var i = 0; i < entries.length; i++) {
-            var entry = entries[i];
-            var w = entry.contentRect.width;
-            var h = entry.contentRect.height;
+            var e = entries[i];
+            var w = e.contentRect.width, h = e.contentRect.height;
             if (w > 50 && h > 50) {
               forceResize();
-              // 如果容器从很小变大了，重新初始化
-              if (entry.target._lastW > 0 && entry.target._lastW < 100 && w > 200) {
-                location.reload();
-              }
-              entry.target._lastW = w;
-              entry.target._lastH = h;
+              if (e.target._lastW > 0 && e.target._lastW < 100 && w > 200) location.reload();
+              e.target._lastW = w; e.target._lastH = h;
             }
           }
-        });
-        resizeObserver.observe(document.getElementById('ggb-container') || document.body);
+        }).observe(document.getElementById('ggb-container') || document.body);
       }
+
+      // 通知父窗口
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: 'geogebra_ready' }, '*');
+        }
+      } catch(e) {}
     }
 
     function pollForAppletReady() {
       if (appletReady) return;
       if (typeof ggbApplet !== 'undefined' && ggbApplet !== null) {
         try {
-          var testVal = ggbApplet.getVersion;
-          if (typeof testVal === 'function') {
+          if (typeof ggbApplet.getVersion === 'function') {
             onAppletReady();
             return;
           }
-        } catch (e) {}
+        } catch(e) {}
+      }
+      initAttempts++;
+      setStatus('等待引擎就绪...', '(' + initAttempts + '/60)');
+      if (initAttempts > 60) {
+        showError('引擎加载超时（30秒），请检查网络或刷新重试');
+        return;
       }
       setTimeout(pollForAppletReady, 500);
     }
 
+    function injectApplet() {
+      injectAttempts++;
+      setStatus('注入画布...', '尝试 ' + injectAttempts + '/3');
+      try {
+        ggbApplet.inject('ggb-container');
+        setTimeout(pollForAppletReady, 1000);
+      } catch(e) {
+        console.warn('[GeoGebra] inject error:', e);
+        if (injectAttempts < 3) {
+          setTimeout(injectApplet, 1000);
+        } else {
+          showError('画布注入失败: ' + (e.message || e));
+        }
+      }
+    }
+
     function tryInit() {
-      if (typeof GGBApplet === 'undefined') return;
-      if (!pendingInit) return;
+      if (typeof GGBApplet === 'undefined') {
+        showError('GeoGebra 引擎加载失败，请刷新重试');
+        return;
+      }
 
       var size = getContainerSize();
+      setStatus('创建3D画布...', size.w + 'x' + size.h);
 
-      // 等到容器有实际尺寸再初始化（最多等 20 次 × 250ms = 5s）
+      // 等容器有尺寸（最多5秒）
       if ((size.w <= 0 || size.h <= 0) && initAttempts < 20) {
         initAttempts++;
         setTimeout(tryInit, 250);
         return;
       }
 
-      // 确认真的要初始化了
-      pendingInit = false;
+      var w = Math.max(size.w, 400);
+      var h = Math.max(size.h, 300);
 
       try {
-        // 使用实际尺寸，至少 400×300
-        var w = Math.max(size.w, 400);
-        var h = Math.max(size.h, 300);
-
         ggbApplet = new GGBApplet(
           {
             appName: '3D',
@@ -241,17 +241,20 @@
           { is3D: true, AV: false, SV: false, CV: false, EV2: false, CP: false, PC: false }
         );
 
-        ggbApplet.setHTML5Codebase('https://www.geogebra.org/apps/5.4.925.3/web3d/');
-        ggbApplet.inject('ggb-container');
+        // 关键：使用本地 web3d 引擎，不依赖外部 CDN
+        ggbApplet.setHTML5Codebase('/geogebra/web3d/');
 
-        setTimeout(pollForAppletReady, 500);
+        injectApplet();
 
       } catch (e) {
-        console.error('[GeoGebra Loader] 创建 GGBApplet 失败: ' + (e.message || e));
+        showError('创建 GGBApplet 失败: ' + (e.message || e));
       }
     }
 
-    // 页面加载后等 DOM 稳定，再等 iframe 父级布局完成
+    window.addEventListener('resize', function() {
+      if (appletReady) forceResize();
+    });
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
         setTimeout(tryInit, 300);
@@ -259,13 +262,6 @@
     } else {
       setTimeout(tryInit, 300);
     }
-
-    // 监听 window resize（窗口变化时重新初始化）
-    window.addEventListener('resize', function() {
-      if (appletReady) {
-        forceResize();
-      }
-    });
   </script>
 </body>
 </html>
