@@ -155,10 +155,24 @@ async function loadWrongQuestionsFromSupabase(): Promise<WrongQuestion[]> {
 // 直接从 Supabase 读取，保证跨浏览器一致性
 export async function getWrongQuestions(): Promise<WrongQuestion[]> {
   if (typeof window === 'undefined') return [];
-  
-  // 始终从 Supabase 获取最新数据
-  const supabaseData = await loadWrongQuestionsFromSupabase();
-  return supabaseData.length > 0 ? supabaseData : getWrongQuestionsFromLocal();
+
+  let supabaseData: WrongQuestion[] = [];
+  try {
+    supabaseData = await loadWrongQuestionsFromSupabase();
+  } catch (err) {
+    console.warn('[PracticeService] Supabase load failed, using localStorage:', err);
+  }
+
+  const localData = getWrongQuestionsFromLocal();
+
+  // 合并：Supabase 数据优先，本地有但 Supabase 没有的也补充（防止降级写入的丢失）
+  const merged = new Map<string, WrongQuestion>();
+  for (const wq of supabaseData) merged.set(wq.id, wq);
+  for (const wq of localData) { if (!merged.has(wq.id)) merged.set(wq.id, wq); }
+
+  return Array.from(merged.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 function getWrongQuestionsFromLocal(): WrongQuestion[] {
@@ -176,9 +190,25 @@ export function getWrongQuestionsSync(): WrongQuestion[] {
 
 export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   if (typeof window === 'undefined') return;
-  
-  // 直接写入 Supabase，跨浏览器同步
-  await syncWrongQuestionsToSupabase(q);
+
+  // 优先写入 Supabase，失败则降级到 localStorage
+  try {
+    await syncWrongQuestionsToSupabase(q);
+  } catch (err) {
+    console.warn('[PracticeService] Supabase sync failed, saving to localStorage:', err);
+    try {
+      const local = getWrongQuestionsFromLocal();
+      const existingIdx = local.findIndex(w => w.id === q.id);
+      if (existingIdx >= 0) {
+        local[existingIdx] = q;
+      } else {
+        local.unshift(q);
+      }
+      localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(local.slice(0, 500)));
+    } catch (localErr) {
+      console.error('[PracticeService] localStorage fallback also failed:', localErr);
+    }
+  }
 }
 
 // 同步版本（向后兼容）

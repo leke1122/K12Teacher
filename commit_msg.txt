@@ -1,7 +1,7 @@
-feat: wrong-questions page adds subject and activity-type filters
+fix: add localStorage fallback and fix session tracking for learning records
 
-- Add subject filter (math, english, chinese, etc.) with count badges
-- Add activity type filter (knowledge, textbook, practice, words, geogebra)
-- Add subject and type badges to each wrong question card
-- Show chapter/section info in detail dialog
-- Auto-detect activity type from chapterId/sectionId
+Core fixes:
+- learningService: add localStorage dual-write for startLearning/endLearning/getLearningRecords/getLearningStats
+  Supabase writes fail silently → data preserved in localStorage, merged on read
+- knowledge page: remove currentPointIndex from useEffect deps so session doesn't restart per question
+- practiceService: add localStorage fallback for addWrongQuestion, merge local+supabase on read

@@ -130,13 +130,13 @@ function KnowledgePageContent() {
   const [recordId, setRecordId] = useState<string | null>(resumeRecordId);
   const learningRecordRef = useRef<string | null>(null);
 
-  // 学习记录：进入时开始，离开时结束
+  // 学习记录：进入时开始，整个学习过程共用一个 session，换知识点不重启
   useEffect(() => {
     const currentKnowledgePoint = knowledgePoints[currentPointIndex];
-    const currentSubject = useSubjectStore.getState()?.currentSubject;
+    const currentSubj = useSubjectStore.getState()?.currentSubject;
     startLearning({
       subjectId,
-      subjectName: getSubjectName(currentSubject || subjectId),
+      subjectName: getSubjectName(currentSubj || subjectId),
       activityType: 'knowledge',
       chapterId,
       sectionId: decodedSectionId,
@@ -154,7 +154,8 @@ function KnowledgePageContent() {
       window.removeEventListener('beforeunload', handleUnload);
       if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
     };
-  }, [subjectId, chapterId, decodedSectionId, sectionTitle, subSectionTitle, currentPointIndex]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectId, chapterId, decodedSectionId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
