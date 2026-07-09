@@ -123,23 +123,6 @@ function HistoryPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const groupedSessions = useMemo(() => {
-    const groups: Record<string, SessionRecord[]> = {};
-    sessions.forEach((session) => {
-      const dateKey = session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : '未知日期';
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(session);
-    });
-
-    return Object.entries(groups)
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, recs]) => ({
-        date,
-        dateLabel: formatDateLabel(date),
-        records: recs.sort((a, b) => new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()),
-      }));
-  }, [sessions]);
-
   const formatDateLabel = (dateKey: string) => {
     if (dateKey === '未知日期') return dateKey;
     const today = new Date().toISOString().split('T')[0];
@@ -160,6 +143,23 @@ function HistoryPageContent() {
       minute: '2-digit',
     });
   };
+
+  const groupedSessions = useMemo(() => {
+    const groups: Record<string, SessionRecord[]> = {};
+    sessions.forEach((session) => {
+      const dateKey = session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : '未知日期';
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(session);
+    });
+
+    return Object.entries(groups)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, recs]) => ({
+        date,
+        dateLabel: formatDateLabel(date),
+        records: recs.sort((a, b) => new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()),
+      }));
+  }, [sessions]);
 
   const renderActivityDescription = (record: SessionRecord) => {
     const detail = (record.activity_detail || {}) as Record<string, unknown>;

@@ -1,5 +1,5 @@
-fix: restore corrupted history page (quote pollution from previous session)
+fix: move formatDateLabel before useMemo in history page
 
-- Rewrote src/app/history/page.tsx to fix malformed JSX/TS with excessive single quotes
-- All code now properly formatted and syntactically correct
-- Build verified: npm run build passed
+Fixes "Cannot access 'K' before initialization" error in production.
+formatDateLabel was used inside useMemo but defined after it,
+causing TDZ (temporal dead zone) error after minification.
