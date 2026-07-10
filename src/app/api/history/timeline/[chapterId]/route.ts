@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveTextbook, getTextbookChapters, getTextbookPDF } from '@/lib/textbookStorage.server';
+import {
+  getHistoryTextbook,
+  getHistoryTextbookTextByPages,
+  getHistoryLessonContent,
+  getHistoryLessonTitle,
+} from '@/lib/historyData.server';
 import { getServerData, setServerData } from '@/lib/serverStorage';
 
 interface HistoryEvent {
@@ -208,41 +213,23 @@ export async function POST(
   const sectionId = String(body.sectionId || '');
 
   try {
-    const textbook = await getActiveTextbook('history');
+    const textbook = await getHistoryTextbook();
     if (!textbook) {
       return NextResponse.json({ success: false, message: '未找到历史教材，请先上传教材' }, { status: 404 });
     }
 
-    const chapters = await getTextbookChapters(textbook.id);
-    const matched = chapters?.find(
-      (c) => String(c.chapterIndex) === chapterId || c.chapterTitle === chapterId,
-    );
-    if (!matched) {
-      return NextResponse.json({ success: false, message: '章节不存在' }, { status: 404 });
+    let text: string | null = null;
+    let chapterTitle = '';
+
+    if (sectionId) {
+      chapterTitle = await getHistoryLessonTitle(sectionId) || textbook.textbookName;
+      text = await getHistoryLessonContent(sectionId);
     }
 
-    const pdf = await getTextbookPDF(textbook.id);
-    let text = pdf?.fullText || '';
-
-    // Try to narrow down to the specific section if sectionId is provided
-    if (sectionId && matched.sections) {
-      const decodedSection = decodeURIComponent(sectionId);
-      const section = matched.sections.find(
-        (s) =>
-          s.sectionIndex + '_' + s.sectionTitle === decodedSection ||
-          s.sectionIndex === decodedSection.split('_')[0]
-      );
-      if (section && pdf?.pages?.length) {
-        const startPage = section.pages?.start ?? 0;
-        const endPage = section.pages?.end ?? 9999;
-        const sectionPages = pdf.pages.filter((p) => {
-          const num = Number(p.pageNumber);
-          return num >= startPage && num <= endPage;
-        });
-        if (sectionPages.length > 0) {
-          text = sectionPages.map((p) => p.content).join('\n\n');
-        }
-      }
+    if (!text) {
+      const matchedTitle = await getHistoryLessonTitle(chapterId);
+      chapterTitle = matchedTitle || textbook.textbookName;
+      text = await getHistoryTextbookTextByPages(chapterId);
     }
 
     if (!text) {
@@ -255,7 +242,7 @@ export async function POST(
     const cacheKey = sectionId
       ? `history_events_${chapterId}_${encodeURIComponent(sectionId)}`
       : `history_events_${chapterId}`;
-    const payload = { title: matched.chapterTitle, events };
+    const payload = { title: chapterTitle || textbook.textbookName, events };
     setServerData(cacheKey, payload);
 
     return NextResponse.json({ success: true, source: 'extracted', data: { chapterId, ...payload } });

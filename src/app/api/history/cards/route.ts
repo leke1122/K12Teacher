@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveTextbook, getTextbookChapters, getTextbookPDF } from '@/lib/textbookStorage.server';
+import {
+  getHistoryTextbook,
+  getHistoryTextbookTextByPages,
+  getHistoryLessonContent,
+  getHistoryLessonTitle,
+} from '@/lib/historyData.server';
 import { getServerData, setServerData } from '@/lib/serverStorage';
 
 interface HistoryCardItem {
@@ -36,62 +41,30 @@ export async function POST(request: NextRequest) {
   const sectionId = String(body.sectionId || '');
 
   try {
-    const textbook = getActiveTextbook('history');
+    const textbook = await getHistoryTextbook();
     if (!textbook) {
       return NextResponse.json({ success: false, message: '未找到历史教材，请先上传教材' }, { status: 404 });
     }
 
-    const chapters = getTextbookChapters(textbook.id);
-    const matched = chapters?.find(
-      (c) => String(c.chapterIndex) === chapterId || c.chapterTitle === chapterId,
-    );
+    let text: string | null = null;
+    let sectionTitle = textbook.textbookName;
 
-    const pdf = getTextbookPDF(textbook.id);
-    let text = pdf?.fullText || '';
+    if (sectionId) {
+      const title = await getHistoryLessonTitle(sectionId);
+      sectionTitle = title || sectionTitle;
+      text = await getHistoryLessonContent(sectionId);
+    }
 
-    // Narrow down to specific section if provided
-    if (sectionId && matched?.sections && pdf?.pages?.length) {
-      const decodedSection = decodeURIComponent(sectionId);
-      const section = matched.sections.find(
-        (s) =>
-          s.sectionIndex + '_' + s.sectionTitle === decodedSection ||
-          s.sectionIndex === decodedSection.split('_')[0]
-      );
-      if (section) {
-        const startPage = section.pages?.start ?? 0;
-        const endPage = section.pages?.end ?? 9999;
-        const sectionPages = pdf.pages.filter((p) => {
-          const num = Number(p.pageNumber);
-          return num >= startPage && num <= endPage;
-        });
-        if (sectionPages.length > 0) {
-          text = sectionPages.map((p) => p.content).join('\n\n');
-        }
-      }
-    } else if (matched && pdf?.pages?.length) {
-      const chapterPages = pdf.pages.filter((p) => {
-        const num = Number(p.pageNumber);
-        return num >= (matched.pages.start || 0) && num <= (matched.pages.end || 9999);
-      });
-      if (chapterPages.length > 0) {
-        text = chapterPages.map((p) => p.content).join('\n\n');
-      }
-    } else if (!matched && chapters && chapters.length > 0 && pdf?.pages?.length) {
-      const firstChapter = chapters[0];
-      const chapterPages = pdf.pages.filter((p) => {
-        const num = Number(p.pageNumber);
-        return num >= (firstChapter.pages.start || 0) && num <= (firstChapter.pages.end || 9999);
-      });
-      if (chapterPages.length > 0) {
-        text = chapterPages.map((p) => p.content).join('\n\n');
-      }
+    if (!text) {
+      const title = await getHistoryLessonTitle(chapterId);
+      sectionTitle = title || sectionTitle;
+      text = await getHistoryTextbookTextByPages(chapterId);
     }
 
     if (!text) {
       return NextResponse.json({ success: false, message: '教材内容为空' }, { status: 400 });
     }
 
-    const sectionTitle = sectionId ? decodeURIComponent(sectionId).replace(/_/g, ' ') : matched?.chapterTitle || '通用';
     const cards = await generateHistoryCards(chapterId, sectionTitle, text);
 
     const cacheKey = sectionId

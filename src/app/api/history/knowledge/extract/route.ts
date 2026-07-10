@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChapterTextByPages, getLessonContent, getLessonTitle, getChapterTitle } from '@/lib/historyData.server';
-import { setServerData } from '@/lib/serverStorage';
+import { getHistoryTextbook, getHistoryTextbookTextByPages, getHistoryLessonContent, getHistoryLessonTitle } from '@/lib/historyData.server';
+import { getServerData, setServerData } from '@/lib/serverStorage';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // 历史知识点类型定义
@@ -51,12 +51,7 @@ async function getTextbookContentFromSupabase(): Promise<{
       .limit(1)
       .single();
 
-    if (error) {
-      console.error('[API history/knowledge] Supabase查询错误:', error);
-      return null;
-    }
-
-    if (!data) {
+    if (error || !data) {
       console.log('[API history/knowledge] Supabase中没有找到历史教材记录');
       return null;
     }
@@ -99,7 +94,6 @@ export async function POST(request: NextRequest) {
     // 尝试从缓存获取（除非强制刷新）
     if (!forceRefresh) {
       try {
-        const { getServerData } = await import('@/lib/serverStorage');
         const cached = getServerData<HistoryKnowledgePoint[]>(cacheKey);
         if (cached && Array.isArray(cached) && cached.length > 0) {
           return NextResponse.json({ success: true, data: cached, cached: true });
@@ -109,58 +103,67 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 获取教材内容 - 优先从 Supabase 获取（Vercel部署）
+    // 优先使用统一教材读取
     let text: string | null = null;
-    let textbookData: { pages?: { pageNumber: number; content: string }[]; chapters?: unknown[] } | null = null;
 
-    // 1. 首先尝试从 Supabase 获取
-    textbookData = await getTextbookContentFromSupabase();
+    if (sectionId) {
+      console.log('[API history/knowledge] 通过 sectionId 读取教材:', sectionId);
+      text = await getHistoryLessonContent(sectionId);
+    }
 
-    if (textbookData?.pages?.length) {
-      const pages = textbookData.pages;
-      const chapters = textbookData.chapters;
+    if (!text) {
+      console.log('[API history/knowledge] 通过 chapterId 读取教材:', chapterId);
+      text = await getHistoryTextbookTextByPages(chapterId, startPage, endPage);
+    }
 
-      // 判断是"课"还是"单元"
-      const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
+    // 2. 如果统一读取失败，尝试从 Supabase 获取
+    if (!text) {
+      let textbookData = await getTextbookContentFromSupabase();
 
-      // 尝试匹配章节
-      if (chapters && chapterId) {
-        // 使用新的章节结构查找
-        function findChapter(chapters: unknown[], id: string): { startPage: number; endPage: number } | null {
-          for (const ch of chapters as { id: string; children?: unknown[]; startPage?: number; endPage?: number }[]) {
-            if (ch.id === id) {
-              return { startPage: ch.startPage || 0, endPage: ch.endPage || 0 };
+      if (textbookData?.pages?.length) {
+        const pages = textbookData.pages;
+        const chapters = textbookData.chapters;
+
+        // 判断是"课"还是"单元"
+        const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
+
+        // 尝试匹配章节
+        if (chapters && chapterId) {
+          // 使用新的章节结构查找
+          function findChapter(chapters: unknown[], id: string): { startPage: number; endPage: number } | null {
+            for (const ch of chapters as { id: string; children?: unknown[]; startPage?: number; endPage?: number }[]) {
+              if (ch.id === id) {
+                return { startPage: ch.startPage || 0, endPage: ch.endPage || 0 };
+              }
+              if (ch.children) {
+                const found = findChapter(ch.children, id);
+                if (found) return found;
+              }
             }
-            if (ch.children) {
-              const found = findChapter(ch.children, id);
-              if (found) return found;
-            }
+            return null;
           }
-          return null;
-        }
 
-        const foundChapter = findChapter(chapters, chapterId);
-        if (foundChapter) {
-          text = pages
-            .filter((p) => p.pageNumber >= foundChapter.startPage && p.pageNumber <= foundChapter.endPage)
-            .map((p) => p.content)
-            .join('\n\n');
+          const foundChapter = findChapter(chapters, chapterId);
+          if (foundChapter) {
+            text = pages
+              .filter((p) => p.pageNumber >= foundChapter.startPage && p.pageNumber <= foundChapter.endPage)
+              .map((p) => p.content)
+              .join('\n\n');
+          }
         }
       }
     }
 
-    // 2. 如果 Supabase 没有，尝试本地 serverStorage
+    // 3. 如果 Supabase 没有，尝试本地 serverStorage
     if (!text) {
-      // Try sectionId first if provided
-      if (sectionId) {
-        text = getLessonContent(sectionId);
-      }
       const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
-      if (isLesson && !text) {
-        text = getLessonContent(chapterId);
+      if (isLesson) {
+        const legacyText = await getHistoryLessonContent(chapterId);
+        if (legacyText) text = legacyText;
       }
       if (!text) {
-        text = getChapterTextByPages(chapterId, startPage, endPage);
+        const legacyText = await getHistoryTextbookTextByPages(chapterId, startPage, endPage);
+        if (legacyText) text = legacyText;
       }
     }
 
@@ -172,7 +175,12 @@ export async function POST(request: NextRequest) {
     }
 
     const isLesson = chapterId.includes('课') || /^\d+$/.test(chapterId.replace(/第/g, ''));
-    const title = isLesson ? (getLessonTitle(chapterId) || chapterId) : getChapterTitle(chapterId);
+    const title = isLesson ? (await getHistoryLessonTitle(chapterId) || chapterId) : chapterId;
+
+    // 构建包含课次信息的标题
+    const fullTitle = sectionId
+      ? `${title} · ${decodeURIComponent(sectionId).replace(/_/g, ' ')}`
+      : title;
 
     // 优先使用请求中的 Key，其次使用环境变量
     const apiKey = requestApiKey || process.env.DEEPSEEK_API_KEY;
@@ -183,11 +191,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // 构建包含课次信息的标题
-    const fullTitle = sectionId
-      ? `${title} · ${decodeURIComponent(sectionId).replace(/_/g, ' ')}`
-      : title;
 
     // 历史专用 AI 提示词 - 提取详细知识点
     const prompt = `你是一位严谨的历史教师。请从以下历史教材内容中提取详细的知识点。
@@ -277,7 +280,6 @@ ${text}
 
     // 保存到缓存
     try {
-      const { setServerData } = await import('@/lib/serverStorage');
       setServerData(cacheKey, knowledge);
     } catch {
       // 缓存失败不影响返回

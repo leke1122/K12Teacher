@@ -1,186 +1,180 @@
-// 历史学科数据工具 - 服务端版本
-// 提供章节配置和教材内容获取
-// 优先从 Supabase 读取，本地 serverStorage 作为备用
+// 历史学科统一教材读取
+// 优先从 Supabase textbook_cache 读取，回退到本地 serverStorage
+// 修复“未找到本课内容”问题：统一 subject_id='history' 的数据源
 
-import { getActiveTextbook, getTextbookPDF, getTextbookChapters } from './textbookStorage.server';
 import { supabase as supabaseClient, isSupabaseConfigured } from './supabase';
+import {
+  getActiveTextbook as getLocalActiveTextbook,
+  getTextbookPDF as getLocalTextbookPDF,
+  getTextbookChapters as getLocalTextbookChapters,
+} from './textbookStorage.server';
 import type { TextbookCacheItem } from './supabase';
 
-// 历史章节配置
-export const HISTORY_CHAPTERS = {
-  'modern-china': { title: '近代中国', subtitle: '1840-1949' },
-  'modern-world': { title: '世界近现代史', subtitle: '1500-1945' },
-  'ancient-china': { title: '中国古代史', subtitle: '上古-1840' },
-  'contemporary': { title: '当代世界', subtitle: '1945至今' },
-  '古代': { title: '中国古代史', subtitle: '上古-1840' },
-  '近代': { title: '中国近代史', subtitle: '1840-1949' },
-  '现代': { title: '中国现代史', subtitle: '1949至今' },
-  '世界史': { title: '世界历史', subtitle: '1500至今' },
-} as const;
-
-export type HistoryChapterId = keyof typeof HISTORY_CHAPTERS;
-
-// 从 Supabase 获取教材数据
-async function getTextbookFromSupabase(subjectId: string = 'history'): Promise<{
+export interface HistoryTextbookSource {
+  textbookId: string;
+  textbookName: string;
   fullText?: string;
   pages?: { pageNumber: number; content: string }[];
   chapters?: unknown[];
-  textbookId?: string;
-} | null> {
-  if (!isSupabaseConfigured || !supabaseClient) return null;
+  source: 'supabase' | 'local';
+}
 
-  try {
-    const { data, error } = await supabaseClient
-      .from('textbook_cache')
-      .select('textbook_id, full_text, pages, chapters')
-      .eq('user_id', 'personal-user')
-      .eq('subject_id', subjectId)
-      .order('uploaded_at', { ascending: false })
-      .limit(1)
-      .single();
+export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null> {
+  // 1. 优先从 Supabase 读取
+  if (isSupabaseConfigured && supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('textbook_cache')
+        .select('textbook_id, textbook_name, full_text, pages, chapters')
+        .eq('user_id', 'personal-user')
+        .eq('subject_id', 'history')
+        .order('uploaded_at', { ascending: false })
+        .limit(1)
+        .single();
 
-    if (error || !data) return null;
+      if (!error && data) {
+        return {
+          textbookId: data.textbook_id,
+          textbookName: data.textbook_name,
+          fullText: data.full_text || undefined,
+          pages: (data.pages as { pageNumber: number; content: string }[] | null) || undefined,
+          chapters: (data.chapters as unknown[] | null) || undefined,
+          source: 'supabase',
+        };
+      }
+    } catch (err) {
+      console.warn('[historyData.server] Supabase读取失败，回退本地:', err);
+    }
+  }
 
-    return {
-      textbookId: data.textbook_id,
-      fullText: data.full_text,
-      pages: data.pages as { pageNumber: number; content: string }[] || [],
-      chapters: data.chapters as unknown[] || [],
-    };
-  } catch (err) {
-    console.warn('[historyData.server] Supabase读取失败:', err);
+  // 2. 回退到本地 serverStorage
+  const localTextbook = getLocalActiveTextbook('history');
+  if (!localTextbook) {
     return null;
   }
+
+  const localPdf = getLocalTextbookPDF(localTextbook.id);
+  const localChapters = getLocalTextbookChapters(localTextbook.id);
+
+  return {
+    textbookId: localTextbook.id,
+    textbookName: localTextbook.name,
+    fullText: localPdf?.fullText,
+    pages: localPdf?.pages,
+    chapters: localChapters as unknown[] | undefined,
+    source: 'local',
+  };
 }
 
-// 获取章节标题
-export function getChapterTitle(chapterId: string): string {
-  return HISTORY_CHAPTERS[chapterId as HistoryChapterId]?.title || chapterId;
-}
+export async function getHistoryTextbookTextByPages(
+  chapterId: string,
+  startPage?: number,
+  endPage?: number,
+): Promise<string | null> {
+  const textbook = await getHistoryTextbook();
+  if (!textbook) {
+    console.warn('[historyData.server] 未找到历史教材');
+    return null;
+  }
 
-// 获取教材文本内容
-export function getChapterText(chapterId: string): string | null {
-  const textbook = getActiveTextbook('history');
-  if (!textbook) return null;
+  const pages = textbook.pages;
+  if (!pages?.length) {
+    // 回退到 fullText
+    if (textbook.fullText) {
+      return textbook.fullText.length > 5000
+        ? textbook.fullText.slice(0, 5000) + '...'
+        : textbook.fullText;
+    }
+    return null;
+  }
 
-  const pdf = getTextbookPDF(textbook.id);
-  if (!pdf?.fullText) return null;
+  const chapters = textbook.chapters;
 
-  const chapters = getTextbookChapters(textbook.id);
+  // 优先使用指定页数范围
+  if (startPage !== undefined && endPage !== undefined) {
+    const pageRange = pages.filter((p) => {
+      const num = Number(p.pageNumber);
+      return num >= startPage && num <= endPage;
+    });
+    if (pageRange.length > 0) {
+      return pageRange.map((p) => p.content).join('\n\n');
+    }
+  }
 
-  // 尝试匹配章节
+  // 尝试匹配章节（支持单元ID或课ID）
   if (chapters) {
-    const matched = chapters.find(
-      (c) =>
-        String(c.chapterIndex) === chapterId ||
-        c.chapterTitle === chapterId ||
-        c.chapterTitle.includes(chapterId)
-    );
+    // 尝试匹配单元
+    const matched = chapters.find((c: unknown) => {
+      const chapter = c as Record<string, unknown>;
+      return (
+        String(chapter.chapterIndex) === chapterId ||
+        chapter.chapterTitle === chapterId ||
+        String(chapter.chapterTitle).includes(chapterId)
+      );
+    });
 
-    if (matched && pdf.pages?.length) {
-      const startPage = matched.pages?.start ?? 0;
-      const endPage = matched.pages?.end ?? 9999;
-      const chapterPages = pdf.pages.filter((p) => {
+    if (matched) {
+      const chapter = matched as Record<string, unknown>;
+      const start = Number((chapter.pages as Record<string, unknown>)?.start ?? 0);
+      const end = Number((chapter.pages as Record<string, unknown>)?.end ?? 9999);
+      const chapterPages = pages.filter((p) => {
         const num = Number(p.pageNumber);
-        return num >= startPage && num <= endPage;
+        return num >= start && num <= end;
       });
-
       if (chapterPages.length > 0) {
         return chapterPages.map((p) => p.content).join('\n\n');
       }
     }
-  }
-
-  // 如果没有匹配章节但有教材内容，返回前几段
-  if (pdf.pages?.length) {
-    const samplePages = pdf.pages.slice(0, 5);
-    return samplePages.map((p) => p.content).join('\n\n');
-  }
-
-  return pdf.fullText || null;
-}
-
-// 获取教材文本（按页数范围）
-export function getChapterTextByPages(
-  chapterId: string,
-  startPage?: number,
-  endPage?: number
-): string | null {
-  const textbook = getActiveTextbook('history');
-  if (!textbook) return null;
-
-  const pdf = getTextbookPDF(textbook.id);
-  if (!pdf?.pages?.length) return null;
-
-  const chapters = getTextbookChapters(textbook.id);
-
-  // 优先使用指定页数范围
-  if (startPage !== undefined && endPage !== undefined) {
-    const pages = pdf.pages.filter((p) => {
-      const num = Number(p.pageNumber);
-      return num >= startPage && num <= endPage;
-    });
-    return pages.map((p) => p.content).join('\n\n');
-  }
-
-  // 其次匹配章节（支持单元ID或课ID）
-  if (chapters) {
-    // 尝试匹配单元
-    const matched = chapters.find(
-      (c) =>
-        String(c.chapterIndex) === chapterId ||
-        c.chapterTitle === chapterId ||
-        c.chapterTitle.includes(chapterId)
-    );
-
-    if (matched) {
-      const startPage = matched.pages?.start ?? 0;
-      const endPage = matched.pages?.end ?? 9999;
-      const pages = pdf.pages.filter((p) => {
-        const num = Number(p.pageNumber);
-        return num >= startPage && num <= endPage;
-      });
-      return pages.map((p) => p.content).join('\n\n');
-    }
 
     // 尝试匹配课（在sections中查找）
     for (const chapter of chapters) {
-      if (chapter.sections) {
-        const section = chapter.sections.find(
-          (s) =>
+      const chapterRecord = chapter as Record<string, unknown>;
+      const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
+      if (sections) {
+        const section = sections.find((s) => {
+          return (
             s.sectionIndex === chapterId ||
-            s.sectionIndex.includes(chapterId) ||
+            String(s.sectionIndex).includes(chapterId) ||
             s.sectionTitle === chapterId ||
-            s.sectionTitle.includes(chapterId)
-        );
+            String(s.sectionTitle).includes(chapterId)
+          );
+        });
 
         if (section) {
-          const startPage = section.pages?.start ?? 0;
-          const endPage = section.pages?.end ?? 9999;
-          const pages = pdf.pages.filter((p) => {
+          const sectionRecord = section as Record<string, unknown>;
+          const pagesRecord = sectionRecord.pages as Record<string, unknown> | undefined;
+          const start = Number(pagesRecord?.start ?? 0);
+          const end = Number(pagesRecord?.end ?? 9999);
+          const sectionPages = pages.filter((p) => {
             const num = Number(p.pageNumber);
-            return num >= startPage && num <= endPage;
+            return num >= start && num <= end;
           });
-          return pages.map((p) => p.content).join('\n\n');
+          if (sectionPages.length > 0) {
+            return sectionPages.map((p) => p.content).join('\n\n');
+          }
         }
       }
     }
   }
 
   // 返回全部文本（限制长度）
-  const allText = pdf.pages.map((p) => p.content).join('\n\n');
+  const allText = pages.map((p) => p.content).join('\n\n');
   return allText.length > 5000 ? allText.slice(0, 5000) + '...' : allText;
 }
 
-// 获取单课内容（支持多种ID格式）
-export function getLessonContent(lessonId: string): string | null {
-  const textbook = getActiveTextbook('history');
-  if (!textbook) return null;
+export async function getHistoryLessonContent(lessonId: string): Promise<string | null> {
+  const textbook = await getHistoryTextbook();
+  if (!textbook) {
+    console.warn('[historyData.server] 未找到历史教材');
+    return null;
+  }
 
-  const pdf = getTextbookPDF(textbook.id);
-  if (!pdf?.pages?.length) return null;
+  const pages = textbook.pages;
+  if (!pages?.length) {
+    return textbook.fullText || null;
+  }
 
-  const chapters = getTextbookChapters(textbook.id);
+  const chapters = textbook.chapters;
   if (!chapters) return null;
 
   // 标准化lessonId（去掉"第"和"课"字，提取数字）
@@ -188,24 +182,32 @@ export function getLessonContent(lessonId: string): string | null {
 
   // 在所有章节的sections中查找
   for (const chapter of chapters) {
-    if (chapter.sections) {
-      const section = chapter.sections.find((s) => {
-        const sIndex = s.sectionIndex.replace(/第/g, '').replace(/课/g, '').trim();
-        return sIndex === normalizedId ||
-               s.sectionIndex === lessonId ||
-               s.sectionIndex.includes(lessonId) ||
-               s.sectionTitle.includes(lessonId) ||
-               s.sectionTitle === lessonId;
+    const chapterRecord = chapter as Record<string, unknown>;
+    const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
+    if (sections) {
+      const section = sections.find((s) => {
+        const sIndex = String(s.sectionIndex).replace(/第/g, '').replace(/课/g, '').trim();
+        return (
+          sIndex === normalizedId ||
+          s.sectionIndex === lessonId ||
+          String(s.sectionIndex).includes(lessonId) ||
+          s.sectionTitle === lessonId ||
+          String(s.sectionTitle).includes(lessonId)
+        );
       });
 
       if (section) {
-        const startPage = section.pages?.start ?? 0;
-        const endPage = section.pages?.end ?? 9999;
-        const pages = pdf.pages.filter((p) => {
+        const sectionRecord = section as Record<string, unknown>;
+        const pagesRecord = sectionRecord.pages as Record<string, unknown> | undefined;
+        const startPage = Number(pagesRecord?.start ?? 0);
+        const endPage = Number(pagesRecord?.end ?? 9999);
+        const sectionPages = pages.filter((p) => {
           const num = Number(p.pageNumber);
           return num >= startPage && num <= endPage;
         });
-        return pages.map((p) => p.content).join('\n\n');
+        if (sectionPages.length > 0) {
+          return sectionPages.map((p) => p.content).join('\n\n');
+        }
       }
     }
   }
@@ -213,27 +215,30 @@ export function getLessonContent(lessonId: string): string | null {
   return null;
 }
 
-// 获取课标题
-export function getLessonTitle(lessonId: string): string | null {
-  const textbook = getActiveTextbook('history');
+export async function getHistoryLessonTitle(lessonId: string): Promise<string | null> {
+  const textbook = await getHistoryTextbook();
   if (!textbook) return null;
 
-  const chapters = getTextbookChapters(textbook.id);
+  const chapters = textbook.chapters;
   if (!chapters) return null;
 
   const normalizedId = lessonId.replace(/第/g, '').replace(/课/g, '').trim();
 
   for (const chapter of chapters) {
-    if (chapter.sections) {
-      const section = chapter.sections.find((s) => {
-        const sIndex = s.sectionIndex.replace(/第/g, '').replace(/课/g, '').trim();
-        return sIndex === normalizedId ||
-               s.sectionIndex === lessonId ||
-               s.sectionIndex.includes(lessonId);
+    const chapterRecord = chapter as Record<string, unknown>;
+    const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
+    if (sections) {
+      const section = sections.find((s) => {
+        const sIndex = String(s.sectionIndex).replace(/第/g, '').replace(/课/g, '').trim();
+        return (
+          sIndex === normalizedId ||
+          s.sectionIndex === lessonId ||
+          String(s.sectionIndex).includes(lessonId)
+        );
       });
 
       if (section) {
-        return section.sectionIndex + ' ' + section.sectionTitle;
+        return `${section.sectionIndex} ${section.sectionTitle}`;
       }
     }
   }

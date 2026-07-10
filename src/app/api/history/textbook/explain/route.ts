@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChapterTextByPages, getChapterTitle } from '@/lib/historyData.server';
+import { getHistoryTextbookTextByPages, getHistoryLessonTitle } from '@/lib/historyData.server';
 
 // 历史课本还原请求类型
 interface ExplainRequest {
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '缺少章节ID' }, { status: 400 });
     }
 
-    // 获取教材内容
-    const text = getChapterTextByPages(chapterId, startPage, endPage);
+    // 优先从统一数据源获取教材内容
+    const text = await getHistoryTextbookTextByPages(chapterId, startPage, endPage);
 
     if (!text) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const title = getChapterTitle(chapterId);
+    const title = await getHistoryLessonTitle(chapterId) || chapterId;
 
     // 优先使用请求中的 Key，其次使用环境变量
     const apiKey = requestApiKey || process.env.DEEPSEEK_API_KEY;
