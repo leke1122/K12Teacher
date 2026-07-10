@@ -94,6 +94,8 @@ function TextbookPageContent() {
   // ============================================================
   const learningRecordRef = useRef<string | null>(null);
 
+  const { settings } = useSettingsStore();
+
   const getSubjectName = (id: string) => {
     const map: Record<string, string> = {
       math: '数学', physics: '物理', chemistry: '化学', english: '英语',
