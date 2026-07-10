@@ -94,6 +94,14 @@ function TextbookPageContent() {
   // ============================================================
   const learningRecordRef = useRef<string | null>(null);
 
+  const getSubjectName = (id: string) => {
+    const map: Record<string, string> = {
+      math: '数学', physics: '物理', chemistry: '化学', english: '英语',
+      chinese: '语文', biology: '生物', geography: '地理', politics: '政治', history: '历史'
+    };
+    return map[id] || id;
+  };
+
   useEffect(() => {
     const currentSubject = useSubjectStore.getState()?.currentSubject;
     startLearning({
