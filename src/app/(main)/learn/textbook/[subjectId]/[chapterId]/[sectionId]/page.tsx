@@ -96,6 +96,7 @@ function TextbookPageContent() {
 
   const { settings } = useSettingsStore();
   const { currentSubject } = useSubjectStore();
+  const addRecord = useHistoryStore((s) => s.addRecord);
 
   const getSubjectName = (id: string) => {
     const map: Record<string, string> = {
