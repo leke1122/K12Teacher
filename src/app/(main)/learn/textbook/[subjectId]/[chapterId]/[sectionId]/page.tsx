@@ -95,6 +95,7 @@ function TextbookPageContent() {
   const learningRecordRef = useRef<string | null>(null);
 
   const { settings } = useSettingsStore();
+  const { currentSubject } = useSubjectStore();
 
   const getSubjectName = (id: string) => {
     const map: Record<string, string> = {
@@ -105,7 +106,6 @@ function TextbookPageContent() {
   };
 
   useEffect(() => {
-    const currentSubject = useSubjectStore.getState()?.currentSubject;
     startLearning({
       subjectId,
       subjectName: getSubjectName(currentSubject || subjectId),
