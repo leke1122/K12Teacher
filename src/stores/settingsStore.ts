@@ -10,6 +10,12 @@ const defaultSettings: Settings = {
   temperature: 0.7,
   maxTokens: 2048,
   streaming: true,
+  ttsProvider: 'web',
+  ttsVoice: '',
+  ttsEmotion: 'default',
+  ttsRate: 0.85,
+  ttsPitch: 1.1,
+  ttsNaturalMode: true,
 };
 
 interface SettingsStore {
