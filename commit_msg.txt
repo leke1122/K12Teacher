@@ -1,9 +1,0 @@
-fix: 统一历史学科教材读取链路，修复"未找到本课内容"
-
-- 新增 src/lib/historyData.server.ts 统一读取入口：
-  - getHistoryTextbook() 优先读取 Supabase textbook_cache（subject_id='history'）
-  - 回退到本地 serverStorage，避免不同学科/环境数据源不一致
-- 修改历史 API 统一使用新读取链路：
-  - knowledge/extract、timeline/[chapterId]、textbook/explain、cards
-  - 支持 chapterId / sectionId 匹配单元与课
-- 修复章节页数匹配的 TS 类型问题，确保按课内容可正常提取
