@@ -116,7 +116,7 @@ function parseInlineList(text) {
 }
 
 function isBlockFormat(section) {
-  return /###\s+(原文|全文翻译|重点字词注释|内容讲解|高考考点)\b/i.test(section);
+  return /###\s+(原文|全文翻译|重点字词注释|内容讲解|高考考点)(?:\s|$)/i.test(section);
 }
 
 async function run() {
