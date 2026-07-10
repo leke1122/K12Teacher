@@ -78,10 +78,11 @@ function HistoryLessonPageContent() {
   const [activeTab, setActiveTab] = useState('textbook');
   const [loading, setLoading] = useState(false);
 
-  // 尝试在 chapters 中查找对应的课
+  // 兼容不同章节格式：优先精确匹配，其次按第X课序号匹配，最后按标题模糊匹配
   const matchedSection = useMemo(() => {
-    for (const chapter of chapters) {
-      if (chapter.sections) {
+    const byExact = () => {
+      for (const chapter of chapters) {
+        if (!chapter.sections) continue;
         const found = chapter.sections.find(
           (s) =>
             s.sectionIndex === sectionIndex ||
@@ -90,13 +91,41 @@ function HistoryLessonPageContent() {
         );
         if (found) return { chapter, section: found };
       }
-    }
-    return null;
-  }, [chapters, sectionIndex, decodedSectionId, rawSectionId]);
+      return null;
+    };
+
+    const byLessonNumber = () => {
+      const lessonNum = parseInt(sectionIndex.replace(/[^\d]/g, ''), 10);
+      if (!Number.isFinite(lessonNum) || lessonNum <= 0) return null;
+      for (const chapter of chapters) {
+        if (!chapter.sections || chapter.sections.length === 0) continue;
+        const target = chapter.sections[lessonNum - 1];
+        if (target) return { chapter, section: target };
+      }
+      return null;
+    };
+
+    const fallbackByTitle = () => {
+      if (!sectionTitle) return null;
+      const keyword = sectionTitle.trim();
+      if (!keyword) return null;
+      for (const chapter of chapters) {
+        if (!chapter.sections) continue;
+        const found = chapter.sections.find((s) => s.sectionTitle.includes(keyword));
+        if (found) return { chapter, section: found };
+      }
+      return null;
+    };
+
+    return byExact() || byLessonNumber() || fallbackByTitle();
+  }, [chapters, sectionIndex, decodedSectionId, rawSectionId, sectionTitle]);
 
   const displayTitle = sectionTitle
     ? `${sectionIndex} ${sectionTitle}`
     : sectionIndex || decodedSectionId || '本课';
+
+  console.log('[历史课页] 路由参数:', { chapterId, sectionIndex, sectionTitle, rawSectionId, decodedSectionId, displayTitle });
+  console.log('[历史课页] matchedSection:', matchedSection);
 
   const handleModuleClick = (moduleId: string) => {
     setActiveTab(moduleId);
@@ -204,7 +233,10 @@ function HistoryLessonPageContent() {
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      onClick={() => router.push(`/learn/textbook/history/${chapterId}/${encodeURIComponent(sectionIndex + '_' + sectionTitle)}?startPage=${matchedSection.section.pages.start}&endPage=${matchedSection.section.pages.end}&pageType=${matchedSection.section.pages.type}`)}
+                      onClick={() => {
+                        const textbookIdParam = activeTextbook?.id ? `&textbookId=${encodeURIComponent(activeTextbook.id)}` : '';
+                        router.push(`/learn/textbook/history/${chapterId}/${encodeURIComponent(sectionIndex + '_' + sectionTitle)}?startPage=${matchedSection.section.pages.start}&endPage=${matchedSection.section.pages.end}&pageType=${matchedSection.section.pages.type}${textbookIdParam}`);
+                      }}
                     >
                       <ChevronRight className="h-4 w-4" />
                       开始逐段学习

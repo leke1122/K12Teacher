@@ -46,9 +46,21 @@ function TextbookPageContent() {
   const sectionTitle = searchParams.get('sectionTitle') || '';
   const subSectionTitle = searchParams.get('subSectionTitle') || '';
 
+  const displaySectionTitle = sectionTitle
+    || (decodedSectionId.includes('_') ? decodedSectionId.split('_').slice(1).join('_').trim() : '')
+    || decodedSectionId
+    || '本课内容';
+
+  console.log('[历史课本还原] 路由参数:', { subjectId, chapterId, sectionId: decodedSectionId, startPage, endPage, pageType, displaySectionTitle });
+  if (chapters.length > 0) {
+    console.log('[历史课本还原] 章节数据:', JSON.stringify(chapters).slice(0, 500));
+  }
+
   const effectiveRange = pageType === 'printed' && fileStart && fileEnd
     ? { start: parseInt(fileStart, 10), end: parseInt(fileEnd, 10) }
     : { start: startPage, end: endPage };
+
+  console.log('[历史课本还原] 定位页数:', effectiveRange.start, '-', effectiveRange.end);
 
   const { settings } = useSettingsStore();
   const { currentSubject } = useSubjectStore();
@@ -137,6 +149,21 @@ function TextbookPageContent() {
   const displayParagraphs = splitIntoParagraphs(currentSection?.original || '');
 
   // ============================================================
+  // 从章节数据获取对应小节的页码范围
+  const getSectionPageRangeFromChapters = (targetSectionId: string) => {
+    const sectionMatch = targetSectionId.match(/第(\d+)课/);
+    if (!sectionMatch) return null;
+    const lessonNum = parseInt(sectionMatch[1], 10);
+    for (const chapter of chapters) {
+      if (!chapter.sections || chapter.sections.length === 0) continue;
+      const section = chapter.sections[lessonNum - 1];
+      if (section?.pages) {
+        return { start: Number(section.pages.start), end: Number(section.pages.end) };
+      }
+    }
+    return null;
+  };
+
   // 内容提取
   // ============================================================
   const getSectionContent = (fullText: string, pdfDataForExtract?: PDFData | null) => {
@@ -147,7 +174,22 @@ function TextbookPageContent() {
     console.log('[getSectionContent] sectionId:', sectionId);
     console.log('[getSectionContent] fullText 前50字符:', fullText.slice(0, 50));
 
-    // 优先用 hardcoded 页码范围（来自 pdfData.pages 或 full_text）
+    // 优先从章节数据获取页码范围
+    const chapterRange = getSectionPageRangeFromChapters(sectionId);
+    if (chapterRange) {
+      console.log('[getSectionContent] 从章节数据获取页码范围:', chapterRange);
+      if (pdfDataForExtract?.pages && pdfDataForExtract.pages.length > 0) {
+        const content = extractSectionContent(pdfDataForExtract, chapterRange.start, chapterRange.end);
+        console.log('[getSectionContent] extractSectionContent(pages) 返回长度:', content.length);
+        if (content.length > 100) return content;
+      } else {
+        const content = extractSectionContent({ full_text: fullText }, chapterRange.start, chapterRange.end);
+        console.log('[getSectionContent] extractSectionContent(full_text) 返回长度:', content.length);
+        if (content.length > 100) return content;
+      }
+    }
+
+    // 其次尝试 hardcoded 页码范围（来自 pdfData.pages 或 full_text）
     if (pdfDataForExtract?.pages && pdfDataForExtract.pages.length > 0) {
       const hardcoded = getBantuMathB1Range(sectionId);
       console.log('[getSectionContent] 有pages数组，hardcoded:', hardcoded);
@@ -283,7 +325,9 @@ function TextbookPageContent() {
           return;
         }
 
-        const chapterTitle = `第 ${chapterId} 章 第 ${sectionId} 节`;
+        const chapterTitle = subjectId === 'history'
+          ? displaySectionTitle
+          : `第 ${chapterId} 章 第 ${sectionId} 节`;
         setGenerating(true);
 
         const response = await fetch('/api/textbook/auto-segment', {
@@ -647,7 +691,11 @@ function TextbookPageContent() {
               <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
               <div>
                 <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">还原课本</h1>
-                <p className="text-sm text-slate-500">第 {chapterId} 章 第 {sectionId} 节</p>
+                <p className="text-sm text-slate-500">
+                  {subjectId === 'history'
+                    ? displaySectionTitle
+                    : `第 ${chapterId} 章 第 ${sectionId} 节`}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
