@@ -22,13 +22,15 @@ const path = require('path');
 const fs = require('fs');
 
 function splitSections(raw) {
-  const lines = raw.split(/\r?\n/);
+  const text = raw.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/);
   const sections = [];
   let current = [];
 
   const isSectionHeader = (line) => {
-    if (/^##\s+\d+\.\s+/.test(line)) return true;
-    if (/^##\s+[一二三四五六七八九十百千]+[、．.]?\s*/.test(line)) return true;
+    const trimmed = line.trimStart();
+    if (/^##\s+\d+\.\s+/.test(trimmed)) return true;
+    if (/^##\s+[一二三四五六七八九十百千]+[、．.]?\s*/.test(trimmed)) return true;
     return false;
   };
 
