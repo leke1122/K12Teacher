@@ -51,29 +51,6 @@ function TextbookPageContent() {
     || decodedSectionId
     || '本课内容';
 
-  console.log('[历史课本还原] 路由参数:', { subjectId, chapterId, sectionId: decodedSectionId, startPage, endPage, pageType, displaySectionTitle });
-  if (chapters.length > 0) {
-    console.log('[历史课本还原] 章节数据:', JSON.stringify(chapters).slice(0, 500));
-  }
-
-  const effectiveRange = pageType === 'printed' && fileStart && fileEnd
-    ? { start: parseInt(fileStart, 10), end: parseInt(fileEnd, 10) }
-    : { start: startPage, end: endPage };
-
-  console.log('[历史课本还原] 定位页数:', effectiveRange.start, '-', effectiveRange.end);
-
-  const { settings } = useSettingsStore();
-  const { currentSubject } = useSubjectStore();
-  const addRecord = useHistoryStore((s) => s.addRecord);
-
-  const getSubjectName = (id: string) => {
-    const map: Record<string, string> = {
-      math: '数学', physics: '物理', chemistry: '化学', english: '英语',
-      chinese: '语文', biology: '生物', geography: '地理', politics: '政治', history: '历史'
-    };
-    return map[id] || id;
-  };
-
   // ============================================================
   // 统一状态：sections 是唯一数据源（API 已做长度控制 ≤200字）
   // ============================================================
@@ -86,6 +63,17 @@ function TextbookPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [chapters, setChapters] = useState<any[]>([]);
+
+  console.log('[历史课本还原] 路由参数:', { subjectId, chapterId, sectionId: decodedSectionId, startPage, endPage, pageType, displaySectionTitle });
+  if (chapters.length > 0) {
+    console.log('[历史课本还原] 章节数据:', JSON.stringify(chapters).slice(0, 500));
+  }
+
+  const effectiveRange = pageType === 'printed' && fileStart && fileEnd
+    ? { start: parseInt(fileStart, 10), end: parseInt(fileEnd, 10) }
+    : { start: startPage, end: endPage };
+
+  console.log('[历史课本还原] 定位页数:', effectiveRange.start, '-', effectiveRange.end);
 
   // 每段的学习状态（由 tutorial useEffect 管理）
   const [tutorial, setTutorial] = useState<TutorialResult | null>(null);
