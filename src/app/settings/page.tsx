@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
+import type { Settings } from "@/types/settings";
 import { settingsSchema } from "@/lib/validations";
 import { testDeepSeekConnection, testQwenConnection } from "@/lib/api-test";
 import { localFallback } from "@/lib/localFallback";
@@ -24,6 +25,7 @@ import {
   Trash2,
   CheckCircle2,
   Database,
+  Volume2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -250,6 +252,14 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     deepseekKey: "",
     qwenKey: "",
+    ttsProvider: (settings.ttsProvider || "web") as Settings['ttsProvider'],
+    aliyunTtsApiKey: settings.aliyunTtsApiKey || "",
+    aliyunTtsApiSecret: settings.aliyunTtsApiSecret || "",
+    aliyunTtsAppKey: settings.aliyunTtsAppKey || "",
+    iflytekTtsApiKey: settings.iflytekTtsApiKey || "",
+    iflytekTtsApiSecret: settings.iflytekTtsApiSecret || "",
+    azureTtsKey: settings.azureTtsKey || "",
+    azureTtsRegion: settings.azureTtsRegion || "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [testStatus, setTestStatus] = useState({
@@ -396,10 +406,19 @@ export default function SettingsPage() {
   // 同步 settings 到表单
   useEffect(() => {
     if (settings) {
-      setFormData({
+      setFormData((prev) => ({
+        ...prev,
         deepseekKey: settings.deepseekKey || "",
         qwenKey: settings.qwenKey || "",
-      });
+        ttsProvider: (settings.ttsProvider || "web") as Settings['ttsProvider'],
+        aliyunTtsApiKey: settings.aliyunTtsApiKey || "",
+        aliyunTtsApiSecret: settings.aliyunTtsApiSecret || "",
+        aliyunTtsAppKey: settings.aliyunTtsAppKey || "",
+        iflytekTtsApiKey: settings.iflytekTtsApiKey || "",
+        iflytekTtsApiSecret: settings.iflytekTtsApiSecret || "",
+        azureTtsKey: settings.azureTtsKey || "",
+        azureTtsRegion: settings.azureTtsRegion || "",
+      }));
     }
   }, [settings]);
 
@@ -422,6 +441,14 @@ export default function SettingsPage() {
       setSettings({
         deepseekKey: validated.deepseekKey || "",
         qwenKey: validated.qwenKey || "",
+        ttsProvider: formData.ttsProvider || "web",
+        aliyunTtsApiKey: formData.aliyunTtsApiKey || "",
+        aliyunTtsApiSecret: formData.aliyunTtsApiSecret || "",
+        aliyunTtsAppKey: formData.aliyunTtsAppKey || "",
+        iflytekTtsApiKey: formData.iflytekTtsApiKey || "",
+        iflytekTtsApiSecret: formData.iflytekTtsApiSecret || "",
+        azureTtsKey: formData.azureTtsKey || "",
+        azureTtsRegion: formData.azureTtsRegion || "",
       });
       console.log("[Settings] Settings saved to store, now in localStorage");
       const stored = localStorage.getItem("edumind-settings");
@@ -664,6 +691,117 @@ export default function SettingsPage() {
               </p>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* TTS 配置 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Volume2 className="h-5 w-5" />
+            TTS 朗读配置
+          </CardTitle>
+          <CardDescription>选择语音合成提供商并填写对应 API 配置，用于古诗文朗读等场景</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ttsProvider">TTS 提供商</Label>
+            <select
+              id="ttsProvider"
+              value={formData.ttsProvider}
+              onChange={(e) => setFormData((prev) => ({ ...prev, ttsProvider: e.target.value as Settings['ttsProvider'] }))}
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="web">浏览器自带 TTS</option>
+              <option value="aliyun">阿里云语音合成</option>
+              <option value="iflytek">讯飞语音合成</option>
+              <option value="azure">Azure 语音服务</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              选择“浏览器自带 TTS”时无需填写下方 API，可直接使用系统语音。
+            </p>
+          </div>
+
+          {formData.ttsProvider === "aliyun" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="aliyunTtsApiKey">AccessKey ID</Label>
+                <Input
+                  id="aliyunTtsApiKey"
+                  value={formData.aliyunTtsApiKey}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, aliyunTtsApiKey: e.target.value }))}
+                  placeholder="阿里云 AccessKey ID"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="aliyunTtsApiSecret">AccessKey Secret</Label>
+                <Input
+                  id="aliyunTtsApiSecret"
+                  type="password"
+                  value={formData.aliyunTtsApiSecret}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, aliyunTtsApiSecret: e.target.value }))}
+                  placeholder="阿里云 AccessKey Secret"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="aliyunTtsAppKey">AppKey</Label>
+                <Input
+                  id="aliyunTtsAppKey"
+                  value={formData.aliyunTtsAppKey}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, aliyunTtsAppKey: e.target.value }))}
+                  placeholder="阿里云语音合成 AppKey"
+                />
+              </div>
+            </div>
+          )}
+
+          {formData.ttsProvider === "iflytek" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="iflytekTtsApiKey">API Key</Label>
+                <Input
+                  id="iflytekTtsApiKey"
+                  value={formData.iflytekTtsApiKey}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, iflytekTtsApiKey: e.target.value }))}
+                  placeholder="讯飞 API Key"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="iflytekTtsApiSecret">API Secret</Label>
+                <Input
+                  id="iflytekTtsApiSecret"
+                  type="password"
+                  value={formData.iflytekTtsApiSecret}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, iflytekTtsApiSecret: e.target.value }))}
+                  placeholder="讯飞 API Secret"
+                />
+              </div>
+            </div>
+          )}
+
+          {formData.ttsProvider === "azure" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="azureTtsKey">Subscription Key</Label>
+                <Input
+                  id="azureTtsKey"
+                  type="password"
+                  value={formData.azureTtsKey}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, azureTtsKey: e.target.value }))}
+                  placeholder="Azure Speech Key"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="azureTtsRegion">Region</Label>
+                <Input
+                  id="azureTtsRegion"
+                  value={formData.azureTtsRegion}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, azureTtsRegion: e.target.value }))}
+                  placeholder="例如：eastasia"
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

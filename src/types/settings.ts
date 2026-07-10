@@ -6,10 +6,17 @@ export interface Settings {
   temperature?: number;
   maxTokens?: number;
   streaming?: boolean;
-  ttsProvider?: 'web' | 'aliyun' | 'iflytek' | 'azure';
+  ttsProvider: 'web' | 'aliyun' | 'iflytek' | 'azure';
   ttsVoice?: string;
   ttsEmotion?: string;
   ttsRate?: number;
   ttsPitch?: number;
   ttsNaturalMode?: boolean;
+  aliyunTtsApiKey?: string;
+  aliyunTtsApiSecret?: string;
+  aliyunTtsAppKey?: string;
+  iflytekTtsApiKey?: string;
+  iflytekTtsApiSecret?: string;
+  azureTtsKey?: string;
+  azureTtsRegion?: string;
 }

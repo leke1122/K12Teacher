@@ -16,6 +16,13 @@ const defaultSettings: Settings = {
   ttsRate: 0.85,
   ttsPitch: 1.1,
   ttsNaturalMode: true,
+  aliyunTtsApiKey: '',
+  aliyunTtsApiSecret: '',
+  aliyunTtsAppKey: '',
+  iflytekTtsApiKey: '',
+  iflytekTtsApiSecret: '',
+  azureTtsKey: '',
+  azureTtsRegion: '',
 };
 
 interface SettingsStore {
