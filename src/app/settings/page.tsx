@@ -265,6 +265,7 @@ export default function SettingsPage() {
   const [testStatus, setTestStatus] = useState({
     deepseek: "idle" as "idle" | "testing" | "success" | "error",
     qwen: "idle" as "idle" | "testing" | "success" | "error",
+    aliyunTts: "idle" as "idle" | "testing" | "success" | "error",
   });
   const [testMessage, setTestMessage] = useState<Record<string, string>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -487,6 +488,45 @@ export default function SettingsPage() {
     const result = await testQwenConnection(formData.qwenKey);
     setTestStatus((prev) => ({ ...prev, qwen: result.success ? "success" : "error" }));
     setTestMessage((prev) => ({ ...prev, qwen: result.message }));
+  };
+
+  const handleTestAliyunTts = async () => {
+    if (!formData.aliyunTtsApiKey || !formData.aliyunTtsApiSecret || !formData.aliyunTtsAppKey) {
+      toast.error("请先填写完整的阿里云语音合成配置（AccessKey ID、AccessKey Secret、AppKey）");
+      return;
+    }
+
+    setTestStatus((prev) => ({ ...prev, aliyunTts: "testing" }));
+    setTestMessage((prev) => ({ ...prev, aliyunTts: "" }));
+
+    try {
+      const response = await fetch("/api/tts/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessKeyId: formData.aliyunTtsApiKey,
+          accessKeySecret: formData.aliyunTtsApiSecret,
+          appKey: formData.aliyunTtsAppKey,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTestStatus((prev) => ({ ...prev, aliyunTts: "success" }));
+        setTestMessage((prev) => ({ ...prev, aliyunTts: data.message }));
+        toast.success("阿里云语音合成配置正确！");
+      } else {
+        setTestStatus((prev) => ({ ...prev, aliyunTts: "error" }));
+        setTestMessage((prev) => ({ ...prev, aliyunTts: data.message }));
+        toast.error(data.message);
+      }
+    } catch (error) {
+      setTestStatus((prev) => ({ ...prev, aliyunTts: "error" }));
+      const errorMsg = error instanceof Error ? error.message : "未知错误";
+      setTestMessage((prev) => ({ ...prev, aliyunTts: errorMsg }));
+      toast.error("测试失败: " + errorMsg);
+    }
   };
 
   const handleClearPDFs = async () => {
@@ -751,6 +791,22 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData((prev) => ({ ...prev, aliyunTtsAppKey: e.target.value }))}
                   placeholder="阿里云语音合成 AppKey"
                 />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant={getTestButtonVariant(testStatus.aliyunTts)}
+                  onClick={handleTestAliyunTts}
+                  disabled={testStatus.aliyunTts === "testing"}
+                >
+                  {testStatus.aliyunTts === "testing" ? "测试中..." : "测试阿里云 TTS"}
+                </Button>
+                {testMessage.aliyunTts && (
+                  <span className={`text-sm ${testStatus.aliyunTts === "success" ? "text-green-600" : "text-red-600"}`}>
+                    {testStatus.aliyunTts === "success" ? "✅ " : "❌ "}
+                    {testMessage.aliyunTts}
+                  </span>
+                )}
               </div>
             </div>
           )}
