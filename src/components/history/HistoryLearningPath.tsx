@@ -43,8 +43,8 @@ const STEP_ORDER: { key: StepKey; label: string; description: string; href: stri
   {
     key: 'timeline',
     label: '时间轴',
-    description: '辽宁高考考点时间线',
-    href: '/learn/history/timeline/ln-gaokao',
+    description: '第一单元时间轴 & 因果图谱',
+    href: '/learn/history/timeline/unit1',
     icon: <CalendarDays className="h-5 w-5" />,
   },
   {
@@ -58,7 +58,7 @@ const STEP_ORDER: { key: StepKey; label: string; description: string; href: stri
     key: 'causalChain',
     label: '因果链',
     description: '理解事件逻辑',
-    href: '/learn/history/timeline/ln-gaokao',
+    href: '/learn/history/timeline/unit1',
     icon: <GitBranch className="h-5 w-5" />,
   },
   {
