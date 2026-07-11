@@ -35,13 +35,30 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await queryResponse.json();
+    console.log('[iflytek-query] response:', JSON.stringify(data));
 
-    // 任务未完成
+    // 讯飞 API 层面出错
+    if (data.header?.code !== 0) {
+      return NextResponse.json(
+        { success: false, message: '讯飞 API 错误: ' + (data.header?.message || data.header?.code) },
+        { status: 502 }
+      );
+    }
+
+    // 任务失败（status=2）
+    if (data.header?.task_status === 2) {
+      return NextResponse.json(
+        { success: false, message: '讯飞合成任务失败: ' + (data.header?.message || '未知错误') },
+        { status: 500 }
+      );
+    }
+
+    // 任务未完成（status=0 等待 或 1 运行中）
     if (data.header?.task_status !== 5 || !data.payload?.audio?.audio) {
       return NextResponse.json({
         success: true,
         status: String(data.header?.task_status || 'unknown'),
-        message: data.header?.message || '任务进行中',
+        message: '任务进行中',
       });
     }
 
@@ -78,5 +95,9 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    return NextResponse.json(
+      { success: false, message: '讯飞查询异常: ' + msg },
+      { status: 500 }
+    );
   }
 }

@@ -127,10 +127,10 @@ export function useTTS(options: UseTTSOptions = {}) {
     try {
       abortControllerRef.current = new AbortController();
 
-      // 15秒超时
+      // 30秒超时（讯飞长文本合成可能需要更久）
       const timeout = setTimeout(() => {
         abortControllerRef.current?.abort();
-      }, 15000);
+      }, 30000);
 
       const controller = abortControllerRef.current;
       
@@ -151,15 +151,18 @@ export function useTTS(options: UseTTSOptions = {}) {
       const data = await response.json();
 
       if (data.success && data.taskId) {
+        console.log('[TTS] 讯飞任务创建成功:', data.taskId);
         return {
           taskId: data.taskId,
           provider: 'iflytek',
         };
       }
 
+      console.error('[TTS] 讯飞任务创建失败:', data);
       options.onError?.(data.message || '讯飞任务创建失败');
       return null;
     } catch (error) {
+      console.error('[TTS] 讯飞创建任务异常:', error);
       if (error instanceof Error && error.name === 'AbortError') {
         options.onError?.('讯飞请求超时，已自动切换到浏览器朗读');
         return null;
@@ -170,8 +173,8 @@ export function useTTS(options: UseTTSOptions = {}) {
   }, [settings, options]);
 
   // 查询讯飞任务结果
-  // 返回值: audioUrl | 'pending' | null
-  const queryIFlyTekTask = useCallback(async (taskId: string): Promise<string | 'pending' | null> => {
+  // 返回值: { audioUrl: string } | 'pending' | { error: string }
+  const queryIFlyTekTask = useCallback(async (taskId: string): Promise<{ audioUrl: string } | 'pending' | { error: string }> => {
     const { iflytekTtsApiKey, iflytekTtsApiSecret, iflytekTtsAppId } = settings;
 
     try {
@@ -194,25 +197,26 @@ export function useTTS(options: UseTTSOptions = {}) {
 
       const data = await response.json();
 
-      if (data.success) {
-        if (data.audioData) {
-          // 服务端返回 base64 音频数据
-          return 'data:' + (data.mimeType || 'audio/mpeg') + ';base64,' + data.audioData;
-        }
-        return 'pending';
+      // 服务端返回音频数据
+      if (data.success && data.audioData) {
+        const audioUrl = 'data:' + (data.mimeType || 'audio/mpeg') + ';base64,' + data.audioData;
+        console.log('[TTS] 讯飞音频就绪, 大小:', Math.round(data.audioData.length * 0.75), 'bytes');
+        return { audioUrl };
       }
 
-      options.onError?.(data.message || '查询失败');
-      return null;
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        options.onError?.('讯飞查询超时');
-        return null;
+      // 讯飞服务端出错（如下载失败、内部错误）
+      if (data.success === false || data.message) {
+        console.error('[TTS] 讯飞 query 出错:', data.message, '— 切换到浏览器朗读');
+        return { error: data.message || '讯飞服务不可用' };
       }
-      options.onError?.(error instanceof Error ? error.message : '查询失败');
-      return null;
+
+      // 任务进行中，继续轮询
+      return 'pending';
+    } catch (error) {
+      console.error('[TTS] 讯飞 query 网络异常:', error instanceof Error ? error.message : error);
+      return { error: error instanceof Error && error.name === 'AbortError' ? '讯飞查询超时' : '讯飞查询失败' };
     }
-  }, [settings, options]);
+  }, [settings]);
 
   // 等待讯飞任务完成（最多等待30秒）
   const waitForIFlyTekTask = useCallback(async (taskId: string): Promise<string | null> => {
@@ -226,23 +230,26 @@ export function useTTS(options: UseTTSOptions = {}) {
         if (attempts >= maxAttempts) {
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
-          options.onError?.('讯飞合成超时（30秒），已自动切换到浏览器朗读');
+          console.error('[TTS] 讯飞轮询超时');
           resolve(null);
           return;
         }
 
         const result = await queryIFlyTekTask(taskId);
         
-        if (result === null) {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          resolve(null);
-        } else if (result === 'pending') {
+        if (!result || result === 'pending') {
           // 任务进行中，继续轮询
-        } else {
+        } else if ('audioUrl' in result) {
+          // 音频就绪
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
-          resolve(result);
+          resolve(result.audioUrl);
+        } else if ('error' in result) {
+          // 讯飞出错，停止轮询并通知上层切换降级
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          options.onError?.(result.error);
+          resolve(null);
         }
       }, 1000);
     });
