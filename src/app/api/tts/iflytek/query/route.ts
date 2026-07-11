@@ -35,21 +35,11 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await queryResponse.json();
-    console.log('[iflytek-query] response:', JSON.stringify(data));
-
-    // 讯飞 API 层面出错
-    if (data.header?.code !== 0) {
+    // 查询结果交给上层判断，这里只返回原始数据或错误
+    if (data.header?.code !== 0 || data.header?.task_status === 2 || data.header?.task_status === 3 || data.header?.task_status === 4) {
       return NextResponse.json(
         { success: false, message: '讯飞 API 错误: ' + (data.header?.message || data.header?.code) },
         { status: 502 }
-      );
-    }
-
-    // 任务失败（status=2）
-    if (data.header?.task_status === 2) {
-      return NextResponse.json(
-        { success: false, message: '讯飞合成任务失败: ' + (data.header?.message || '未知错误') },
-        { status: 500 }
       );
     }
 

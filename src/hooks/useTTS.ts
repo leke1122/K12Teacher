@@ -205,7 +205,7 @@ export function useTTS(options: UseTTSOptions = {}) {
       }
 
       // 讯飞服务端出错（如下载失败、内部错误）
-      if (data.success === false || data.message) {
+      if (data.success === false) {
         console.error('[TTS] 讯飞 query 出错:', data.message, '— 切换到浏览器朗读');
         return { error: data.message || '讯飞服务不可用' };
       }
