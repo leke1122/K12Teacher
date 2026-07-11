@@ -179,7 +179,7 @@ export function useTTS(options: UseTTSOptions = {}) {
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch('/api/tts/iflytek/query', {
         method: 'POST',
@@ -198,17 +198,23 @@ export function useTTS(options: UseTTSOptions = {}) {
       const data = await response.json();
       console.log('[TTS] query result:', data);
 
-      // 讯飞服务端出错（如下载失败、内部错误）
+      // 讯飞服务端出错
       if (data.success === false) {
         console.error('[TTS] 讯飞 query 出错:', data.message, '— 切换到浏览器朗读');
         return { error: data.message || '讯飞服务不可用' };
       }
 
-      // 服务端返回音频数据
+      // 服务端直接返回了音频数据（base64）
       if (data.success && data.audioData) {
         const audioUrl = 'data:' + (data.mimeType || 'audio/mpeg') + ';base64,' + data.audioData;
-        console.log('[TTS] 讯飞音频就绪, 大小:', Math.round(data.audioData.length * 0.75), 'bytes');
+        console.log('[TTS] 讯飞音频就绪(base64), 大小:', Math.round(data.audioData.length * 0.75), 'bytes');
         return { audioUrl };
+      }
+
+      // 服务端返回了音频下载地址，让浏览器直接下载（绕过 Vercel 无法访问讯飞音频的问题）
+      if (data.success && data.audioUrl) {
+        console.log('[TTS] 讯飞音频下载地址:', data.audioUrl, '— 浏览器直连');
+        return { audioUrl: data.audioUrl };
       }
 
       // 任务进行中，继续轮询

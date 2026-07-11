@@ -34,46 +34,35 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ header: { app_id: appId, task_id: taskId } }),
     });
 
-    const data = await queryResponse.json();
+    const queryData = await queryResponse.json();
+    console.log('[iflytek-query] task_status:', queryData.header?.task_status, 'has_audio_url:', !!queryData.payload?.audio?.audio);
+
     // 查询结果交给上层判断，这里只返回原始数据或错误
-    if (data.header?.code !== 0 || data.header?.task_status === 2 || data.header?.task_status === 3 || data.header?.task_status === 4) {
+    if (queryData.header?.code !== 0 || queryData.header?.task_status === 2 || queryData.header?.task_status === 3 || queryData.header?.task_status === 4) {
       return NextResponse.json(
-        { success: false, message: '讯飞 API 错误: ' + (data.header?.message || data.header?.code) },
+        { success: false, message: '讯飞 API 错误: ' + (queryData.header?.message || queryData.header?.code) },
         { status: 502 }
       );
     }
 
     // 任务未完成（status=0 等待 或 1 运行中）
-    if (data.header?.task_status !== 5 || !data.payload?.audio?.audio) {
+    if (queryData.header?.task_status !== 5 || !queryData.payload?.audio?.audio) {
       return NextResponse.json({
         success: true,
-        status: String(data.header?.task_status || 'unknown'),
+        status: String(queryData.header?.task_status || 'unknown'),
         message: '任务进行中',
       });
     }
 
-    // 2. 任务完成，下载音频
-    const audioDownloadUrl = Buffer.from(data.payload.audio.audio, 'base64').toString('utf8');
-
-    const audioResponse = await fetch(audioDownloadUrl, {
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!audioResponse.ok) {
-      return NextResponse.json(
-        { success: false, message: '音频下载失败: ' + audioResponse.status },
-        { status: 500 }
-      );
-    }
-
-    const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+    // 2. 任务完成：直接返回讯飞的下载地址，让浏览器直连（绕过 Vercel 服务端下载限制）
+    const rawUrl = Buffer.from(queryData.payload.audio.audio, 'base64').toString('utf8');
+    const audioUrl = rawUrl.replace('http://', 'https://');
+    console.log('[iflytek-query] task completed, audioUrl:', audioUrl);
 
     return NextResponse.json({
       success: true,
       status: 'completed',
-      audioData: audioBase64,
-      mimeType: 'audio/mpeg',
+      audioUrl,
       message: '音频合成完成',
     });
   } catch (error) {
