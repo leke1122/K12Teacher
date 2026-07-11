@@ -504,15 +504,19 @@ function WrongQuestionsContent() {
                         {wq.question}
                       </p>
 
-                      {/* 选项（卡片内紧凑展示） */}
-                      <OptionList wq={wq} compact />
-
-                      {/* 薄弱项 */}
-                      {wq.weakPoint && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400">
-                          薄弱项：{wq.weakPoint}
-                        </p>
-                      )}
+                      {/* 时间 + 薄弱项 */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {wq.createdAt && (
+                          <span className="text-xs text-slate-400">
+                            错题时间：{new Date(wq.createdAt).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {wq.weakPoint && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            薄弱项：{wq.weakPoint}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* 操作按钮 */}

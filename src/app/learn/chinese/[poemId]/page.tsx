@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,34 +87,72 @@ function splitForTts(text: string): string[] {
   return parts.map((s) => s.trim()).filter(Boolean);
 }
 
-function speakChinese(text: string, settings: ReturnType<typeof useSettingsStore.getState>['settings']) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+type SpeakController = {
+  cancel: () => void;
+};
+
+function createSpeakController(text: string, settings: ReturnType<typeof useSettingsStore.getState>['settings']): SpeakController {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    return { cancel: () => {} };
+  }
   window.speechSynthesis.cancel();
+
   const segments = splitForTts(text);
-  if (!segments.length) return;
+  if (!segments.length) return { cancel: () => {} };
 
   const natural = settings.ttsNaturalMode !== false;
   let index = 0;
+  let cancelled = false;
 
-  function next() {
-    if (index >= segments.length) return;
+  const controller: SpeakController = {
+    cancel: () => {
+      cancelled = true;
+      window.speechSynthesis.cancel();
+    },
+  };
+
+  function speakNext() {
+    if (cancelled || index >= segments.length) return;
     const utterance = new SpeechSynthesisUtterance(segments[index]);
     utterance.lang = 'zh-CN';
     utterance.rate = natural ? (settings.ttsRate ?? 0.85) : 1;
     utterance.pitch = natural ? (settings.ttsPitch ?? 1.1) : 1;
     utterance.volume = 1;
+
     utterance.onend = () => {
+      if (cancelled) return;
       index += 1;
-      next();
+      speakNext();
     };
     utterance.onerror = () => {
+      if (cancelled) return;
       index += 1;
-      next();
+      speakNext();
     };
+    // Fallback: also poll in case onend doesn't fire reliably
+    const timeoutId = setTimeout(() => {
+      if (!cancelled && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      if (!cancelled) {
+        index += 1;
+        speakNext();
+      }
+    }, 15000);
+
+    // Clear the timeout if cancelled
+    const origCancel = controller.cancel;
+    controller.cancel = () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      window.speechSynthesis.cancel();
+    };
+
     window.speechSynthesis.speak(utterance);
   }
 
-  next();
+  speakNext();
+  return controller;
 }
 
 function ChinesePoemDetailPageContent() {
@@ -124,6 +162,7 @@ function ChinesePoemDetailPageContent() {
   const [poem, setPoem] = useState<ChinesePoem | null>(null);
   const [loading, setLoading] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const speakControllerRef = useRef<SpeakController | null>(null);
   const [examQuestions, setExamQuestions] = useState<ExamQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [explanation, setExplanation] = useState('');
@@ -161,6 +200,10 @@ function ChinesePoemDetailPageContent() {
 
   useEffect(() => {
     return () => {
+      if (speakControllerRef.current) {
+        speakControllerRef.current.cancel();
+        speakControllerRef.current = null;
+      }
       if (typeof window !== 'undefined') window.speechSynthesis.cancel();
     };
   }, []);
@@ -168,23 +211,28 @@ function ChinesePoemDetailPageContent() {
   const handleToggleSpeak = () => {
     if (!poem) return;
     if (speaking) {
-      window.speechSynthesis.cancel();
+      if (speakControllerRef.current) {
+        speakControllerRef.current.cancel();
+        speakControllerRef.current = null;
+      }
       setSpeaking(false);
       return;
     }
     setSpeaking(true);
-    speakChinese(poem.original_text, settings);
+    speakControllerRef.current = createSpeakController(poem.original_text, settings);
   };
 
   useEffect(() => {
     if (!speaking) return;
-    const check = setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
+    const interval = setInterval(() => {
+      if (!window.speechSynthesis.speaking && speakControllerRef.current) {
+        speakControllerRef.current.cancel();
+        speakControllerRef.current = null;
         setSpeaking(false);
-        clearInterval(check);
+        clearInterval(interval);
       }
     }, 500);
-    return () => clearInterval(check);
+    return () => clearInterval(interval);
   }, [speaking]);
 
   const handleGenerateQuestions = async () => {
