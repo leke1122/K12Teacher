@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ header: { app_id: appId, task_id: taskId } }),
     });
 
+    // Vercel 无法访问讯飞 API，返回 502
+    if (!queryResponse.ok) {
+      console.error('[iflytek-query] Vercel 无法访问讯飞 API, HTTP:', queryResponse.status);
+      return NextResponse.json(
+        { success: false, message: 'Vercel 服务器无法访问讯飞 API（网络限制），请切换到浏览器语音' },
+        { status: 503 }
+      );
+    }
+
     const queryData = await queryResponse.json();
     console.log('[iflytek-query] task_status:', queryData.header?.task_status, 'has_audio_url:', !!queryData.payload?.audio?.audio);
 

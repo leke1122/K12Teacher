@@ -84,6 +84,14 @@ export async function POST(request: NextRequest) {
       }),
     });
 
+    if (!response.ok) {
+      console.error('[iflytek-create] Vercel 无法访问讯飞 API, HTTP:', response.status);
+      return NextResponse.json(
+        { success: false, message: 'Vercel 服务器无法访问讯飞 API（网络限制），请切换到浏览器语音' },
+        { status: 503 }
+      );
+    }
+
     const data = await response.json();
     console.log('[iflytek-create] code:', data.header?.code, 'task_id:', data.header?.task_id, 'message:', data.header?.message);
 
