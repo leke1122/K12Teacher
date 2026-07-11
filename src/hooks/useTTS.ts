@@ -196,18 +196,19 @@ export function useTTS(options: UseTTSOptions = {}) {
       clearTimeout(timeout);
 
       const data = await response.json();
+      console.log('[TTS] query result:', data);
+
+      // 讯飞服务端出错（如下载失败、内部错误）
+      if (data.success === false) {
+        console.error('[TTS] 讯飞 query 出错:', data.message, '— 切换到浏览器朗读');
+        return { error: data.message || '讯飞服务不可用' };
+      }
 
       // 服务端返回音频数据
       if (data.success && data.audioData) {
         const audioUrl = 'data:' + (data.mimeType || 'audio/mpeg') + ';base64,' + data.audioData;
         console.log('[TTS] 讯飞音频就绪, 大小:', Math.round(data.audioData.length * 0.75), 'bytes');
         return { audioUrl };
-      }
-
-      // 讯飞服务端出错（如下载失败、内部错误）
-      if (data.success === false) {
-        console.error('[TTS] 讯飞 query 出错:', data.message, '— 切换到浏览器朗读');
-        return { error: data.message || '讯飞服务不可用' };
       }
 
       // 任务进行中，继续轮询
@@ -218,11 +219,11 @@ export function useTTS(options: UseTTSOptions = {}) {
     }
   }, [settings]);
 
-  // 等待讯飞任务完成（最多等待30秒）
+  // 等待讯飞任务完成（最多等待60秒）
   const waitForIFlyTekTask = useCallback(async (taskId: string): Promise<string | null> => {
     return new Promise((resolve) => {
       let attempts = 0;
-      const maxAttempts = 30; // 最多30秒
+      const maxAttempts = 60; // 最多60秒（长文本合成可能需要更久）
 
       pollingRef.current = setInterval(async () => {
         attempts++;
@@ -230,7 +231,7 @@ export function useTTS(options: UseTTSOptions = {}) {
         if (attempts >= maxAttempts) {
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
-          console.error('[TTS] 讯飞轮询超时');
+          console.error('[TTS] 讯飞轮询超时（60秒）');
           resolve(null);
           return;
         }
