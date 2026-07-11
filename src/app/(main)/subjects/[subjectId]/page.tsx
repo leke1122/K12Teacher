@@ -103,7 +103,7 @@ export default function SubjectPage() {
 
   // 历史学科特有功能入口
   const historyFeatures = [
-    { icon: Clock, name: '时间轴', desc: '事件脉络', href: '/learn/history/timeline/modern-china', color: 'amber' },
+    { icon: Clock, name: '时间轴', desc: '辽宁高考考点', href: '/learn/history/timeline/ln-gaokao', color: 'amber' },
     { icon: Layers, name: '历史卡牌', desc: '间隔记忆', href: '/learn/history/cards', color: 'blue' },
     { icon: Link2, name: '因果链', desc: '逻辑分析', href: '/learn/history/causal-chain', color: 'purple' },
     { icon: BarChart3, name: '综合练习', desc: '实战训练', href: '/learn/history/practice', color: 'emerald' },
