@@ -97,16 +97,25 @@ function Unit1TimelinePage() {
     setAiLoading(true);
     setAiAnswer('');
     try {
+      // 从 localStorage 获取 API Key
+      const settings = JSON.parse(localStorage.getItem('edumind-settings') || '{}');
+      const apiKey = settings.deepseekApiKey || settings.deepseek_api_key || '';
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
       const response = await fetch('/api/history/qa', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ question: aiQuestion }),
       });
       const json = await response.json();
       if (json.success) {
         setAiAnswer(json.data.answer);
       } else {
-        setAiAnswer('抱歉，AI 服务暂时不可用。');
+        setAiAnswer(json.message || '抱歉，AI 服务暂时不可用。请检查是否已在设置页面配置 DeepSeek API Key。');
       }
     } catch {
       setAiAnswer('网络错误，请稍后重试。');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -123,7 +123,7 @@ export default function CausalGraph({ onEventClick, highlightEventId }: CausalGr
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // 当高亮事件改变时，更新节点样式
-  useMemo(() => {
+  useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => ({
         ...node,

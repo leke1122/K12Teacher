@@ -14,11 +14,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.DEEPSEEK_API_KEY;
+    // 优先从请求头获取 API Key（前端会传递 localStorage 中的 key）
+    const authHeader = request.headers.get('authorization');
+    let apiKey = authHeader?.replace('Bearer ', '');
+
+    // 如果请求头没有，尝试从环境变量读取
+    if (!apiKey) {
+      apiKey = process.env.DEEPSEEK_API_KEY;
+    }
+
+    // 如果都没有，返回明确的错误信息
     if (!apiKey) {
       return NextResponse.json(
-        { success: false, message: 'AI 服务未配置，请联系管理员' },
-        { status: 500 }
+        { success: false, message: '请先在设置页面配置 DeepSeek API Key' },
+        { status: 401 }
       );
     }
 
