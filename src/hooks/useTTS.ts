@@ -126,6 +126,13 @@ export function useTTS(options: UseTTSOptions = {}) {
 
     try {
       abortControllerRef.current = new AbortController();
+
+      // 15秒超时
+      const timeout = setTimeout(() => {
+        abortControllerRef.current?.abort();
+      }, 15000);
+
+      const controller = abortControllerRef.current;
       
       const response = await fetch('/api/tts/iflytek', {
         method: 'POST',
@@ -136,8 +143,10 @@ export function useTTS(options: UseTTSOptions = {}) {
           apiKey: iflytekTtsApiKey,
           apiSecret: iflytekTtsApiSecret,
         }),
-        signal: abortControllerRef.current.signal,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       const data = await response.json();
 
@@ -148,13 +157,14 @@ export function useTTS(options: UseTTSOptions = {}) {
         };
       }
 
-      options.onError?.(data.message || '任务创建失败');
+      options.onError?.(data.message || '讯飞任务创建失败');
       return null;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        options.onError?.('讯飞请求超时，已自动切换到浏览器朗读');
         return null;
       }
-      options.onError?.(error instanceof Error ? error.message : '请求失败');
+      options.onError?.(error instanceof Error ? error.message : '讯飞请求失败');
       return null;
     }
   }, [settings, options]);
@@ -165,6 +175,9 @@ export function useTTS(options: UseTTSOptions = {}) {
     const { iflytekTtsApiKey, iflytekTtsApiSecret, iflytekTtsAppId } = settings;
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch('/api/tts/iflytek/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,7 +187,10 @@ export function useTTS(options: UseTTSOptions = {}) {
           apiKey: iflytekTtsApiKey,
           apiSecret: iflytekTtsApiSecret,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       const data = await response.json();
 
@@ -189,16 +205,20 @@ export function useTTS(options: UseTTSOptions = {}) {
       options.onError?.(data.message || '查询失败');
       return null;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        options.onError?.('讯飞查询超时');
+        return null;
+      }
       options.onError?.(error instanceof Error ? error.message : '查询失败');
       return null;
     }
   }, [settings, options]);
 
-  // 等待讯飞任务完成
+  // 等待讯飞任务完成（最多等待30秒）
   const waitForIFlyTekTask = useCallback(async (taskId: string): Promise<string | null> => {
     return new Promise((resolve) => {
       let attempts = 0;
-      const maxAttempts = 30; // 最多等待 30 秒
+      const maxAttempts = 30; // 最多30秒
 
       pollingRef.current = setInterval(async () => {
         attempts++;
@@ -206,7 +226,7 @@ export function useTTS(options: UseTTSOptions = {}) {
         if (attempts >= maxAttempts) {
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
-          options.onError?.('任务超时');
+          options.onError?.('讯飞合成超时（30秒），已自动切换到浏览器朗读');
           resolve(null);
           return;
         }
@@ -214,15 +234,12 @@ export function useTTS(options: UseTTSOptions = {}) {
         const result = await queryIFlyTekTask(taskId);
         
         if (result === null) {
-          // 查询失败，停止轮询
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
           resolve(null);
         } else if (result === 'pending') {
-          // 任务进行中，继续等待
-          // 什么都不做，继续轮询
+          // 任务进行中，继续轮询
         } else {
-          // 任务完成，返回 audioUrl
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
           resolve(result);
@@ -342,7 +359,6 @@ export function useTTS(options: UseTTSOptions = {}) {
 
     try {
       if (provider === 'iflytek') {
-        // 讯飞长文合成
         const task = await synthesizeWithIFlyTek(text);
         if (task) {
           const audioUrl = await waitForIFlyTekTask(task.taskId);
@@ -350,18 +366,27 @@ export function useTTS(options: UseTTSOptions = {}) {
             playAudio(audioUrl);
           }
         }
+        if (!task) {
+          setIsLoading(false);
+          speakWithBrowser(text);
+          return;
+        }
       } else if (provider === 'aliyun') {
-        // 阿里云 TTS
         const buffer = await synthesizeWithAliyun(text);
         if (buffer) {
           playAudioBuffer(buffer);
+        } else {
+          setIsLoading(false);
+          speakWithBrowser(text);
+          return;
         }
       } else {
-        // 浏览器 TTS
         speakWithBrowser(text);
       }
     } catch (error) {
       options.onError?.(error instanceof Error ? error.message : '合成失败');
+      setIsLoading(false);
+      speakWithBrowser(text);
     } finally {
       setIsLoading(false);
     }
@@ -375,6 +400,7 @@ export function useTTS(options: UseTTSOptions = {}) {
     playAudio,
     playAudioBuffer,
     options,
+    queryIFlyTekTask,
   ]);
 
   return {
