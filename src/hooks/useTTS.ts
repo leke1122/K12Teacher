@@ -195,8 +195,9 @@ export function useTTS(options: UseTTSOptions = {}) {
       const data = await response.json();
 
       if (data.success) {
-        if (data.audioUrl) {
-          return data.audioUrl;
+        if (data.audioData) {
+          // 服务端返回 base64 音频数据
+          return 'data:' + (data.mimeType || 'audio/mpeg') + ';base64,' + data.audioData;
         }
         return 'pending';
       }
