@@ -38,18 +38,23 @@ export async function POST(request: NextRequest) {
     console.log('[iflytek-query] task_status:', queryData.header?.task_status, 'has_audio_url:', !!queryData.payload?.audio?.audio);
 
     // 查询结果交给上层判断，这里只返回原始数据或错误
-    if (queryData.header?.code !== 0 || queryData.header?.task_status === 2 || queryData.header?.task_status === 3 || queryData.header?.task_status === 4) {
+    // 讯飞返回的 task_status 可能是字符串或数字
+    const taskStatus = queryData.header?.task_status;
+    const statusNum = typeof taskStatus === 'string' ? parseInt(taskStatus, 10) : taskStatus;
+
+    // 错误状态码：2=失败 3=超时失败 4=音频合成失败
+    if (statusNum === 2 || statusNum === 3 || statusNum === 4) {
       return NextResponse.json(
-        { success: false, message: '讯飞 API 错误: ' + (queryData.header?.message || queryData.header?.code) },
+        { success: false, message: '讯飞任务失败: ' + (queryData.header?.message || queryData.header?.code) },
         { status: 502 }
       );
     }
 
-    // 任务未完成（status=0 等待 或 1 运行中）
-    if (queryData.header?.task_status !== 5 || !queryData.payload?.audio?.audio) {
+    // 任务未完成（0=等待 1=运行中 5才算真正完成）
+    if (statusNum !== 5 || !queryData.payload?.audio?.audio) {
       return NextResponse.json({
         success: true,
-        status: String(queryData.header?.task_status || 'unknown'),
+        status: String(taskStatus ?? 'unknown'),
         message: '任务进行中',
       });
     }
