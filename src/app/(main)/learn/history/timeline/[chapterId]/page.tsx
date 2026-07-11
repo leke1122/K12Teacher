@@ -25,11 +25,14 @@ import {
   GitFork,
   X,
   RefreshCw,
+  BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 import { updateStepProgress } from '@/lib/historyProgress';
 
 const CHAPTER_TITLES: Record<string, string> = {
   'modern-china': '中国近代史',
+  'ln-gaokao': '辽宁高考历史',
 };
 
 function TimelinePageContent() {
@@ -69,6 +72,21 @@ function TimelinePageContent() {
     setLoading(true);
     setError(null);
     try {
+      // 辽宁高考历史模式：使用内置时间轴数据
+      if (chapterId === 'ln-gaokao') {
+        const response = await fetch('/api/history/timeline-data');
+        const json = await response.json();
+        if (!response.ok || !json.success) {
+          throw new Error(json.message || '加载失败');
+        }
+        const loadedEvents = (json.data?.events || []) as HistoryEvent[];
+        setEvents(loadedEvents);
+        setFilteredEvents(loadedEvents);
+        setChapterTitle('辽宁高考历史时间轴');
+        return;
+      }
+
+      // 其他章节：使用原来的教材提取逻辑
       const response = await fetch(
         `/api/history/timeline/${encodeURIComponent(chapterId)}`,
       );
@@ -213,23 +231,48 @@ function TimelinePageContent() {
               📜 {chapterTitle}时间轴
             </h1>
             <p className="text-xs text-muted-foreground">
-              点击事件查看详细信息，了解历史发展脉络
+              {chapterId === 'ln-gaokao' ? '辽宁高考历史考点时间轴，无需上传教材' : '点击事件查看详细信息，了解历史发展脉络'}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={handleExtract}
-            disabled={extracting || loading}
-          >
-            {extracting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {extracting ? '提取中' : '从教材提取'}
-          </Button>
+          {/* 辽宁高考模式：显示筛选选项 */}
+          {chapterId === 'ln-gaokao' ? (
+            <div className="flex gap-2">
+              <select
+                className="text-xs border rounded px-2 py-1 bg-white dark:bg-slate-800"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'all') {
+                    setFilteredEvents(events);
+                  } else if (value === 'high') {
+                    setFilteredEvents(events.filter((e: any) => (e as any).difficulty === '高频'));
+                  } else if (value === '上册' || value === '下册') {
+                    setFilteredEvents(events.filter((e: any) => (e as any).book === value));
+                  }
+                }}
+                defaultValue="all"
+              >
+                <option value="all">全部事件</option>
+                <option value="high">高考高频</option>
+                <option value="上册">上册（中国史）</option>
+                <option value="下册">下册（世界史）</option>
+              </select>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={handleExtract}
+              disabled={extracting || loading}
+            >
+              {extracting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {extracting ? '提取中' : '从教材提取'}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
