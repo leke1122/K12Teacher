@@ -289,6 +289,30 @@ export function useTTS(options: UseTTSOptions = {}) {
     utterance.rate = settings.ttsRate ?? 0.85;
     utterance.pitch = settings.ttsPitch ?? 1.1;
 
+    // 尝试使用用户选择的语音，或默认使用男声
+    const voices = window.speechSynthesis.getVoices();
+    const targetVoiceName = settings.ttsVoice || 'zh-CN-YunyangNeural';
+    let selectedVoice = voices.find(v => v.name === targetVoiceName);
+    
+    // 如果没找到指定语音，找一个中文男声备选
+    if (!selectedVoice) {
+      // 常见中文男声：云扬、凯楠等
+      const maleVoiceNames = ['Yunyang', 'YunyangNeural', 'Kangkang', 'Yunfei', 'Yunfeng'];
+      selectedVoice = voices.find(v => 
+        v.lang.startsWith('zh') && 
+        maleVoiceNames.some(name => v.name.includes(name))
+      );
+    }
+    
+    // 再找任何中文语音
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => v.lang.startsWith('zh'));
+    }
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
     utterance.onstart = () => {
       setIsPlaying(true);
       options.onStart?.();
@@ -305,7 +329,7 @@ export function useTTS(options: UseTTSOptions = {}) {
     };
 
     window.speechSynthesis.speak(utterance);
-  }, [stop, settings.ttsRate, settings.ttsPitch, options]);
+  }, [stop, settings.ttsRate, settings.ttsPitch, settings.ttsVoice, options]);
 
   // 主合成函数
   const speak = useCallback(async (text: string) => {

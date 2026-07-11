@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
 import { useSettingsStore } from '@/stores/settingsStore';
 import { toast } from 'sonner';
 import { pinyin } from 'pinyin-pro';
+import { useTTS } from '@/hooks/useTTS';
 
 type ExamQuestion = {
   id: string;
@@ -82,87 +83,12 @@ function buildAnnotatedHtml(text: string) {
     .join('');
 }
 
-function splitForTts(text: string): string[] {
-  const parts = text.split(/(?<=[。！？；\n])/g);
-  return parts.map((s) => s.trim()).filter(Boolean);
-}
-
-type SpeakController = {
-  cancel: () => void;
-};
-
-function createSpeakController(text: string, settings: ReturnType<typeof useSettingsStore.getState>['settings']): SpeakController {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    return { cancel: () => {} };
-  }
-  window.speechSynthesis.cancel();
-
-  const segments = splitForTts(text);
-  if (!segments.length) return { cancel: () => {} };
-
-  const natural = settings.ttsNaturalMode !== false;
-  let index = 0;
-  let cancelled = false;
-
-  const controller: SpeakController = {
-    cancel: () => {
-      cancelled = true;
-      window.speechSynthesis.cancel();
-    },
-  };
-
-  function speakNext() {
-    if (cancelled || index >= segments.length) return;
-    const utterance = new SpeechSynthesisUtterance(segments[index]);
-    utterance.lang = 'zh-CN';
-    utterance.rate = natural ? (settings.ttsRate ?? 0.85) : 1;
-    utterance.pitch = natural ? (settings.ttsPitch ?? 1.1) : 1;
-    utterance.volume = 1;
-
-    utterance.onend = () => {
-      if (cancelled) return;
-      index += 1;
-      speakNext();
-    };
-    utterance.onerror = () => {
-      if (cancelled) return;
-      index += 1;
-      speakNext();
-    };
-    // Fallback: also poll in case onend doesn't fire reliably
-    const timeoutId = setTimeout(() => {
-      if (!cancelled && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-      if (!cancelled) {
-        index += 1;
-        speakNext();
-      }
-    }, 15000);
-
-    // Clear the timeout if cancelled
-    const origCancel = controller.cancel;
-    controller.cancel = () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-      window.speechSynthesis.cancel();
-    };
-
-    window.speechSynthesis.speak(utterance);
-  }
-
-  speakNext();
-  return controller;
-}
-
 function ChinesePoemDetailPageContent() {
   const params = useParams();
   const poemId = params.poemId as string;
   const { settings } = useSettingsStore();
   const [poem, setPoem] = useState<ChinesePoem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [speaking, setSpeaking] = useState(false);
-  const speakControllerRef = useRef<SpeakController | null>(null);
   const [examQuestions, setExamQuestions] = useState<ExamQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [explanation, setExplanation] = useState('');
@@ -171,6 +97,13 @@ function ChinesePoemDetailPageContent() {
   const [reciteCount, setReciteCount] = useState(0);
   const [saved, setSaved] = useState(false);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
+
+  // 使用统一的 TTS hook
+  const { speak, stop, isPlaying, isLoading } = useTTS({
+    onStart: () => {},
+    onEnd: () => {},
+    onError: (msg) => toast.error(msg),
+  });
 
   const annotatedHtml = useMemo(() => {
     if (!poem?.original_text) return '';
@@ -200,40 +133,18 @@ function ChinesePoemDetailPageContent() {
 
   useEffect(() => {
     return () => {
-      if (speakControllerRef.current) {
-        speakControllerRef.current.cancel();
-        speakControllerRef.current = null;
-      }
-      if (typeof window !== 'undefined') window.speechSynthesis.cancel();
+      stop();
     };
-  }, []);
+  }, [stop]);
 
   const handleToggleSpeak = () => {
     if (!poem) return;
-    if (speaking) {
-      if (speakControllerRef.current) {
-        speakControllerRef.current.cancel();
-        speakControllerRef.current = null;
-      }
-      setSpeaking(false);
+    if (isPlaying) {
+      stop();
       return;
     }
-    setSpeaking(true);
-    speakControllerRef.current = createSpeakController(poem.original_text, settings);
+    speak(poem.original_text);
   };
-
-  useEffect(() => {
-    if (!speaking) return;
-    const interval = setInterval(() => {
-      if (!window.speechSynthesis.speaking && speakControllerRef.current) {
-        speakControllerRef.current.cancel();
-        speakControllerRef.current = null;
-        setSpeaking(false);
-        clearInterval(interval);
-      }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [speaking]);
 
   const handleGenerateQuestions = async () => {
     if (!poem || !settings.deepseekKey) {
@@ -353,9 +264,9 @@ function ChinesePoemDetailPageContent() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Badge variant={poem.category === '诗词曲' ? 'secondary' : 'outline'}>{poem.category || '古诗文'}</Badge>
-          <Button type="button" variant={speaking ? 'destructive' : 'default'} onClick={handleToggleSpeak}>
-            {speaking ? <VolumeX className="mr-2 h-4 w-4" /> : <Volume2 className="mr-2 h-4 w-4" />}
-            {speaking ? '停止朗读' : '朗读'}
+          <Button type="button" variant={isPlaying ? 'destructive' : 'default'} onClick={handleToggleSpeak} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isPlaying ? <VolumeX className="mr-2 h-4 w-4" /> : <Volume2 className="mr-2 h-4 w-4" />}
+            {isLoading ? '合成中...' : isPlaying ? '停止朗读' : '朗读'}
           </Button>
         </div>
       </div>
