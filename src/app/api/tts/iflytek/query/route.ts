@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '参数不完整' }, { status: 400 });
     }
 
+    console.log('[iflytek-query] taskId:', taskId, 'appId:', appId);
+
     // 1. 查询任务状态
     const date = new Date().toUTCString();
     const signature = generateIFlyTekSignature(IFLYTEK_HOST, date, IFLYTEK_QUERY_PATH, apiSecret);
@@ -69,9 +71,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('讯飞 TTS 查询失败:', error);
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : '请求失败' },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('fetch') || msg.includes('timeout') || msg.includes('network') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED')) {
+      return NextResponse.json(
+        { success: false, message: 'Vercel 无法访问讯飞服务，请切换到浏览器语音' },
+        { status: 503 }
+      );
+    }
   }
 }

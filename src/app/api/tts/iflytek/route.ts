@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
+    console.log('[iflytek-create] code:', data.header?.code, 'task_id:', data.header?.task_id, 'message:', data.header?.message);
 
     if (data.header?.code === 0 && data.header?.task_id) {
       return NextResponse.json({
