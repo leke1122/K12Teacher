@@ -17,6 +17,7 @@ export interface Settings {
   aliyunTtsAppKey?: string;
   iflytekTtsApiKey?: string;
   iflytekTtsApiSecret?: string;
+  iflytekTtsAppId?: string;
   azureTtsKey?: string;
   azureTtsRegion?: string;
 }

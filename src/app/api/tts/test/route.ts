@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from 'node:crypto';
 
 // 阿里云 TTS API 端点
 const ALIYUN_TTS_URL = "https://nls-gateway.aliyuncs.com/stream/v1/tts";

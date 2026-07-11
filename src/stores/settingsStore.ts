@@ -21,6 +21,7 @@ const defaultSettings: Settings = {
   aliyunTtsAppKey: '',
   iflytekTtsApiKey: '',
   iflytekTtsApiSecret: '',
+  iflytekTtsAppId: '',
   azureTtsKey: '',
   azureTtsRegion: '',
 };

@@ -10,13 +10,15 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, BookOpen, Sparkles, Loader2,
   Languages, FileText, RotateCcw, ChevronRight,
-  CheckCircle, XCircle
+  CheckCircle, XCircle, Volume2, Square
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { fallbackGetPDF } from '@/lib/localFallback';
 import { extractSectionContent } from '@/lib/pdf-utils';
 import { getSectionPageRange } from '@/lib/chapterPageMapping';
 import { cn } from '@/lib/utils';
+import { useTTS } from '@/hooks/useTTS';
+import { toast } from 'sonner';
 
 type WordCategory = '实词' | '虚词' | '句式' | '文化常识';
 
@@ -54,6 +56,17 @@ function ClassicalReadPageContent() {
   const params = useParams();
   const poemId = params.poemId as string;
   const { settings } = useSettingsStore();
+
+  // TTS 状态
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const { speak, stop, isPlaying, isLoading } = useTTS({
+    onStart: () => setTtsPlaying(true),
+    onEnd: () => setTtsPlaying(false),
+    onError: (msg) => {
+      toast.error(msg);
+      setTtsPlaying(false);
+    },
+  });
 
   const getSubjectName = (id: string) => {
     const map: Record<string, string> = { math: '数学', physics: '物理', chemistry: '化学', chinese: '语文', biology: '生物', geography: '地理', politics: '政治', history: '历史' };
@@ -368,6 +381,35 @@ function ClassicalReadPageContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs text-slate-500">
+                    {originalText ? `${originalText.length} 字` : ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (ttsPlaying) {
+                          stop();
+                        } else {
+                          speak(originalText);
+                        }
+                      }}
+                      disabled={!originalText || isLoading}
+                      className="gap-1"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : ttsPlaying ? (
+                        <Square className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                      {ttsPlaying ? '停止' : '朗读全文'}
+                    </Button>
+                  </div>
+                </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                   <p className="text-lg leading-loose text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-serif">
                     {originalText || '暂无内容，请检查课本加载'}

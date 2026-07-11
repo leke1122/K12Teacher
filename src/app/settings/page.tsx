@@ -259,6 +259,7 @@ export default function SettingsPage() {
     aliyunTtsAppKey: settings.aliyunTtsAppKey || "",
     iflytekTtsApiKey: settings.iflytekTtsApiKey || "",
     iflytekTtsApiSecret: settings.iflytekTtsApiSecret || "",
+    iflytekTtsAppId: settings.iflytekTtsAppId || "",
     azureTtsKey: settings.azureTtsKey || "",
     azureTtsRegion: settings.azureTtsRegion || "",
   });
@@ -267,6 +268,7 @@ export default function SettingsPage() {
     deepseek: "idle" as "idle" | "testing" | "success" | "error",
     qwen: "idle" as "idle" | "testing" | "success" | "error",
     aliyunTts: "idle" as "idle" | "testing" | "success" | "error",
+    iflytekTts: "idle" as "idle" | "testing" | "success" | "error",
   });
   const [testMessage, setTestMessage] = useState<Record<string, string>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -415,10 +417,11 @@ export default function SettingsPage() {
         ttsProvider: (settings.ttsProvider || "web") as Settings['ttsProvider'],
         aliyunTtsApiKey: settings.aliyunTtsApiKey || "",
         aliyunTtsApiSecret: settings.aliyunTtsApiSecret || "",
-        aliyunTtsAppKey: settings.aliyunTtsAppKey || "",
-        iflytekTtsApiKey: settings.iflytekTtsApiKey || "",
-        iflytekTtsApiSecret: settings.iflytekTtsApiSecret || "",
-        azureTtsKey: settings.azureTtsKey || "",
+    aliyunTtsAppKey: settings.aliyunTtsAppKey || "",
+    iflytekTtsApiKey: settings.iflytekTtsApiKey || "",
+    iflytekTtsApiSecret: settings.iflytekTtsApiSecret || "",
+    iflytekTtsAppId: settings.iflytekTtsAppId || "",
+    azureTtsKey: settings.azureTtsKey || "",
         azureTtsRegion: settings.azureTtsRegion || "",
       }));
     }
@@ -449,6 +452,7 @@ export default function SettingsPage() {
         aliyunTtsAppKey: formData.aliyunTtsAppKey || "",
         iflytekTtsApiKey: formData.iflytekTtsApiKey || "",
         iflytekTtsApiSecret: formData.iflytekTtsApiSecret || "",
+        iflytekTtsAppId: formData.iflytekTtsAppId || "",
         azureTtsKey: formData.azureTtsKey || "",
         azureTtsRegion: formData.azureTtsRegion || "",
       });
@@ -501,7 +505,7 @@ export default function SettingsPage() {
     setTestMessage((prev) => ({ ...prev, aliyunTts: "" }));
 
     try {
-      const response = await fetch("/api/tts/test", {
+      const response = await fetch("/api/tts/aliyun/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -526,6 +530,45 @@ export default function SettingsPage() {
       setTestStatus((prev) => ({ ...prev, aliyunTts: "error" }));
       const errorMsg = error instanceof Error ? error.message : "未知错误";
       setTestMessage((prev) => ({ ...prev, aliyunTts: errorMsg }));
+      toast.error("测试失败: " + errorMsg);
+    }
+  };
+
+  const handleTestIflytekTts = async () => {
+    if (!formData.iflytekTtsApiKey || !formData.iflytekTtsApiSecret || !formData.iflytekTtsAppId) {
+      toast.error("请先填写完整的讯飞语音合成配置（APP ID、API Key、API Secret）");
+      return;
+    }
+
+    setTestStatus((prev) => ({ ...prev, iflytekTts: "testing" }));
+    setTestMessage((prev) => ({ ...prev, iflytekTts: "" }));
+
+    try {
+      const response = await fetch("/api/tts/iflytek/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: formData.iflytekTtsAppId,
+          apiKey: formData.iflytekTtsApiKey,
+          apiSecret: formData.iflytekTtsApiSecret,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTestStatus((prev) => ({ ...prev, iflytekTts: "success" }));
+        setTestMessage((prev) => ({ ...prev, iflytekTts: data.message }));
+        toast.success("讯飞语音合成配置正确！");
+      } else {
+        setTestStatus((prev) => ({ ...prev, iflytekTts: "error" }));
+        setTestMessage((prev) => ({ ...prev, iflytekTts: data.message }));
+        toast.error(data.message);
+      }
+    } catch (error) {
+      setTestStatus((prev) => ({ ...prev, iflytekTts: "error" }));
+      const errorMsg = error instanceof Error ? error.message : "未知错误";
+      setTestMessage((prev) => ({ ...prev, iflytekTts: errorMsg }));
       toast.error("测试失败: " + errorMsg);
     }
   };
@@ -815,15 +858,25 @@ export default function SettingsPage() {
           {formData.ttsProvider === "iflytek" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
+                <Label htmlFor="iflytekTtsAppId">APP ID</Label>
+                <Input
+                  id="iflytekTtsAppId"
+                  value={formData.iflytekTtsAppId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, iflytekTtsAppId: e.target.value }))}
+                  placeholder="讯飞 APP ID"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="iflytekTtsApiKey">API Key</Label>
                 <Input
                   id="iflytekTtsApiKey"
+                  type="password"
                   value={formData.iflytekTtsApiKey}
                   onChange={(e) => setFormData((prev) => ({ ...prev, iflytekTtsApiKey: e.target.value }))}
                   placeholder="讯飞 API Key"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="iflytekTtsApiSecret">API Secret</Label>
                 <Input
                   id="iflytekTtsApiSecret"
@@ -832,6 +885,22 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData((prev) => ({ ...prev, iflytekTtsApiSecret: e.target.value }))}
                   placeholder="讯飞 API Secret"
                 />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant={getTestButtonVariant(testStatus.iflytekTts)}
+                  onClick={handleTestIflytekTts}
+                  disabled={testStatus.iflytekTts === "testing"}
+                >
+                  {testStatus.iflytekTts === "testing" ? "测试中..." : "测试讯飞 TTS"}
+                </Button>
+                {testMessage.iflytekTts && (
+                  <span className={`text-sm ${testStatus.iflytekTts === "success" ? "text-green-600" : "text-red-600"}`}>
+                    {testStatus.iflytekTts === "success" ? "✅ " : "❌ "}
+                    {testMessage.iflytekTts}
+                  </span>
+                )}
               </div>
             </div>
           )}

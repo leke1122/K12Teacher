@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Loader2, BookOpen, Sparkles, MessageSquare, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, BookOpen, Sparkles, MessageSquare, CheckCircle, Volume2, Square } from 'lucide-react';
 import { POETRY_LIST } from '@/lib/poetry';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTTS } from '@/hooks/useTTS';
+import { toast } from 'sonner';
 
 type Question = {
   id: string;
@@ -26,6 +28,17 @@ export default function PoetryDetailPage() {
   const params = useParams();
   const poemId = params.poemId as string;
   const { settings } = useSettingsStore();
+
+  // TTS 状态
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const { speak, stop, isLoading } = useTTS({
+    onStart: () => setTtsPlaying(true),
+    onEnd: () => setTtsPlaying(false),
+    onError: (msg) => {
+      toast.error(msg);
+      setTtsPlaying(false);
+    },
+  });
 
   const poem = POETRY_LIST.find((p) => p.id === poemId);
   const [loading, setLoading] = useState(true);
@@ -161,11 +174,33 @@ useEffect(() => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左侧：原文 */}
           <Card className="border-0 shadow">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 原文
               </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (ttsPlaying) {
+                    stop();
+                  } else {
+                    speak(poem.text);
+                  }
+                }}
+                disabled={isLoading}
+                className="gap-1"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : ttsPlaying ? (
+                  <Square className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+                {ttsPlaying ? '停止' : '朗读'}
+              </Button>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[500px] pr-2">
