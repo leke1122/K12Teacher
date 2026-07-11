@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // 任务完成
     if (data.header?.task_status === 5 && data.payload?.audio?.audio) {
       const audioUrl = Buffer.from(data.payload.audio.audio, 'base64').toString('utf8');
-      
+
       return NextResponse.json({
         success: true,
         status: 'completed',
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
     if (data.header?.task_status) {
       return NextResponse.json({
         success: true,
-        status: data.header.task_status,
-        message: `任务状态: ${data.header.task_status}`,
+        status: String(data.header.task_status),
+        message: '任务进行中 (状态: ' + data.header.task_status + ')',
       });
     }
 

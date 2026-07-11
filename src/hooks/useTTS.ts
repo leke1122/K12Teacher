@@ -195,10 +195,9 @@ export function useTTS(options: UseTTSOptions = {}) {
       const data = await response.json();
 
       if (data.success) {
-        if (data.status === 'completed' && data.audioUrl) {
+        if (data.audioUrl) {
           return data.audioUrl;
         }
-        // 任务进行中
         return 'pending';
       }
 
