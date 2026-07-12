@@ -334,3 +334,198 @@ export async function clearAllTextbookCache() {
     .eq('user_id', USER_ID);
   return !error;
 }
+
+// ==================== 教材章节 (textbook_chapters) ====================
+
+export interface TextbookChapter {
+  id: string;
+  textbook_id: string;
+  parent_id?: string;
+  chapter_title: string;
+  chapter_type: 'unit' | 'lesson' | 'section';
+  page_start: number;
+  page_end: number;
+  order_index: number;
+  children?: TextbookChapter[];
+}
+
+/**
+ * 获取教材的所有章节（单元/课/节）
+ */
+export async function getTextbookChapters(textbookId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('textbook_chapters')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('textbook_id', textbookId)
+    .order('order_index', { ascending: true });
+
+  if (error) {
+    console.error('[Supabase] getTextbookChapters error:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * 获取指定章节详情
+ */
+export async function getChapterDetail(chapterId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('textbook_chapters')
+    .select('*')
+    .eq('id', chapterId)
+    .single();
+
+  if (error) {
+    console.error('[Supabase] getChapterDetail error:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * 保存教材章节
+ */
+export async function saveTextbookChapters(textbookId: string, chapters: Omit<TextbookChapter, 'textbook_id'>[]) {
+  if (!supabase) return false;
+
+  const records = chapters.map((ch, idx) => ({
+    user_id: USER_ID,
+    textbook_id: textbookId,
+    parent_id: ch.parent_id || null,
+    chapter_title: ch.chapter_title,
+    chapter_type: ch.chapter_type,
+    page_start: ch.page_start,
+    page_end: ch.page_end,
+    order_index: ch.order_index ?? idx,
+  }));
+
+  const { error } = await supabase
+    .from('textbook_chapters')
+    .upsert(records, {
+      onConflict: 'user_id,textbook_id,id',
+    });
+
+  if (error) {
+    console.error('[Supabase] saveTextbookChapters error:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 删除教材的所有章节
+ */
+export async function deleteTextbookChapters(textbookId: string) {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('textbook_chapters')
+    .delete()
+    .eq('user_id', USER_ID)
+    .eq('textbook_id', textbookId);
+  return !error;
+}
+
+// ==================== Docx 导入记录 ====================
+
+export interface DocxImportRecord {
+  id: string;
+  user_id: string;
+  file_name: string;
+  file_size?: number;
+  unit_id: string;
+  textbook_id: string;
+  unit_title: string;
+  page_range?: string;
+  data?: Record<string, unknown>;
+  concepts_count?: number;
+  events_count?: number;
+  links_count?: number;
+  exam_focus_count?: number;
+  imported_at?: string;
+}
+
+/**
+ * 获取 docx 导入列表
+ */
+export async function getDocxImports() {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('docx_imports')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .order('imported_at', { ascending: false });
+
+  if (error) {
+    console.error('[Supabase] getDocxImports error:', error);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * 获取单个 docx 导入的完整数据
+ */
+export async function getDocxImportData(importId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('docx_imports')
+    .select('data')
+    .eq('id', importId)
+    .eq('user_id', USER_ID)
+    .single();
+
+  if (error) {
+    console.error('[Supabase] getDocxImportData error:', error);
+    return null;
+  }
+  return data?.data || null;
+}
+
+/**
+ * 按单元标题查找 docx 导入
+ */
+export async function findDocxImportByUnitTitle(unitTitle: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('docx_imports')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .ilike('unit_title', `%${unitTitle}%`)
+    .order('imported_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    // 没有找到是正常的，不要打印错误
+    return null;
+  }
+  return data;
+}
+
+/**
+ * 按 unit_id 精确查找 docx 导入
+ */
+export async function findDocxImportByUnitId(unitId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('docx_imports')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('unit_id', unitId)
+    .order('imported_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    return null;
+  }
+  return data;
+}
+

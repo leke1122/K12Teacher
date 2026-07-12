@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHistoryTextbook, getHistoryTextbookTextByPages, getHistoryLessonContent, getHistoryLessonTitle } from '@/lib/historyData.server';
 import { getServerData, setServerData } from '@/lib/serverStorage';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, findDocxImportByUnitTitle } from '@/lib/supabase';
+import { parseDocxTextToKnowledge } from '@/lib/docxParser';
 
 // 历史知识点类型定义
 export interface HistoryKnowledgePoint {
@@ -91,12 +92,46 @@ export async function POST(request: NextRequest) {
       ? `history_knowledge_${chapterId}_${encodeURIComponent(sectionId)}`
       : `history_knowledge_${chapterId}`;
 
-    // 尝试从缓存获取（除非强制刷新）
+    // ========== 优先级 1：检查是否有 docx 导入的数据 ==========
+    const searchTerms = [chapterId, sectionId, chapterId.replace(/第/g, '').replace(/课/g, '')].filter(Boolean);
+    for (const term of searchTerms) {
+      const docxImport = await findDocxImportByUnitTitle(String(term));
+      if (docxImport?.data) {
+        console.log('[extract] 找到 docx 导入数据:', docxImport.id);
+        // 将 docx 格式转换为 HistoryKnowledgePoint 格式
+        const docxData = docxImport.data as Awaited<ReturnType<typeof parseDocxTextToKnowledge>>;
+        const items: HistoryKnowledgePoint[] = docxData.concepts.map(c => ({
+          id: c.id,
+          name: c.name,
+          type: c.category === '政治' ? 'system' : 'concept' as const,
+          time: c.relatedEvents.join('、') || '',
+          location: '',
+          figures: c.keyPeople,
+          causes: '',
+          process: c.definition,
+          effects: c.impact,
+          significance: c.impact,
+          memoryTip: '',
+          relatedEvents: c.relatedEvents,
+          source: 'docx_import',
+        }));
+        return NextResponse.json({
+          success: true,
+          data: items,
+          source: 'docx_import',
+          importId: docxImport.id,
+          unitTitle: docxImport.unit_title,
+          cached: false,
+        });
+      }
+    }
+
+    // ========== 优先级 2：检查 server 缓存 ==========
     if (!forceRefresh) {
       try {
         const cached = getServerData<HistoryKnowledgePoint[]>(cacheKey);
         if (cached && Array.isArray(cached) && cached.length > 0) {
-          return NextResponse.json({ success: true, data: cached, cached: true });
+          return NextResponse.json({ success: true, data: cached, source: 'cache', cached: true });
         }
       } catch {
         // 继续尝试提取
@@ -285,7 +320,7 @@ ${text}
       // 缓存失败不影响返回
     }
 
-    return NextResponse.json({ success: true, data: knowledge, cached: false });
+    return NextResponse.json({ success: true, data: knowledge, source: 'ai_extraction', cached: false });
   } catch (error) {
     console.error('[API history/knowledge/extract] error:', error);
     return NextResponse.json(

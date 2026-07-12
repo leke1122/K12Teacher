@@ -101,18 +101,23 @@ export function HistoryCard({ cards, onProgressChange }: HistoryCardProps) {
         </div>
       </div>
 
-      <div
-        className="relative mx-auto aspect-[3/2] w-full max-w-2xl cursor-pointer"
-        onClick={() => setFlipped((prev) => !prev)}
-      >
+      {/* 3D翻转卡片容器 */}
+      <div className="perspective-1000 mx-auto w-full max-w-2xl">
         <div
-          className={`h-full w-full rounded-2xl border bg-white p-5 shadow-sm transition-all ${
-            flipped ? 'rotate-y-180' : ''
-          }`}
+          className="relative h-[280px] cursor-pointer transition-transform duration-500"
+          style={{
+            transformStyle: 'preserve-3d',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          }}
+          onClick={() => setFlipped((prev) => !prev)}
         >
-          <div className="flex h-full flex-col justify-between">
+          {/* 正面 - 问题 */}
+          <div
+            className="absolute inset-0 flex flex-col justify-between rounded-2xl border bg-white p-6 shadow-sm"
+            style={{ backfaceVisibility: 'hidden' }}
+          >
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-4">
                 <Badge variant="outline" className="text-xs">
                   {current.type === 'event'
                     ? '事件卡'
@@ -128,21 +133,49 @@ export function HistoryCard({ cards, onProgressChange }: HistoryCardProps) {
                   </Badge>
                 )}
               </div>
-              <h3 className="text-lg font-bold text-slate-800">
-                {flipped ? current.back : current.front}
+              <h3 className="text-xl font-bold text-slate-800 leading-relaxed">
+                {current.front}
               </h3>
-              <p className="mt-2 text-xs text-muted-foreground">
-                点击卡片查看{flipped ? '问题' : '答案'}
+              <p className="mt-4 text-sm text-muted-foreground">
+                点击查看答案
               </p>
             </div>
-
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between">
               <Badge variant="secondary" className="text-xs">
                 {current.chapterId}
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                {flipped ? '已展示答案' : '请先回忆'}
-              </span>
+              <span className="text-xs text-muted-foreground">请先回忆</span>
+            </div>
+          </div>
+
+          {/* 背面 - 答案 */}
+          <div
+            className="absolute inset-0 flex flex-col justify-between rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm"
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+            }}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Badge variant="outline" className="bg-amber-100 text-xs">
+                  答案
+                </Badge>
+                {currentMastered && (
+                  <Badge variant="secondary" className="text-xs">
+                    已掌握
+                  </Badge>
+                )}
+              </div>
+              <div className="text-base text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {current.back}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className="text-xs">
+                {current.chapterId}
+              </Badge>
+              <span className="text-xs text-amber-600">已展示答案</span>
             </div>
           </div>
         </div>

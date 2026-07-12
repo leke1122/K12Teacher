@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, Brain, Loader2, ChevronRight, Clock, MapPin, Users,
-  CheckCircle, XCircle, Sparkles, AlertCircle, RefreshCw, BookOpen
+  CheckCircle, XCircle, Sparkles, AlertCircle, RefreshCw, BookOpen, FileText
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/lib/utils';
+import { DocxImportButton } from './DocxImportButton';
 
 interface HistoryKnowledgePoint {
   id: string;
@@ -60,6 +61,8 @@ export function HistoryKnowledgeList({ chapterId, sectionId, sectionTitle, onMod
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState(false);
+  const [dataSource, setDataSource] = useState<'docx_import' | 'ai_extraction' | 'cache' | null>(null);
+  const [unitTitle, setUnitTitle] = useState<string | null>(null);
 
   const loadKnowledge = async (forceRefresh = false) => {
     if (forceRefresh) setExtracting(true); else setLoading(true);
@@ -79,6 +82,8 @@ export function HistoryKnowledgeList({ chapterId, sectionId, sectionTitle, onMod
       if (!res.ok || !json.success) throw new Error(json.message || '加载失败');
       setItems(json.data || []);
       setCached(json.cached || false);
+      setDataSource(json.source || null);
+      setUnitTitle(json.unitTitle || null);
       setCurrentIndex(0);
       setStage('definition');
       setQuestion(null);
@@ -181,6 +186,35 @@ export function HistoryKnowledgeList({ chapterId, sectionId, sectionTitle, onMod
 
   return (
     <div className="space-y-3">
+      {/* 数据来源标识 + 导入按钮 */}
+      <div className="flex items-center gap-2">
+        {dataSource === 'docx_import' && (
+          <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950/30 border-blue-200 text-blue-700 dark:text-blue-400 gap-1">
+            <FileText className="h-3 w-3" />
+            您导入的知识点
+          </Badge>
+        )}
+        {dataSource === 'ai_extraction' && (
+          <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-200 text-purple-700 dark:text-purple-400 gap-1">
+            <Sparkles className="h-3 w-3" />
+            AI 从教材提取
+          </Badge>
+        )}
+        {dataSource === 'cache' && (
+          <Badge variant="outline" className="text-xs bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 text-emerald-700 dark:text-emerald-400 gap-1">
+            <Brain className="h-3 w-3" />
+            缓存数据
+          </Badge>
+        )}
+        <div className="ml-auto">
+          <DocxImportButton
+            size="sm"
+            variant="ghost"
+            onImportSuccess={() => loadKnowledge()}
+          />
+        </div>
+      </div>
+
       {/* 进度 */}
       <Card>
         <CardContent className="p-3">

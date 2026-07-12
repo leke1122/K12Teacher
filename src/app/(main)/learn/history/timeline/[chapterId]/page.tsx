@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft,
   CalendarDays,
@@ -22,29 +23,87 @@ import {
   BookOpen,
   GraduationCap,
   Send,
+  ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
-import {
-  timelineEvents,
-  concepts,
-  causalLinks,
-  dynastyPeriods,
-  generateAIContext,
-  type TimelineEvent,
-} from '@/data/history/unit1_data';
 
-const CHAPTER_TITLES: Record<string, string> = {
-  'unit1': '第一单元：从中华文明起源到秦汉统一',
-  'modern-china': '中国近代史',
-  'ln-gaokao': '辽宁高考历史',
+// 类型定义
+interface TimelineEvent {
+  id: string;
+  year: string;
+  title: string;
+  dynasty: string;
+  summary: string;
+  impact?: string;
+  category: string;
+  importance: number;
+  keyPeople: string[];
+}
+
+interface CausalLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  logic: string;
+  type: string;
+}
+
+interface Concept {
+  id: string;
+  name: string;
+  category: string;
+  definition: string;
+  keyPeople: string[];
+  examples?: string[];
+}
+
+interface ExamFocus {
+  conceptId: string;
+  conceptName: string;
+  frequency: string;
+  questionTypes: string[];
+  difficulty: string;
+  typicalQuestions?: string[];
+}
+
+interface LnGaokaoKnowledge {
+  timelineEvents: TimelineEvent[];
+  causalLinks: CausalLink[];
+  concepts: Concept[];
+  examFocus: ExamFocus[];
+  summary: string;
+  unitTitle: string;
+  pageRange: string;
+}
+
+interface Chapter {
+  id: string;
+  chapter_title: string;
+  chapter_type: string;
+  page_start: number;
+  page_end: number;
+  children?: Chapter[];
+}
+
+const DEFAULT_DATA = {
+  timelineEvents: [] as TimelineEvent[],
+  causalLinks: [] as CausalLink[],
+  concepts: [] as Concept[],
+  examFocus: [] as ExamFocus[],
+  summary: '',
+  unitTitle: '请先选择单元',
+  pageRange: '',
 };
 
 function Unit1TimelinePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const chapterId = useMemo(
-    () => (params.chapterId as string) || 'unit1',
-    [params.chapterId],
+    () => (params.chapterId as string) || searchParams.get('chapterId') || 'unit1',
+    [params.chapterId, searchParams],
   );
 
   const [activeTab, setActiveTab] = useState('timeline');
@@ -62,20 +121,113 @@ function Unit1TimelinePage() {
   // 筛选状态
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
+  // 数据状态
+  const [knowledgeData, setKnowledgeData] = useState<LnGaokaoKnowledge>(DEFAULT_DATA);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>(chapterId);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 获取 API Key
+  const getApiKey = () => {
+    try {
+      const stored = localStorage.getItem('edumind-settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed?.settings?.deepseekKey || parsed?.deepseekKey || '';
+      }
+    } catch {}
+    return '';
+  };
+
+  // 加载章节列表
+  const loadChapters = useCallback(async () => {
+    try {
+      // 先从本地存储获取教材信息
+      const stored = localStorage.getItem('edumind-settings');
+      let textbookId = 'history-default';
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // 尝试获取历史教材ID
+        const historyData = parsed?.settings?.historyTextbookId;
+        if (historyData) textbookId = historyData;
+      }
+
+      const response = await fetch(`/api/history/knowledge/extract-by-pages?textbookId=${textbookId}&subject=history`);
+      const data = await response.json();
+      if (data.success && data.chapters) {
+        setChapters(data.chapters);
+      }
+    } catch (err) {
+      console.error('加载章节列表失败:', err);
+    }
+  }, []);
+
+  const [dataSource, setDataSource] = useState<string>('');
+
+  // 加载知识点数据
+  const loadKnowledgeData = useCallback(async (unitId: string, forceRefresh = false) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const apiKey = getApiKey();
+      const response = await fetch('/api/history/knowledge/extract-by-pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chapterId: unitId,
+          unitId,
+          textbookId: 'history-default',
+          forceRefresh,
+          apiKey,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setKnowledgeData(data.data);
+        setDataSource(data.source || '');
+      } else {
+        setError(data.message || data.hint || '加载数据失败');
+        if (data.hint) {
+          setError(`${data.message}\n\n💡 ${data.hint}`);
+        }
+      }
+    } catch (err) {
+      console.error('加载知识点失败:', err);
+      setError('网络错误，请检查连接后重试');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 初始加载
+  useEffect(() => {
+    loadChapters();
+    loadKnowledgeData(chapterId);
+  }, [chapterId, loadChapters, loadKnowledgeData]);
+
   // 筛选事件
   const filteredEvents = useMemo(() => {
-    if (categoryFilter === 'all') return timelineEvents;
-    return timelineEvents.filter((e) => e.category === categoryFilter);
-  }, [categoryFilter]);
+    if (categoryFilter === 'all') return knowledgeData.timelineEvents;
+    return knowledgeData.timelineEvents.filter((e) => e.category === categoryFilter);
+  }, [knowledgeData.timelineEvents, categoryFilter]);
 
   // 分类统计
   const categoryStats = useMemo(() => {
     const stats: Record<string, number> = {};
-    for (const event of timelineEvents) {
+    for (const event of knowledgeData.timelineEvents) {
       stats[event.category] = (stats[event.category] || 0) + 1;
     }
     return stats;
-  }, []);
+  }, [knowledgeData.timelineEvents]);
+
+  // 处理单元切换
+  const handleUnitChange = (newUnitId: string) => {
+    setSelectedUnitId(newUnitId);
+    router.push(`/learn/history/timeline/${newUnitId}`);
+  };
 
   // 处理事件点击
   const handleEventClick = useCallback((event: TimelineEvent) => {
@@ -97,9 +249,7 @@ function Unit1TimelinePage() {
     setAiLoading(true);
     setAiAnswer('');
     try {
-      // 从 localStorage 获取 API Key
-      const settings = JSON.parse(localStorage.getItem('edumind-settings') || '{}');
-      const apiKey = settings.deepseekApiKey || settings.deepseek_api_key || '';
+      const apiKey = getApiKey();
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) {
@@ -126,10 +276,10 @@ function Unit1TimelinePage() {
 
   // 查找因果关系
   const getCausalLinks = useCallback((eventId: string) => {
-    const causes = causalLinks.filter((c) => c.targetId === eventId);
-    const results = causalLinks.filter((c) => c.sourceId === eventId);
+    const causes = knowledgeData.causalLinks.filter((c) => c.targetId === eventId);
+    const results = knowledgeData.causalLinks.filter((c) => c.sourceId === eventId);
     return { causes, results };
-  }, []);
+  }, [knowledgeData.causalLinks]);
 
   const { causes, results } = useMemo(() => {
     if (!selectedEvent) return { causes: [], results: [] };
@@ -138,8 +288,8 @@ function Unit1TimelinePage() {
 
   // 获取事件详情
   const getEventById = useCallback((id: string) => {
-    return timelineEvents.find((e) => e.id === id);
-  }, []);
+    return knowledgeData.timelineEvents.find((e) => e.id === id);
+  }, [knowledgeData.timelineEvents]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
@@ -158,22 +308,119 @@ function Unit1TimelinePage() {
           <div className="flex-1">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-amber-500" />
-              📜 {CHAPTER_TITLES[chapterId] || '第一单元时间轴'}
+              📜 {knowledgeData.unitTitle || '历史时间轴'}
             </h1>
             <p className="text-xs text-muted-foreground">
-              高中历史统编版 · 必修中外历史纲要上册 · 共 {timelineEvents.length} 个核心事件
+              高中历史 · {knowledgeData.pageRange || '辽宁高考方向'} · 共 {knowledgeData.timelineEvents.length} 个核心事件
+              {dataSource === 'docx_import' && (
+                <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>
+              )}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={() => setAiOpen(true)}
-          >
-            <MessageCircle className="h-4 w-4" />
-            AI 助教
-          </Button>
+
+          {/* 单元选择器 */}
+          <div className="flex items-center gap-2">
+            <Select value={selectedUnitId} onValueChange={handleUnitChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="选择单元" />
+              </SelectTrigger>
+              <SelectContent>
+                {chapters.length > 0 ? (
+                  chapters.map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      {ch.chapter_title}（第{ch.page_start}-{ch.page_end}页）
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="unit1">第一单元</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => loadKnowledgeData(selectedUnitId, true)}
+              disabled={loading}
+              title="刷新数据"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => setAiOpen(true)}
+            >
+              <MessageCircle className="h-4 w-4" />
+              AI 助教
+            </Button>
+          </div>
         </div>
+
+        {/* 加载状态 */}
+        {loading && (
+          <Card className="mb-4">
+            <CardContent className="flex items-center justify-center py-8 gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+              <span className="text-muted-foreground">正在加载知识点...</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 错误提示 */}
+        {error && (
+          <Card className="mb-4 border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-amber-800 whitespace-pre-wrap">{error}</p>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadKnowledgeData(selectedUnitId)}
+                    >
+                      重试
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push('/textbook')}
+                    >
+                      去上传教材
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 辽宁高考重点提示 */}
+        {knowledgeData.examFocus && knowledgeData.examFocus.length > 0 && (
+          <Card className="mb-4 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-amber-600" />
+                <span className="font-medium text-amber-800">辽宁高考重点</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {knowledgeData.examFocus.map((focus, idx) => (
+                  <Badge
+                    key={idx}
+                    variant={focus.frequency === '必考' ? 'default' : 'outline'}
+                    className={focus.frequency === '必考' ? 'bg-red-500' : ''}
+                  >
+                    {focus.conceptName} · {focus.frequency}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 分类筛选 */}
         <Card className="mb-4">
@@ -186,7 +433,7 @@ function Unit1TimelinePage() {
                 className="h-7 text-xs"
                 onClick={() => setCategoryFilter('all')}
               >
-                全部 ({timelineEvents.length})
+                全部 ({knowledgeData.timelineEvents.length})
               </Button>
               {Object.entries(categoryStats).map(([cat, count]) => (
                 <Button
@@ -203,175 +450,202 @@ function Unit1TimelinePage() {
           </CardContent>
         </Card>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-3"
-        >
-          <TabsList>
-            <TabsTrigger value="timeline" className="gap-1">
-              <CalendarDays className="h-4 w-4" />
-              垂直时间轴
-            </TabsTrigger>
-            <TabsTrigger value="graph" className="gap-1">
-              <GitFork className="h-4 w-4" />
-              因果图谱
-            </TabsTrigger>
-            <TabsTrigger value="concepts" className="gap-1">
-              <BookOpen className="h-4 w-4" />
-              概念词典
-            </TabsTrigger>
-          </TabsList>
+        {!loading && !error && (
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-3"
+          >
+            <TabsList>
+              <TabsTrigger value="timeline" className="gap-1">
+                <CalendarDays className="h-4 w-4" />
+                垂直时间轴
+              </TabsTrigger>
+              <TabsTrigger value="graph" className="gap-1">
+                <GitFork className="h-4 w-4" />
+                因果图谱
+              </TabsTrigger>
+              <TabsTrigger value="concepts" className="gap-1">
+                <BookOpen className="h-4 w-4" />
+                概念词典
+              </TabsTrigger>
+            </TabsList>
 
-          {/* 垂直时间轴 */}
-          <TabsContent value="timeline">
-            <div className="relative">
-              {/* 时间轴中线 */}
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
+            {/* 垂直时间轴 */}
+            <TabsContent value="timeline">
+              {filteredEvents.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <CalendarDays className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                  <p className="text-muted-foreground">
+                    {chapters.length === 0
+                      ? '请先上传历史教材并导入目录'
+                      : '该单元暂无时间轴数据'}
+                  </p>
+                </Card>
+              ) : (
+                <div className="relative">
+                  {/* 时间轴中线 */}
+                  <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
 
-              {/* 时间轴事件 */}
-              <div className="space-y-6 pl-4">
-                {filteredEvents.map((event, index) => {
-                  const colors: Record<string, string> = {
-                    政治: 'border-amber-400 bg-amber-50',
-                    经济: 'border-emerald-400 bg-emerald-50',
-                    思想: 'border-violet-400 bg-violet-50',
-                    文化: 'border-pink-400 bg-pink-50',
-                    军事: 'border-red-400 bg-red-50',
-                    社会: 'border-slate-400 bg-slate-50',
-                  };
-                  const color = colors[event.category] || colors.社会;
+                  {/* 时间轴事件 */}
+                  <div className="space-y-6 pl-4">
+                    {filteredEvents.map((event, index) => {
+                      const colors: Record<string, string> = {
+                        政治: 'border-amber-400 bg-amber-50',
+                        经济: 'border-emerald-400 bg-emerald-50',
+                        思想: 'border-violet-400 bg-violet-50',
+                        文化: 'border-pink-400 bg-pink-50',
+                        军事: 'border-red-400 bg-red-50',
+                        社会: 'border-slate-400 bg-slate-50',
+                      };
+                      const color = colors[event.category] || colors.社会;
 
-                  return (
-                    <div key={event.id} className="relative flex gap-4">
-                      {/* 时间点 */}
-                      <div className="relative z-10 flex-shrink-0">
-                        <div className={`w-12 h-12 rounded-full border-4 ${color} flex items-center justify-center bg-white shadow-sm`}>
-                          <span className="text-xs font-bold text-slate-600">{index + 1}</span>
+                      return (
+                        <div key={event.id} className="relative flex gap-4">
+                          {/* 时间点 */}
+                          <div className="relative z-10 flex-shrink-0">
+                            <div className={`w-12 h-12 rounded-full border-4 ${color} flex items-center justify-center bg-white shadow-sm`}>
+                              <span className="text-xs font-bold text-slate-600">{index + 1}</span>
+                            </div>
+                          </div>
+
+                          {/* 事件卡片 */}
+                          <Card
+                            className={`flex-1 cursor-pointer transition-all hover:shadow-md border-l-4 ${color}`}
+                            onClick={() => handleEventClick(event)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div>
+                                  <Badge variant="outline" className="text-xs mb-1">
+                                    {event.year} · {event.dynasty}
+                                  </Badge>
+                                  <h3 className="text-base font-bold text-slate-800">
+                                    {event.title}
+                                    {event.importance >= 5 && (
+                                      <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                        常考
+                                      </span>
+                                    )}
+                                  </h3>
+                                </div>
+                                <Badge className="text-xs">
+                                  {event.category}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {event.summary}
+                              </p>
+                              {event.impact && (
+                                <p className="text-xs text-amber-600 mt-2 font-medium">
+                                  ✦ {event.impact}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-3">
+                                {event.keyPeople && event.keyPeople.length > 0 && (
+                                  <span className="text-xs text-slate-500 flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {event.keyPeople.slice(0, 2).join('、')}
+                                  </span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 text-xs ml-auto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setHighlightEventId(event.id);
+                                    setGraphDialogOpen(true);
+                                  }}
+                                >
+                                  <GitFork className="h-3 w-3 mr-1" />
+                                  查因果
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
 
-                      {/* 事件卡片 */}
-                      <Card
-                        className={`flex-1 cursor-pointer transition-all hover:shadow-md border-l-4 ${color}`}
-                        onClick={() => handleEventClick(event)}
-                      >
+            {/* 因果图谱 */}
+            <TabsContent value="graph">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center justify-between">
+                    <span>因果链知识图谱</span>
+                    <Badge variant="outline">{knowledgeData.causalLinks.length} 条因果关系</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <CausalGraphLegend />
+                  <div className="h-[600px] border rounded-lg overflow-hidden">
+                    <CausalGraph
+                      events={knowledgeData.timelineEvents}
+                      causalLinks={knowledgeData.causalLinks}
+                      onEventClick={handleGraphEventClick}
+                      highlightEventId={highlightEventId}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    点击节点查看详情，点击边查看因果逻辑
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 概念词典 */}
+            <TabsContent value="concepts">
+              {knowledgeData.concepts.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <BookOpen className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                  <p className="text-muted-foreground">该单元暂无概念数据</p>
+                </Card>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {knowledgeData.concepts.map((concept) => {
+                    const colors: Record<string, string> = {
+                      政治: 'border-amber-300',
+                      经济: 'border-emerald-300',
+                      思想: 'border-violet-300',
+                      文化: 'border-pink-300',
+                      军事: 'border-red-300',
+                      社会: 'border-slate-300',
+                    };
+                    const color = colors[concept.category] || colors.社会;
+
+                    return (
+                      <Card key={concept.id} className={`border-l-4 ${color}`}>
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <div>
-                              <Badge variant="outline" className="text-xs mb-1">
-                                {event.year} · {event.dynasty}
-                              </Badge>
-                              <h3 className="text-base font-bold text-slate-800">
-                                {event.title}
-                              </h3>
-                            </div>
-                            <Badge className="text-xs">
-                              {event.category}
+                            <h3 className="text-base font-bold text-slate-800">
+                              {concept.name}
+                            </h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {concept.category}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {event.summary}
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {concept.definition}
                           </p>
-                          {event.impact && (
-                            <p className="text-xs text-amber-600 mt-2 font-medium">
-                              ✦ {event.impact}
+                          {concept.keyPeople && concept.keyPeople.length > 0 && (
+                            <p className="text-xs text-slate-500 mt-2">
+                              关键人物：{concept.keyPeople.join('、')}
                             </p>
                           )}
-                          <div className="flex items-center gap-2 mt-3">
-                            {event.keyPeople && event.keyPeople.length > 0 && (
-                              <span className="text-xs text-slate-500 flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {event.keyPeople.slice(0, 2).join('、')}
-                              </span>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 text-xs ml-auto"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHighlightEventId(event.id);
-                                setGraphDialogOpen(true);
-                              }}
-                            >
-                              <GitFork className="h-3 w-3 mr-1" />
-                              查因果
-                            </Button>
-                          </div>
                         </CardContent>
                       </Card>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* 因果图谱 */}
-          <TabsContent value="graph">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>因果链知识图谱</span>
-                  <Badge variant="outline">{causalLinks.length} 条因果关系</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <CausalGraphLegend />
-                <div className="h-[600px] border rounded-lg overflow-hidden">
-                  <CausalGraph
-                    onEventClick={handleGraphEventClick}
-                    highlightEventId={highlightEventId}
-                  />
+                    );
+                  })}
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  点击节点查看详情，点击边查看因果逻辑
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 概念词典 */}
-          <TabsContent value="concepts">
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {concepts.map((concept) => {
-                const colors: Record<string, string> = {
-                  政治: 'border-amber-300',
-                  经济: 'border-emerald-300',
-                  思想: 'border-violet-300',
-                  文化: 'border-pink-300',
-                  军事: 'border-red-300',
-                  社会: 'border-slate-300',
-                };
-                const color = colors[concept.category] || colors.社会;
-
-                return (
-                  <Card key={concept.id} className={`border-l-4 ${color}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="text-base font-bold text-slate-800">
-                          {concept.name}
-                        </h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {concept.category}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {concept.definition}
-                      </p>
-                      {concept.keyPeople && concept.keyPeople.length > 0 && (
-                        <p className="text-xs text-slate-500 mt-2">
-                          关键人物：{concept.keyPeople.join('、')}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </TabsContent>
-        </Tabs>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       {/* 事件详情弹窗 */}
@@ -501,6 +775,8 @@ function Unit1TimelinePage() {
           </DialogHeader>
           <div className="h-[70vh]">
             <CausalGraph
+              events={knowledgeData.timelineEvents}
+              causalLinks={knowledgeData.causalLinks}
               onEventClick={handleGraphEventClick}
               highlightEventId={highlightEventId}
             />
@@ -514,7 +790,7 @@ function Unit1TimelinePage() {
           <div className="flex items-center justify-between p-3 border-b bg-slate-50 rounded-t-lg">
             <h3 className="font-bold flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-indigo-500" />
-              第一单元 AI 助教
+              历史 AI 助教
             </h3>
             <Button
               variant="ghost"
@@ -528,8 +804,15 @@ function Unit1TimelinePage() {
 
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
-              💡 我是第一单元的专属学习助手，可以回答关于从中华文明起源到秦汉统一的相关问题。
+              💡 我可以回答关于历史知识点、辽宁高考备考策略等相关问题。
             </div>
+
+            {knowledgeData.summary && (
+              <div className="text-xs bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="font-medium text-amber-800 mb-1">📚 学习建议</p>
+                <p className="text-amber-700">{knowledgeData.summary}</p>
+              </div>
+            )}
 
             {aiAnswer && (
               <div className="bg-indigo-50 p-3 rounded-lg">

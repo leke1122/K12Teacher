@@ -13,7 +13,26 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { timelineEvents, causalLinks, type TimelineEvent, type CausalLink } from '@/data/history/unit1_data';
+// 类型定义
+interface TimelineEvent {
+  id: string;
+  year: string;
+  title: string;
+  dynasty: string;
+  summary?: string;
+  impact?: string;
+  category: string;
+  importance?: number;
+  keyPeople?: string[];
+}
+
+interface CausalLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  logic: string;
+  type?: string;
+}
 
 // 节点颜色配置
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -56,18 +75,24 @@ const nodeTypes = {
 };
 
 interface CausalGraphProps {
-  onEventClick?: (event: TimelineEvent) => void;
+  events?: TimelineEvent[];
+  causalLinks?: CausalLink[];
+  onEventClick?: (event: any) => void;
   highlightEventId?: string;
 }
 
-export default function CausalGraph({ onEventClick, highlightEventId }: CausalGraphProps) {
+export default function CausalGraph({ events = [], causalLinks = [], onEventClick, highlightEventId }: CausalGraphProps) {
+  // 如果没有传入数据，使用空数组
+  const graphEvents = events.length > 0 ? events : [];
+  const graphLinks = causalLinks.length > 0 ? causalLinks : [];
+
   // 构建节点和边
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
     // 为每个事件创建节点
-    const eventMap = new Map(timelineEvents.map(e => [e.id, e]));
+    const eventMap = new Map(graphEvents.map(e => [e.id, e]));
 
     // 按类别分组
     const categoryOrder = ['经济', '政治', '思想', '文化', '军事', '社会'];
@@ -77,7 +102,7 @@ export default function CausalGraph({ onEventClick, highlightEventId }: CausalGr
     });
 
     // 创建节点
-    timelineEvents.forEach((event, index) => {
+    graphEvents.forEach((event, index) => {
       const col = categoryPositions[event.category] ?? 5;
       const row = Math.floor(index / 3);
       const isHighlighted = event.id === highlightEventId;
@@ -94,30 +119,36 @@ export default function CausalGraph({ onEventClick, highlightEventId }: CausalGr
     });
 
     // 创建边
-    causalLinks.forEach((link) => {
+    graphLinks.forEach((link) => {
       const sourceEvent = eventMap.get(link.sourceId);
       const targetEvent = eventMap.get(link.targetId);
       if (sourceEvent && targetEvent) {
+        const linkType = link.type || '导致';
+        const typeColors: Record<string, string> = {
+          '导致': '#ef4444',
+          '促进': '#10b981',
+          '制约': '#f59e0b',
+          '推动': '#6366f1',
+        };
+        const color = typeColors[linkType] || '#6b7280';
+
         edges.push({
           id: link.id,
           source: link.sourceId,
           target: link.targetId,
-          label: link.logic,
+          label: linkType,
           type: 'smoothstep',
-          animated: true,
-          style: { stroke: '#94a3b8', strokeWidth: 2 },
-          labelStyle: { fontSize: 10, fill: '#64748b' },
-          labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#94a3b8',
-          },
+          animated: linkType === '推动',
+          style: { stroke: color, strokeWidth: 2 },
+          labelStyle: { fill: color, fontSize: 12 },
+          labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
+          markerEnd: { type: MarkerType.ArrowClosed, color },
         });
       }
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [highlightEventId, onEventClick]);
+  }, [graphEvents, graphLinks, highlightEventId, onEventClick]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerData, setServerData, deleteServerData } from '@/lib/serverStorage';
+import { supabase, isSupabaseConfigured, findDocxImportByUnitId, findDocxImportByUnitTitle } from '@/lib/supabase';
+import type { DocxParseResult } from '@/lib/docxParser';
 
 export interface CausalChainNode {
   title: string;
@@ -18,32 +19,112 @@ export interface CausalChain {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const eventName = String(body.eventName || '');
-  const chapterId = String(body.chapterId || 'modern-china');
-  const sectionId = String(body.sectionId || '');
-
-  if (!eventName) {
-    return NextResponse.json({ success: false, message: '缺少事件名称' }, { status: 400 });
-  }
-
   try {
+    const body = await request.json().catch(() => ({}));
+    const eventName = String(body.eventName || '').trim();
+    const chapterId = String(body.chapterId || 'unit1').trim();
+    const sectionId = String(body.sectionId || '').trim();
+    const unitId = String(body.unitId || chapterId).trim();
+
+    if (!eventName) {
+      return NextResponse.json({ success: false, message: '缺少事件名称' }, { status: 400 });
+    }
+
     const cacheKey = sectionId
       ? `causal_chain_${encodeURIComponent(eventName)}_${encodeURIComponent(sectionId)}`
       : `causal_chain_${encodeURIComponent(eventName)}`;
-    const cached = getServerData<CausalChain>(cacheKey);
-    if (cached) {
-      return NextResponse.json({ success: true, source: 'cache', data: cached });
+
+    // 优先读取 docx 导入数据
+    let docxImport: Awaited<ReturnType<typeof findDocxImportByUnitId>> = null;
+    if (unitId) {
+      docxImport = await findDocxImportByUnitId(unitId);
+    }
+    if (!docxImport) {
+      const terms = [chapterId, sectionId, unitId, '第一单元', '中国古代史'].filter(Boolean);
+      for (const term of terms) {
+        docxImport = await findDocxImportByUnitTitle(term);
+        if (docxImport?.data) break;
+      }
+    }
+
+    if (docxImport?.data) {
+      const docxData = docxImport.data as DocxParseResult;
+      const chain = buildCausalChainFromDocx(eventName, chapterId, docxData);
+      return NextResponse.json({
+        success: true,
+        source: 'docx_import',
+        data: chain,
+        importId: docxImport.id,
+        unitTitle: docxData.unitTitle,
+      });
     }
 
     const chain = await generateCausalChain(eventName, chapterId);
-    setServerData(cacheKey, chain);
-
     return NextResponse.json({ success: true, source: 'generated', data: chain });
   } catch (error) {
-    console.error('[causal-chain] 生成失败:', error);
+    console.error('[history/causal-chain] error:', error);
     return NextResponse.json({ success: false, message: '生成因果链失败' }, { status: 500 });
   }
+}
+
+function buildCausalChainFromDocx(eventName: string, chapterId: string, docxData: DocxParseResult): CausalChain {
+  const lower = eventName.toLowerCase();
+  const matchedEvents = (docxData.timelineEvents || []).filter(e =>
+    e.title.toLowerCase().includes(lower) ||
+    e.summary.toLowerCase().includes(lower)
+  );
+
+  const target = matchedEvents[0];
+  const farCauses: CausalChainNode[] = [];
+  const nearCauses: CausalChainNode[] = [];
+  const directEffects: CausalChainNode[] = [];
+  const deepEffects: CausalChainNode[] = [];
+
+  if (target) {
+    const matchedLinks = (docxData.causalLinks || []).filter(l => l.targetId === target.id || l.sourceId === target.id);
+    for (const link of matchedLinks.slice(0, 6)) {
+      const node: CausalChainNode = {
+        title: link.targetId === target.id ? link.sourceId : link.targetId,
+        description: link.logic,
+        source: 'docx_import',
+      };
+      if (link.targetId === target.id) {
+        if (link.type === '导致' || link.type === '推动') directEffects.push(node);
+        else nearCauses.push(node);
+      } else {
+        if (link.type === '导致' || link.type === '推动') farCauses.push(node);
+        else nearCauses.push(node);
+      }
+    }
+  }
+
+  const relatedConcepts = (docxData.concepts || [])
+    .filter(c => c.impact.toLowerCase().includes(lower) || c.name.toLowerCase().includes(lower))
+    .slice(0, 3);
+
+  for (const concept of relatedConcepts) {
+    if (!farCauses.find(n => n.title === concept.name)) {
+      farCauses.push({ title: concept.name, description: concept.definition, source: 'docx_import' });
+    }
+    if (!directEffects.find(n => n.title === concept.name)) {
+      directEffects.push({ title: concept.name, description: concept.impact || concept.definition, source: 'docx_import' });
+    }
+  }
+
+  if (!farCauses.length) farCauses.push({ title: `${eventName}的时代背景`, description: docxData.summary || '该事件发生于重要历史阶段。', source: 'docx_import' });
+  if (!nearCauses.length) nearCauses.push({ title: '直接触发条件', description: target?.summary || '相关教材内容已整理。', source: 'docx_import' });
+  if (!directEffects.length) directEffects.push({ title: '直接影响', description: target?.impact || '对当时政治、经济、社会产生了重要影响。', source: 'docx_import' });
+  if (!deepEffects.length) deepEffects.push({ title: '历史意义', description: target?.impact || '对后世制度、民族关系或思想潮流产生深远影响。', source: 'docx_import' });
+
+  return {
+    eventName,
+    chapterId,
+    farCauses: farCauses.slice(0, 5),
+    nearCauses: nearCauses.slice(0, 4),
+    event: target?.summary || eventName,
+    directEffects: directEffects.slice(0, 4),
+    deepEffects: deepEffects.slice(0, 4),
+  };
 }
 
 async function generateCausalChain(eventName: string, chapterId: string): Promise<CausalChain> {
@@ -127,6 +208,25 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, message: '缺少事件名称' }, { status: 400 });
   }
   const cacheKey = `causal_chain_${encodeURIComponent(eventName)}`;
-  deleteServerData(cacheKey);
+  try {
+    deleteServerData(cacheKey);
+  } catch {
+    // ignore
+  }
   return NextResponse.json({ success: true });
+}
+
+function deleteServerData(key: string) {
+  try {
+    if (global?.process?.env && Object.getOwnPropertyDescriptor(global.process.env, key)) {
+      Object.defineProperty(global.process.env, key, {
+        value: undefined,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  } catch {
+    // noop
+  }
 }

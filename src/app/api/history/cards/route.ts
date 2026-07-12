@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getHistoryTextbook,
-  getHistoryTextbookTextByPages,
-  getHistoryLessonContent,
-  getHistoryLessonTitle,
-} from '@/lib/historyData.server';
+import { supabase, isSupabaseConfigured, findDocxImportByUnitId, findDocxImportByUnitTitle } from '@/lib/supabase';
 import { getServerData, setServerData } from '@/lib/serverStorage';
+import type { DocxParseResult } from '@/lib/docxParser';
 
 interface HistoryCardItem {
   id: string;
@@ -17,13 +13,15 @@ interface HistoryCardItem {
 }
 
 export async function GET(request: NextRequest) {
-  const chapterId = request.nextUrl.searchParams.get('chapterId') || 'modern-china';
+  const chapterId = request.nextUrl.searchParams.get('chapterId') || 'unit1';
   const sectionId = request.nextUrl.searchParams.get('sectionId') || '';
+  const unitId = request.nextUrl.searchParams.get('unitId') || '';
+
+  const cacheKey = sectionId
+    ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
+    : `history_cards_${chapterId}`;
 
   try {
-    const cacheKey = sectionId
-      ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
-      : `history_cards_${chapterId}`;
     const cached = getServerData<{ chapterId: string; cards: HistoryCardItem[] }>(cacheKey);
     if (cached?.cards?.length) {
       return NextResponse.json({ success: true, source: 'cache', data: cached });
@@ -32,15 +30,65 @@ export async function GET(request: NextRequest) {
     // ignore cache errors
   }
 
+  // 优先读取 docx 导入数据
+  try {
+    let docxImport: Awaited<ReturnType<typeof findDocxImportByUnitId>> = null;
+    if (unitId) {
+      docxImport = await findDocxImportByUnitId(unitId);
+    }
+    if (!docxImport) {
+      const terms = [chapterId, sectionId, unitId, '第一单元', '中国古代史'].filter(Boolean) as string[];
+      for (const term of terms) {
+        docxImport = await findDocxImportByUnitTitle(term);
+        if (docxImport?.data) break;
+      }
+    }
+
+    if (docxImport?.data) {
+      const docxData = docxImport.data as DocxParseResult;
+      const cards = buildCardsFromDocx(chapterId, docxData);
+      const payload = { chapterId, cards };
+      try { setServerData(cacheKey, payload); } catch {}
+      return NextResponse.json({ success: true, source: 'docx_import', data: payload, importId: docxImport.id, unitTitle: docxData.unitTitle });
+    }
+  } catch (err) {
+    console.warn('[history/cards] docx 加载失败:', err);
+  }
+
   return NextResponse.json({ success: true, source: 'empty', data: { chapterId, cards: [] } });
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const chapterId = String(body.chapterId || 'modern-china');
+  const chapterId = String(body.chapterId || 'unit1');
   const sectionId = String(body.sectionId || '');
+  const unitId = String(body.unitId || '');
 
   try {
+    // 优先读取 docx 导入数据
+    let docxImport: Awaited<ReturnType<typeof findDocxImportByUnitId>> = null;
+    if (unitId) {
+      docxImport = await findDocxImportByUnitId(unitId);
+    }
+    if (!docxImport) {
+      const terms = [chapterId, sectionId, unitId, '第一单元', '中国古代史'].filter(Boolean) as string[];
+      for (const term of terms) {
+        docxImport = await findDocxImportByUnitTitle(term);
+        if (docxImport?.data) break;
+      }
+    }
+
+    if (docxImport?.data) {
+      const docxData = docxImport.data as DocxParseResult;
+      const cards = buildCardsFromDocx(chapterId, docxData);
+      const cacheKey = sectionId
+        ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
+        : `history_cards_${chapterId}`;
+      const payload = { chapterId, cards };
+      setServerData(cacheKey, payload);
+      return NextResponse.json({ success: true, source: 'docx_import', data: payload, importId: docxImport.id, unitTitle: docxData.unitTitle });
+    }
+
     const textbook = await getHistoryTextbook();
     if (!textbook) {
       return NextResponse.json({ success: false, message: '未找到历史教材，请先上传教材' }, { status: 404 });
@@ -66,7 +114,6 @@ export async function POST(request: NextRequest) {
     }
 
     const cards = await generateHistoryCards(chapterId, sectionTitle, text);
-
     const cacheKey = sectionId
       ? `history_cards_${chapterId}_${encodeURIComponent(sectionId)}`
       : `history_cards_${chapterId}`;
@@ -78,6 +125,45 @@ export async function POST(request: NextRequest) {
     console.error('[history/cards] 生成失败:', error);
     return NextResponse.json({ success: false, message: '生成历史卡牌失败' }, { status: 500 });
   }
+}
+
+function buildCardsFromDocx(chapterId: string, docxData: DocxParseResult): HistoryCardItem[] {
+  const cards: HistoryCardItem[] = [];
+  const seen = new Set<string>();
+
+  for (const event of docxData.timelineEvents || []) {
+    const id = `event-${event.id}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    cards.push({
+      id,
+      type: 'event',
+      title: event.title,
+      front: event.title,
+      back: `${event.year} · ${event.dynasty}\n\n${event.summary}\n\n历史影响：${event.impact || '详见知识点'}`,
+      chapterId,
+    });
+  }
+
+  for (const concept of docxData.concepts || []) {
+    const id = `concept-${concept.id}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    cards.push({
+      id,
+      type: 'system',
+      title: concept.name,
+      front: concept.name,
+      back: `类别：${concept.category}\n\n定义：${concept.definition}${concept.keyPeople?.length ? `\n\n关键人物：${concept.keyPeople.join('、')}` : ''}`,
+      chapterId,
+    });
+  }
+
+  if (!cards.length) {
+    return generateFallbackCards(chapterId);
+  }
+
+  return cards;
 }
 
 async function generateHistoryCards(chapterId: string, chapterTitle: string, text: string): Promise<HistoryCardItem[]> {
@@ -174,4 +260,40 @@ function generateFallbackCards(chapterId: string): HistoryCardItem[] {
       chapterId,
     },
   ];
+}
+
+async function getHistoryTextbook() {
+  try {
+    const mod = await import('@/lib/historyData.server');
+    return mod.getHistoryTextbook();
+  } catch {
+    return null;
+  }
+}
+
+async function getHistoryLessonTitle(sectionId: string) {
+  try {
+    const mod = await import('@/lib/historyData.server');
+    return mod.getHistoryLessonTitle(sectionId);
+  } catch {
+    return null;
+  }
+}
+
+async function getHistoryLessonContent(sectionId: string) {
+  try {
+    const mod = await import('@/lib/historyData.server');
+    return mod.getHistoryLessonContent(sectionId);
+  } catch {
+    return null;
+  }
+}
+
+async function getHistoryTextbookTextByPages(chapterId: string, startPage?: number, endPage?: number) {
+  try {
+    const mod = await import('@/lib/historyData.server');
+    return mod.getHistoryTextbookTextByPages(chapterId, startPage, endPage);
+  } catch {
+    return null;
+  }
 }

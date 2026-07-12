@@ -8,42 +8,85 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HistoryCard } from '@/components/history/HistoryCard';
 import type { HistoryCardItem } from '@/components/history/HistoryCard';
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, BookOpen, Layers, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { timelineEvents, concepts } from '@/data/history/unit1_data';
 
 const CHAPTERS: Record<string, { title: string }> = {
+  'unit1': { title: '第一单元：从中华文明起源到秦汉统一' },
   'modern-china': { title: '中国近代史' },
+  'ln-gaokao': { title: '辽宁高考历史' },
 };
+
+// 从 unit1_data 生成默认卡牌
+function generateDefaultCards(): HistoryCardItem[] {
+  const cards: HistoryCardItem[] = [];
+
+  // 从时间轴事件生成卡牌
+  for (const event of timelineEvents.slice(0, 15)) {
+    cards.push({
+      id: `event-${event.id}`,
+      type: 'event',
+      title: event.title,
+      front: event.title,
+      back: `${event.year} · ${event.dynasty}\n\n${event.summary}\n\n历史影响：${event.impact || '详见课本'}`,
+      chapterId: 'unit1',
+    });
+  }
+
+  // 从概念生成卡牌
+  for (const concept of concepts) {
+    cards.push({
+      id: `concept-${concept.id}`,
+      type: 'system',
+      title: concept.name,
+      front: concept.name,
+      back: `类别：${concept.category}\n\n定义：${concept.definition}${concept.keyPeople?.length ? `\n\n关键人物：${concept.keyPeople.join('、')}` : ''}`,
+      chapterId: 'unit1',
+    });
+  }
+
+  return cards;
+}
+
+// 内置卡牌数据（用于展示）
+const BUILT_IN_CARDS = generateDefaultCards();
 
 function HistoryCardsPageContent() {
   const params = useParams();
-  const chapterId = useMemo(() => (params.chapterId as string) || 'modern-china', [params.chapterId]);
+  const chapterId = useMemo(() => (params.chapterId as string) || 'unit1', [params.chapterId]);
+  const unitId = useMemo(() => (params.unitId as string) || chapterId, [params.unitId, chapterId]);
   const [cards, setCards] = useState<HistoryCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('cards');
+  const [activeTab, setActiveTab] = useState('practice');
+  const [source, setSource] = useState<'default' | 'generated' | 'api' | 'docx_import'>('default');
 
   const loadCards = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/history/cards?chapterId=${encodeURIComponent(chapterId)}`);
+      const response = await fetch(`/api/history/cards?chapterId=${encodeURIComponent(chapterId)}&unitId=${encodeURIComponent(unitId)}`);
       const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || '加载失败');
+      if (response.ok && json.success && json.data?.cards?.length > 0) {
+        setCards((json.data.cards || []) as HistoryCardItem[]);
+        setSource((json.source as typeof source) || 'api');
+        return;
       }
-      setCards((json.data?.cards || []) as HistoryCardItem[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setLoading(false);
+      console.warn('API 获取失败，使用默认数据:', err);
     }
+
+    setCards(BUILT_IN_CARDS);
+    setSource('default');
+    setLoading(false);
   };
 
   useEffect(() => {
-    setActiveTab('cards');
+    setActiveTab('practice');
     loadCards();
-  }, [chapterId]);
+  }, [chapterId, unitId]);
 
   const handleExtract = async () => {
     setExtracting(true);
@@ -52,15 +95,18 @@ function HistoryCardsPageContent() {
       const response = await fetch(`/api/history/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chapterId }),
+        body: JSON.stringify({ chapterId, unitId }),
       });
       const json = await response.json();
       if (!response.ok || !json.success) {
         throw new Error(json.message || '提取失败');
       }
       setCards((json.data?.cards || []) as HistoryCardItem[]);
+      setSource((json.source as typeof source) || 'generated');
     } catch (err) {
       setError(err instanceof Error ? err.message : '提取失败');
+      setCards(BUILT_IN_CARDS);
+      setSource('default');
     } finally {
       setExtracting(false);
     }
@@ -80,25 +126,51 @@ function HistoryCardsPageContent() {
     [cards],
   );
 
+  // 按类型分组卡牌
+  const cardsByType = useMemo(() => {
+    const grouped: Record<string, HistoryCardItem[]> = {
+      event: [],
+      person: [],
+      system: [],
+      treaty: [],
+    };
+    for (const card of cards) {
+      const type = card.type || 'event';
+      if (grouped[type]) {
+        grouped[type].push(card);
+      } else {
+        grouped.event.push(card);
+      }
+    }
+    return grouped;
+  }, [cards]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
       <div className="w-full px-4 py-4">
         <div className="flex items-center gap-3 mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1"
-            onClick={() => window.history.back()}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            返回
-          </Button>
+          <Link href="/subjects/history">
+            <Button variant="ghost" size="sm" className="gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              返回
+            </Button>
+          </Link>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              📜 {CHAPTERS[chapterId]?.title || '历史'} · 历史卡牌
+              <Layers className="h-5 w-5 text-blue-500" />
+              {CHAPTERS[chapterId]?.title || '历史'} · 历史卡牌
             </h1>
             <p className="text-xs text-muted-foreground">
               共 {cards.length} 张卡牌 · 已掌握 {masteredCount} 张
+              {source === 'default' && (
+                <span className="ml-2 text-amber-600">（内置卡牌）</span>
+              )}
+              {source === 'generated' && (
+                <span className="ml-2 text-green-600">（已生成）</span>
+              )}
+              {source === 'docx_import' && (
+                <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>
+              )}
             </p>
           </div>
           <Button
@@ -109,7 +181,7 @@ function HistoryCardsPageContent() {
             disabled={extracting || loading}
           >
             {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {extracting ? '提取中' : '从教材生成卡牌'}
+            {extracting ? '生成中' : '生成卡牌'}
           </Button>
         </div>
 
@@ -121,21 +193,33 @@ function HistoryCardsPageContent() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
           <TabsList>
-            <TabsTrigger value="cards" className="gap-1">
-              卡牌练习
+            <TabsTrigger value="practice" className="gap-1">
+              <Layers className="h-4 w-4" />
+              全部卡牌
+            </TabsTrigger>
+            <TabsTrigger value="events" className="gap-1">
+              <Clock className="h-4 w-4" />
+              事件卡 ({cardsByType.event.length})
+            </TabsTrigger>
+            <TabsTrigger value="concepts" className="gap-1">
+              <BookOpen className="h-4 w-4" />
+              概念卡 ({cardsByType.system.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="cards">
+          <TabsContent value="practice">
             <Card>
               <CardHeader className="pb-3 pt-3">
-                <CardTitle className="text-base">历史卡牌</CardTitle>
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>历史卡牌练习</span>
+                  <Badge variant="outline">{cards.length} 张</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    正在生成历史卡牌...
+                    正在加载历史卡牌...
                   </div>
                 ) : cards.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -146,6 +230,70 @@ function HistoryCardsPageContent() {
                   </div>
                 ) : (
                   <HistoryCard cards={cards} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="events">
+            <Card>
+              <CardHeader className="pb-3 pt-3">
+                <CardTitle className="text-base">事件卡牌</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {cardsByType.event.length > 0 ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {cardsByType.event.map((card) => (
+                      <div
+                        key={card.id}
+                        className="p-4 rounded-lg border bg-white hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => {
+                          setCards([card, ...cards.filter(c => c.id !== card.id)]);
+                          setActiveTab('practice');
+                        }}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <Badge variant="outline" className="text-xs">事件卡</Badge>
+                        </div>
+                        <h4 className="font-semibold text-slate-800 mb-1">{card.title}</h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{card.back}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">暂无事件卡牌</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="concepts">
+            <Card>
+              <CardHeader className="pb-3 pt-3">
+                <CardTitle className="text-base">概念卡牌</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {cardsByType.system.length > 0 ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {cardsByType.system.map((card) => (
+                      <div
+                        key={card.id}
+                        className="p-4 rounded-lg border bg-white hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => {
+                          setCards([card, ...cards.filter(c => c.id !== card.id)]);
+                          setActiveTab('practice');
+                        }}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <Badge variant="outline" className="text-xs">概念卡</Badge>
+                        </div>
+                        <h4 className="font-semibold text-slate-800 mb-1">{card.title}</h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{card.back}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">暂无概念卡牌</p>
                 )}
               </CardContent>
             </Card>
