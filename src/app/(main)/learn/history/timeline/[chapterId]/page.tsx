@@ -28,7 +28,9 @@ import {
 } from 'lucide-react';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
 import Drawer from '@/components/history/Drawer';
+import { DocxImportButton } from '@/components/history/DocxImportButton';
 import type { TimelineEvent, CausalLink, Concept } from '@/data/history/unit1_data';
+import { timelineEvents as builtinTimelineEvents, concepts as builtinConcepts, causalLinks as builtinCausalLinks } from '@/data/history/unit1_data';
 
 interface ExamFocus {
   conceptId: string;
@@ -157,8 +159,34 @@ function Unit1TimelinePage() {
 
       const data = await response.json();
       if (data.success && data.data) {
-        setKnowledgeData(data.data);
-        setDataSource(data.source || '');
+        const events = data.data.timelineEvents || [];
+        if (events.length > 0) {
+          setKnowledgeData(data.data);
+          setDataSource(data.source || '');
+          return;
+        }
+
+        const fallback =
+          unitId === 'unit1'
+            ? {
+                timelineEvents: builtinTimelineEvents,
+                causalLinks: builtinCausalLinks,
+                concepts: builtinConcepts,
+                examFocus: [],
+                summary: '当前展示内置第一单元知识点；上传 docx 可替换为您的自定义内容。',
+                unitTitle: '第一单元：从中华文明起源到秦汉统一',
+                pageRange: '内置数据',
+              }
+            : null;
+
+        if (fallback) {
+          setKnowledgeData(fallback);
+          setDataSource('builtin');
+          return;
+        }
+
+        setError('该单元暂无可用知识点，请先导入教材目录或上传 docx。');
+        setDataSource('');
       } else {
         setError(data.message || data.hint || '加载数据失败');
         if (data.hint) {
@@ -326,6 +354,24 @@ function Unit1TimelinePage() {
               <MessageCircle className="h-4 w-4" />
               AI 助教
             </Button>
+
+            <DocxImportButton
+              size="sm"
+              variant="outline"
+              onImportSuccess={(result) => {
+                setKnowledgeData({
+                  timelineEvents: [],
+                  causalLinks: [],
+                  concepts: [],
+                  examFocus: [],
+                  summary: result.summary || '',
+                  unitTitle: result.unitTitle,
+                  pageRange: result.pageRange,
+                });
+                setDataSource('docx_import');
+                loadKnowledgeData(selectedUnitId, true);
+              }}
+            />
           </div>
         </div>
 

@@ -18,6 +18,7 @@ interface ImportResult {
   importId: string;
   unitTitle: string;
   pageRange: string;
+  summary?: string;
   stats: {
     concepts: number;
     events: number;
