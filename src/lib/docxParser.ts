@@ -161,20 +161,40 @@ function extractPageRange(text: string): string {
 
 /**
  * 按主知识点将文本分割成块
- * 主知识点以 "数字、" 开头
+ * 支持：
+ * 1. "数字、"开头（如 2、分封制）
+ * 2. 特定章节标题格式
+ * 3. 中文冒号结尾的标题行
  */
 function splitIntoConceptBlocks(lines: string[]): string[][] {
   const blocks: string[][] = [];
   let currentBlock: string[] = [];
 
-  for (const line of lines) {
-    // 主知识点标题行
-    const isConceptHeader = /^([一二三四五六七八九十\d]+[、.．][^:：\n]{2,30})/.test(line) &&
-      !line.includes('重要') && !line.includes('特点');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
 
     // 跳过导航类行
     if (line.includes('纲要') && line.includes('复习提纲')) continue;
     if (line.match(/^[新旧]?石器时代|代表性文化遗存$/)) continue;
+
+    // 主知识点标题行检测
+    const isNumberedHeader = /^([一二三四五六七八九十\d]+[、.．][^:：\n]{2,40})/.test(line) &&
+      !line.includes('重要') && !line.includes('特点');
+
+    const isColonHeader = /^.{2,30}[：:]$/.test(line) &&
+      !line.startsWith('①') &&
+      !line.startsWith('②') &&
+      !line.startsWith('③') &&
+      !line.startsWith('a.') &&
+      !line.startsWith('b.') &&
+      !line.startsWith('c.') &&
+      !line.startsWith('积极') &&
+      !line.startsWith('消极') &&
+      !line.startsWith('影响') &&
+      !line.startsWith('意义') &&
+      !line.startsWith('评价');
+
+    const isConceptHeader = isNumberedHeader || isColonHeader;
 
     if (isConceptHeader && currentBlock.length > 0) {
       blocks.push(currentBlock);
@@ -199,11 +219,11 @@ function parseConceptBlock(lines: string[]): Concept | null {
 
   const firstLine = lines[0];
 
-  // 提取概念名称（去掉序号）
-  const nameMatch = firstLine.match(/^([一二三四五六七八九十\d]+[、.．])([^\n:：?？]+)/);
+  // 提取概念名称（支持编号标题、冒号标题、破折号标题）
+  const nameMatch = firstLine.match(/^([一二三四五六七八九十\d]+[、.．])?([^\n:：?？—]+)/);
   if (!nameMatch) return null;
 
-  const name = nameMatch[2].replace(/[?？!！.,，。、：:]$/, '').trim();
+  let name = nameMatch[2].replace(/[?？!！.,，。、：:]$/, '').trim();
   if (name.length < 2) return null;
 
   // 判断类别
