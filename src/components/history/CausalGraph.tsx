@@ -1,40 +1,18 @@
 'use client';
 
-import { useCallback, useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
   Controls,
   Background,
-  useNodesState,
-  useEdgesState,
   MarkerType,
   Position,
 } from 'reactflow';
+import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
+import type { TimelineEvent, CausalLink } from '@/data/history/unit1_data';
 
-// 类型定义
-interface TimelineEvent {
-  id: string;
-  year: string;
-  title: string;
-  dynasty: string;
-  summary?: string;
-  impact?: string;
-  category: string;
-  importance?: number;
-  keyPeople?: string[];
-}
-
-interface CausalLink {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  logic: string;
-  type?: string;
-}
-
-// 节点颜色配置
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
   政治: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
   经济: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
@@ -44,136 +22,167 @@ const categoryColors: Record<string, { bg: string; border: string; text: string 
   社会: { bg: '#f3f4f6', border: '#6b7280', text: '#374151' },
 };
 
-// 自定义节点组件
-function EventNode({ data }: { data: { event: TimelineEvent; onClick: (event: TimelineEvent) => void } }) {
-  const colors = categoryColors[data.event.category] || categoryColors.社会;
+const categoryOrder = ['经济', '政治', '思想', '文化', '军事', '社会'];
 
-  return (
-    <div
-      className="px-4 py-3 rounded-lg border-2 shadow-sm cursor-pointer transition-all hover:shadow-md min-w-[180px] max-w-[220px]"
-      style={{
-        backgroundColor: colors.bg,
-        borderColor: colors.border,
-      }}
-      onClick={() => data.onClick(data.event)}
-    >
-      <div className="text-xs font-medium mb-1" style={{ color: colors.text }}>
-        {data.event.year}
-      </div>
-      <div className="text-sm font-bold text-gray-800 mb-1">
-        {data.event.title}
-      </div>
-      <div className="text-xs" style={{ color: colors.text }}>
-        {data.event.category}
-      </div>
-    </div>
-  );
+function getCategoryRank(category: string) {
+  const idx = categoryOrder.indexOf(category);
+  return idx >= 0 ? idx : categoryOrder.length;
 }
 
-const nodeTypes = {
-  event: EventNode,
-};
+function getCategoryWeight(category: string) {
+  const weights: Record<string, number> = {
+    经济: 1,
+    政治: 2,
+    社会: 3,
+    思想: 4,
+    文化: 5,
+    军事: 6,
+  };
+  return weights[category] || 99;
+}
+
+function buildDagreLayout(events: TimelineEvent[], links: CausalLink[]) {
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({
+    rankdir: 'TB',
+    nodesep: 80,
+    ranksep: 120,
+    marginx: 40,
+    marginy: 40,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  const eventMap = new Map(events.map(e => [e.id, e]));
+
+  events.forEach(event => {
+    g.setNode(event.id, {
+      label: event.title,
+      category: event.category,
+      width: 220,
+      height: 80,
+    });
+  });
+
+  links.forEach(link => {
+    if (eventMap.has(link.sourceId) && eventMap.has(link.targetId)) {
+      g.setEdge(link.sourceId, link.targetId, { type: link.type || '导致' });
+    }
+  });
+
+  dagre.layout(g);
+
+  const nodeWidth = 220;
+  const nodeHeight = 80;
+
+  const nodes: Node[] = events.map(event => {
+    const dagreNode = g.node(event.id);
+    const position = dagreNode
+      ? { x: dagreNode.x - nodeWidth / 2, y: dagreNode.y - nodeHeight / 2 }
+      : { x: 0, y: 0 };
+
+    return {
+      id: event.id,
+      type: 'historyEvent',
+      position,
+      data: { event },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    };
+  });
+
+  const edges: Edge[] = [];
+  g.edges().forEach(edge => {
+    const link = links.find(l => l.sourceId === edge.v && l.targetId === edge.w);
+    const linkType = link?.type || '导致';
+    const typeColors: Record<string, string> = {
+      导致: '#ef4444',
+      促进: '#10b981',
+      制约: '#f59e0b',
+      推动: '#6366f1',
+    };
+    const color = typeColors[linkType] || '#6b7280';
+
+    edges.push({
+      id: link?.id || `${edge.v}-${edge.w}`,
+      source: edge.v,
+      target: edge.w,
+      label: linkType,
+      type: 'smoothstep',
+      animated: linkType === '推动',
+      style: { stroke: color, strokeWidth: 2 },
+      labelStyle: { fill: color, fontSize: 12 },
+      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 },
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+      data: { logic: link?.logic },
+    });
+  });
+
+  return { nodes, edges };
+}
 
 interface CausalGraphProps {
   events?: TimelineEvent[];
   causalLinks?: CausalLink[];
-  onEventClick?: (event: any) => void;
+  onEventClick?: (event: TimelineEvent) => void;
   highlightEventId?: string;
 }
 
-export default function CausalGraph({ events = [], causalLinks = [], onEventClick, highlightEventId }: CausalGraphProps) {
-  // 如果没有传入数据，使用空数组
-  const graphEvents = events.length > 0 ? events : [];
-  const graphLinks = causalLinks.length > 0 ? causalLinks : [];
+export default function CausalGraph({
+  events = [],
+  causalLinks = [],
+  onEventClick,
+  highlightEventId,
+}: CausalGraphProps) {
+  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+    () => buildDagreLayout(events, causalLinks),
+    [events, causalLinks],
+  );
 
-  // 构建节点和边
-  const { initialNodes, initialEdges } = useMemo(() => {
-    const nodes: Node[] = [];
-    const edges: Edge[] = [];
-
-    // 为每个事件创建节点
-    const eventMap = new Map(graphEvents.map(e => [e.id, e]));
-
-    // 按类别分组
-    const categoryOrder = ['经济', '政治', '思想', '文化', '军事', '社会'];
-    const categoryPositions: Record<string, number> = {};
-    categoryOrder.forEach((cat, idx) => {
-      categoryPositions[cat] = idx;
+  const sortedNodes = useMemo(() => {
+    return [...initialNodes].sort((a, b) => {
+      const eventA = a.data?.event as TimelineEvent | undefined;
+      const eventB = b.data?.event as TimelineEvent | undefined;
+      const catDiff = getCategoryWeight(eventA?.category || '') - getCategoryWeight(eventB?.category || '');
+      if (catDiff !== 0) return catDiff;
+      return (eventA?.importance || 0) - (eventB?.importance || 0);
     });
+  }, [initialNodes]);
 
-    // 创建节点
-    graphEvents.forEach((event, index) => {
-      const col = categoryPositions[event.category] ?? 5;
-      const row = Math.floor(index / 3);
-      const isHighlighted = event.id === highlightEventId;
+  const styledNodes = useMemo(() => {
+    return sortedNodes.map(node => {
+      const event = node.data?.event as TimelineEvent | undefined;
+      const colors = event ? categoryColors[event.category] || categoryColors.社会 : categoryColors.社会;
+      const isHighlighted = event?.id === highlightEventId;
 
-      nodes.push({
-        id: event.id,
-        type: 'event',
-        position: { x: col * 280 + 50, y: row * 120 + 50 },
-        data: { event, onClick: onEventClick || (() => {}) },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-        style: isHighlighted ? { transform: 'scale(1.1)', zIndex: 10 } : undefined,
-      });
-    });
-
-    // 创建边
-    graphLinks.forEach((link) => {
-      const sourceEvent = eventMap.get(link.sourceId);
-      const targetEvent = eventMap.get(link.targetId);
-      if (sourceEvent && targetEvent) {
-        const linkType = link.type || '导致';
-        const typeColors: Record<string, string> = {
-          '导致': '#ef4444',
-          '促进': '#10b981',
-          '制约': '#f59e0b',
-          '推动': '#6366f1',
-        };
-        const color = typeColors[linkType] || '#6b7280';
-
-        edges.push({
-          id: link.id,
-          source: link.sourceId,
-          target: link.targetId,
-          label: linkType,
-          type: 'smoothstep',
-          animated: linkType === '推动',
-          style: { stroke: color, strokeWidth: 2 },
-          labelStyle: { fill: color, fontSize: 12 },
-          labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
-          markerEnd: { type: MarkerType.ArrowClosed, color },
-        });
-      }
-    });
-
-    return { initialNodes: nodes, initialEdges: edges };
-  }, [graphEvents, graphLinks, highlightEventId, onEventClick]);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // 当高亮事件改变时，更新节点样式
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => ({
+      return {
         ...node,
-        style: node.id === highlightEventId ? { transform: 'scale(1.1)', zIndex: 10 } : { transform: 'scale(1)', zIndex: 1 },
-      }))
-    );
-  }, [highlightEventId, setNodes]);
+        style: {
+          ...node.style,
+          transform: isHighlighted ? 'scale(1.08)' : 'scale(1)',
+          zIndex: isHighlighted ? 10 : 1,
+          transition: 'transform 0.2s ease',
+        },
+        data: {
+          ...node.data,
+          category: event?.category,
+          colors,
+          onClick: () => event && onEventClick?.(event),
+        },
+      };
+    });
+  }, [sortedNodes, highlightEventId, onEventClick]);
 
   return (
-    <div className="w-full h-full min-h-[500px] bg-white rounded-lg">
+    <div className="w-full h-full min-h-[520px] bg-white rounded-lg">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
+        nodes={styledNodes}
+        edges={initialEdges}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.25 }}
         attributionPosition="bottom-left"
+        defaultEdgeOptions={{
+          type: 'smoothstep',
+        }}
       >
         <Background color="#e2e8f0" gap={16} />
         <Controls />
@@ -182,7 +191,6 @@ export default function CausalGraph({ events = [], causalLinks = [], onEventClic
   );
 }
 
-// 图例组件
 export function CausalGraphLegend() {
   return (
     <div className="flex flex-wrap gap-3 p-3 bg-slate-50 rounded-lg">

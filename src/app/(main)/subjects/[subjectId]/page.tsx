@@ -220,7 +220,7 @@ export default function SubjectPage() {
         )}
 
         {/* 可视化学习入口 - 非历史学科 */}
-        {!isHistory && (
+        {!isHistory && subjectId !== 'math' && (
           <Card className="rounded-xl shadow-sm border-0 overflow-hidden bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -241,6 +241,34 @@ export default function SubjectPage() {
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   开始学习
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 数学拍照纠错入口 */}
+        {subjectId === 'math' && (
+          <Card className="rounded-xl shadow-sm border-0 overflow-hidden bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xl">
+                    📸
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">拍照纠错</h3>
+                    <p className="text-xs text-muted-foreground">拍下错题，AI 导师引导你一步步自主思考解题</p>
+                  </div>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white"
+                  onClick={() => router.push('/learn/math/remediation')}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  开始纠错
                 </Button>
               </div>
             </CardContent>

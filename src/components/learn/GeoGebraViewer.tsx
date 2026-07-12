@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { validateScript } from '@/lib/geogebra/scriptValidator';
 
 export interface GeoGebraViewerProps {
   script?: string;
@@ -12,6 +11,7 @@ export interface GeoGebraViewerProps {
   onError?: (error: string) => void;
   className?: string;
   height?: string | number;
+  materialId?: string;
 }
 
 export interface GeoGebraViewerRef {
@@ -19,6 +19,23 @@ export interface GeoGebraViewerRef {
   clear: () => void;
   getApplet: () => unknown;
   resetView: () => void;
+}
+
+// 加载 GeoGebra 脚本
+function loadGeoGebraScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== 'undefined' && (window as any).GGBApplet) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.geogebra.org/apps/deps/ggbLibrary.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('加载 GeoGebra 脚本失败'));
+    document.head.appendChild(script);
+  });
 }
 
 export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>(
@@ -30,23 +47,19 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
       onError,
       className,
       height = '100%',
+      materialId = 'j7mkvch6',
     },
     ref
   ) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const appletRef = useRef<unknown>(null);
     const isReadyRef = useRef(false);
-    const isLoadingRef = useRef(true);
-    const iframeLoadedRef = useRef(false);
-    const timeoutClearedRef = useRef(false);
     const pendingScriptRef = useRef<string | null>(null);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const [isReady, setIsReady] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [loadingLog, setLoadingLog] = useState<string[]>([]);
-    const [loadStartTime, setLoadStartTime] = useState<number | null>(null);
 
     const addLog = useCallback((msg: string) => {
       setLoadingLog(prev => {
@@ -55,32 +68,17 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
       });
     }, []);
 
-    const clearConstruction = useCallback(() => {
-      try {
-        const iframe = iframeRef.current;
-        const win = iframe?.contentWindow as Window & {
-          ggbApplet?: { setXML: (xml: string) => void };
-        };
-        if (win?.ggbApplet) {
-          win.ggbApplet.setXML('<geogebra></geogebra>');
-          addLog('构造已清空');
-        }
-      } catch (e) {
-        addLog('清空构造失败: ' + String(e));
-      }
-    }, [addLog]);
-
     const executeGeoGebraScript = useCallback((scriptContent: string) => {
-      try {
-        const iframe = iframeRef.current;
-        const win = iframe?.contentWindow as Window & {
-          ggbApplet?: { evalCommand: (cmd: string) => void; setXML?: (xml: string) => void };
-          forceResize?: () => void;
-        };
+      if (!isReadyRef.current) {
+        console.warn('[GeoGebraViewer] GeoGebra 未就绪，脚本将排队等待');
+        pendingScriptRef.current = scriptContent;
+        return;
+      }
 
-        if (!win?.ggbApplet) {
-          console.warn('[GeoGebraViewer] ggbApplet 未就绪，脚本将排队等待');
-          pendingScriptRef.current = scriptContent;
+      try {
+        const ggbApplet = (window as any).ggbApplet;
+        if (!ggbApplet) {
+          console.warn('[GeoGebraViewer] ggbApplet 不可用');
           return;
         }
 
@@ -91,21 +89,11 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
           if (!trimmed) continue;
           if (trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
 
-          if (trimmed.startsWith('wait')) {
-            const match = trimmed.match(/wait\s+(\d+)/i);
-            const delay = match ? parseInt(match[1]) : 1000;
-            return new Promise(resolve => setTimeout(() => {
-              executeGeoGebraScript(scriptContent.replace(trimmed, '').trim());
-              resolve(true);
-            }, delay));
+          try {
+            ggbApplet.evalCommand(trimmed);
+          } catch (cmdError) {
+            console.warn(`[GeoGebraViewer] 命令执行失败: ${trimmed}`, cmdError);
           }
-
-          // 直接执行 GeoGebra 命令，不再解析嵌套的 evalCommand/setXML
-          win.ggbApplet.evalCommand(trimmed);
-        }
-
-        if (typeof win.forceResize === 'function') {
-          win.forceResize();
         }
 
         addLog(`✅ 执行 ${lines.length} 条指令`);
@@ -117,167 +105,156 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
       }
     }, [addLog, onError]);
 
+    const clearConstruction = useCallback(() => {
+      try {
+        const ggbApplet = (window as any).ggbApplet;
+        if (ggbApplet) {
+          ggbApplet.setXML('<geogebra></geogebra>');
+          addLog('构造已清空');
+        }
+      } catch (e) {
+        addLog('清空构造失败: ' + String(e));
+      }
+    }, [addLog]);
+
     useImperativeHandle(ref, () => ({
       executeScript: executeGeoGebraScript,
       clear: clearConstruction,
       getApplet: () => appletRef.current,
       resetView: () => {
         try {
-          const win = iframeRef.current?.contentWindow as Window & {
-            ggbApplet?: { evalCommand: (cmd: string) => void };
-          };
-          win?.ggbApplet?.evalCommand('SetViewDirection(Vector((0,0,1)))');
-          win?.ggbApplet?.evalCommand('ZoomIn()');
+          const ggbApplet = (window as any).ggbApplet;
+          if (ggbApplet) {
+            ggbApplet.evalCommand('SetViewDirection(Vector((0,0,1)))');
+            ggbApplet.evalCommand('ZoomIn()');
+          }
         } catch (e) {}
       },
     }));
 
-    // 轮询 iframe.contentWindow.ggbApplet，直到就绪
-    const startAppletPolling = useCallback(() => {
-      if (pollIntervalRef.current) return;
+    // 初始化 GeoGebra
+    useEffect(() => {
+      let mounted = true;
 
-      pollIntervalRef.current = setInterval(() => {
-        const iframe = iframeRef.current;
-        if (!iframe?.contentWindow) return;
+      const initGeoGebra = async () => {
+        setIsReady(false);
+        setIsLoading(true);
+        setError(null);
+        setLoadingLog([]);
+        isReadyRef.current = false;
+        pendingScriptRef.current = null;
 
-        const win = iframe.contentWindow as Window & {
-          ggbApplet?: unknown;
-          forceResize?: () => void;
-        };
+        addLog('开始加载 GeoGebra...');
 
-        if (win.ggbApplet) {
-          clearInterval(pollIntervalRef.current!);
-          pollIntervalRef.current = null;
+        try {
+          // 加载 GeoGebra 脚本
+          addLog('加载 GeoGebra 引擎...');
+          await loadGeoGebraScript();
 
-          if (isReadyRef.current) return; // 防止重复触发
-          isReadyRef.current = true;
-          isLoadingRef.current = false;
-          timeoutClearedRef.current = true;
-          appletRef.current = win.ggbApplet;
+          if (!mounted) return;
 
-          console.log('[GeoGebraViewer] ✅ ggbApplet 检测到就绪');
-          setIsReady(true);
+          // 等待脚本加载完成
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          if (!mounted) return;
+
+          const G = (window as any);
+          if (!G || !G.GGBApplet) {
+            throw new Error('GeoGebra API 未定义');
+          }
+
+          addLog('创建 GeoGebra 实例...');
+
+          // 创建 applet 配置
+          const parameters = {
+            id: 'ggbApplet',
+            material_id: materialId,
+            width: containerRef.current?.clientWidth || 800,
+            height: containerRef.current?.clientHeight || 600,
+            showMenuBar: false,
+            showToolBar: true,
+            showAlgebraInput: true,
+            showResetIcon: true,
+            enableLabelDrags: true,
+            enableRightClick: true,
+            errorDialogsActive: false,
+            showTutorialLink: false,
+            showStartTooltip: true,
+            capturingThreshold: 5000,
+            appletOnLoad: () => {
+              console.log('[GeoGebraViewer] ✅ applet onLoad 回调');
+              isReadyRef.current = true;
+              appletRef.current = G.ggbApplet;
+              setIsReady(true);
+              setIsLoading(false);
+              addLog('✅ GeoGebra 就绪');
+
+              if (pendingScriptRef.current) {
+                const pending = pendingScriptRef.current;
+                pendingScriptRef.current = null;
+                executeGeoGebraScript(pending);
+              } else if (script && autoExecute) {
+                executeGeoGebraScript(script);
+              }
+
+              onLoad?.();
+            },
+          };
+
+          // 创建并注入 applet
+          const applet = new G.GGBApplet(parameters, true);
+
+          if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+            applet.inject(containerRef.current);
+            addLog('GeoGebra 正在初始化...');
+          }
+        } catch (err) {
+          if (!mounted) return;
+          const msg = err instanceof Error ? err.message : '加载失败';
+          console.error('[GeoGebraViewer] 初始化失败:', msg);
+          setError(msg);
           setIsLoading(false);
-          setLoadStartTime(null);
-          addLog('✅ GeoGebra 就绪');
-
-          // 触发 resize
-          if (typeof win.forceResize === 'function') {
-            win.forceResize();
-          }
-
-          // 执行队列中的脚本
-          if (pendingScriptRef.current) {
-            const pending = pendingScriptRef.current;
-            pendingScriptRef.current = null;
-            executeGeoGebraScript(pending);
-          } else if (script && autoExecute) {
-            executeGeoGebraScript(script);
-          }
-
-          onLoad?.();
-        }
-      }, 300);
-    }, [script, autoExecute, executeGeoGebraScript, addLog, onLoad]);
-
-    // iframe onLoad 后，启动轮询
-    const handleIframeLoad = useCallback(() => {
-      iframeLoadedRef.current = true;
-      console.log('[GeoGebraViewer] ✅ iframe onLoad 触发');
-      addLog('iframe 已加载，等待 GeoGebra 引擎初始化...');
-      startAppletPolling();
-    }, [addLog, startAppletPolling]);
-
-    // iframe onLoad 触发后，每 3 秒更新一次日志
-    useEffect(() => {
-      if (!isLoading) return;
-
-      const interval = setInterval(() => {
-        if (isLoadingRef.current && loadStartTime) {
-          const elapsed = Math.round((Date.now() - loadStartTime) / 1000);
-          addLog(`⌛ 正在加载 GeoGebra... ${elapsed}s`);
-        }
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }, [isLoading, loadStartTime, addLog]);
-
-    // 超时逻辑（独立 useEffect，不依赖脚本 props）
-    useEffect(() => {
-      if (!isLoading) return;
-
-      const startTime = Date.now();
-      timeoutClearedRef.current = false;
-
-      const timeout = setTimeout(() => {
-        if (timeoutClearedRef.current) return;
-        if (isReadyRef.current) return;
-
-        const elapsed = Math.round((Date.now() - startTime) / 1000);
-        const msg = '加载超时，请检查网络连接（已等待 ' + elapsed + ' 秒）';
-        console.error('[GeoGebraViewer] ⏰ ' + msg);
-        setError(msg);
-        setIsLoading(false);
-        addLog('⏰ ' + msg);
-      }, 30000);
-
-      return () => {
-        clearTimeout(timeout);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
+          addLog('❌ ' + msg);
+          onError?.(msg);
         }
       };
-    }, [isLoading, addLog]);
 
-    // 组件挂载时初始化
-    useEffect(() => {
-      console.log('[GeoGebraViewer] 组件挂载');
-      setIsReady(false);
-      setIsLoading(true);
-      setError(null);
-      setLoadingLog([]);
-      setLoadStartTime(Date.now());
-      isReadyRef.current = false;
-      isLoadingRef.current = true;
-      iframeLoadedRef.current = false;
-      timeoutClearedRef.current = false;
-      pendingScriptRef.current = null;
+      initGeoGebra();
 
-      addLog('开始加载 GeoGebra 渲染器...');
-    }, [addLog]);
+      return () => {
+        mounted = false;
+        // 清理
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+        delete (window as any).ggbApplet;
+      };
+    }, [materialId, addLog, onLoad, onError]);
 
     // 当就绪且有脚本时执行
     useEffect(() => {
-      if (isReady && script && autoExecute) {
+      if (isReady && script && autoExecute && !pendingScriptRef.current) {
         executeGeoGebraScript(script);
       }
     }, [isReady, script, autoExecute, executeGeoGebraScript]);
 
     return (
       <Card className={`relative overflow-hidden ${className}`} style={{ height }}>
-        <iframe
-          ref={iframeRef}
-          src="/geogebra/index.html"
-          className="w-full h-full border-0"
-          style={{ display: 'block', width: '100%', height: '100%' }}
-          allow="geolocation; microphone; camera; midi; encrypted-media"
-          title="GeoGebra 3D渲染器"
-          onLoad={handleIframeLoad}
-          onError={() => {
-            console.error('[GeoGebraViewer] ❌ iframe onError 触发');
-            setError('GeoGebra iframe 加载失败，请检查网络连接');
-            setIsLoading(false);
-            addLog('❌ iframe 加载失败');
-          }}
+        {/* GeoGebra 容器 */}
+        <div
+          ref={containerRef}
+          className="w-full h-full"
+          style={{ minHeight: '400px' }}
         />
 
+        {/* 加载状态 */}
         {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/95">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-            <p className="mt-2 text-sm text-gray-600">加载GeoGebra渲染器...</p>
+            <p className="mt-3 text-sm text-gray-600 font-medium">加载 GeoGebra 渲染器...</p>
             {loadingLog.length > 0 && (
-              <div className="mt-3 w-full max-w-sm space-y-1 text-xs text-gray-500">
+              <div className="mt-3 w-full max-w-sm space-y-1 text-xs text-gray-500 text-center">
                 {loadingLog.slice(-4).map((item, index) => (
                   <div key={index} className="truncate">{item}</div>
                 ))}
@@ -286,26 +263,32 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
           </div>
         )}
 
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90">
+        {/* 错误状态 */}
+        {error && !isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/95">
             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
-            <p className="text-sm text-red-600 font-medium text-center px-4">{error}</p>
+            <p className="text-sm text-red-600 font-medium text-center px-4 max-w-md">
+              {error}
+            </p>
             <button
               onClick={() => {
                 setError(null);
-                setIsLoading(true);
-                setLoadingLog([]);
-                iframeLoadedRef.current = false;
-                isReadyRef.current = false;
-                if (iframeRef.current) {
-                  iframeRef.current.src = '/geogebra/index.html';
-                }
+                // 重新触发初始化
+                window.location.reload();
               }}
               className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
             >
               <RefreshCw className="h-4 w-4" />
-              重试
+              刷新重试
             </button>
+          </div>
+        )}
+
+        {/* 备选提示 */}
+        {!isLoading && !error && !isReady && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+            <p className="mt-2 text-xs text-gray-500">等待 GeoGebra 初始化...</p>
           </div>
         )}
       </Card>

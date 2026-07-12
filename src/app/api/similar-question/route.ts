@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateText } from 'ai';
 
 /**
  * 生成同类型题
@@ -18,11 +20,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '原题不能为空' }, { status: 400 });
     }
 
-    const systemPrompt = `你是一位高中数学教师，擅长设计变式练习题。
+    // 使用通义千问 API（优先从请求体获取key，其次环境变量）
+    const qwenApiKey = apiKey || process.env.QWEN_API_KEY || '';
+    const openai = createOpenAI({ apiKey: qwenApiKey, baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1' });
+
+    const prompt = `你是一位高中数学教师，擅长设计变式练习题。
 
 【核心能力】
 基于已有题目，设计一道"同类型"的新题，要求：
-1. 考察同一知识点（知识Point保持一致）
+1. 考察同一知识点（知识点保持一致）
 2. 题型相同但数据/情境不同
 3. 难度相近
 4. 选项设计保持一致风格
@@ -30,68 +36,45 @@ export async function POST(request: NextRequest) {
 【出题原则】
 - 新题必须是原创的，不能复制原题
 - 保持核心考察点不变，但表现形式可以变化
-- 数据可以改变，但必须合理`;
-
-    const userPrompt = `【原题】
-${originalQuestion}
-
-${knowledgePoint ? `【相关知识点】\n${knowledgePoint}\n` : ''}
-${pdfContext ? `【教材参考】\n${pdfContext}\n` : ''}
-
-【出题要求】
-请生成一道与上述题目"同类型"的变式练习题：
-1. 考察相同的知识点
-2. 题型相同（选择/填空/计算）
-3. 难度：${difficulty === 'simple' ? '简单（基础应用）' : difficulty === 'hard' ? '困难（综合应用）' : '中等（变形应用）'}
-4. 数据和情境可以不同，但解题方法相同
+- 数据可以改变，但必须合理
+- 题目要具体明确，有实际数值，不要泛泛而谈
 
 【返回格式】（严格JSON）
 {
   "question": {
     "id": "q_similar_1",
-    "text": "变式题目内容（数学公式用LaTeX）",
+    "text": "变式题目内容（数学公式用LaTeX，如 $2^3=8$）",
     "type": "choice|fill|calculation",
     "options": ["A. 选项", "B. 选项", "C. 选项", "D. 选项"],
     "correctAnswer": "A",
-    "explanation": "解题思路",
-    "knowledgePoint": "${knowledgePoint || '知识点'}",
-    "difficulty": "${difficulty}",
+    "explanation": "详细解题思路",
+    "knowledgePoint": "知识点",
+    "difficulty": "medium",
     "commonMistakes": ["常错1", "常错2"]
   },
   "similarity": "与原题的相似点说明"
-}`;
+}
 
-    if (apiKey) {
-      try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-            temperature: 0.6,
-            max_tokens: 3000,
-          }),
-        });
+直接输出JSON，不要加任何格式标记。`;
 
-        if (!response.ok) throw new Error('API失败');
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || '';
-        const result = parseSimilarQuestion(content);
-        return NextResponse.json({ success: true, ...result });
-      } catch (err) {
-        console.error('[SimilarQuestion] API失败:', err);
-        return NextResponse.json({ success: true, question: generateDefaultSimilar(originalQuestion, knowledgePoint, difficulty) });
-      }
+    try {
+      const result = await generateText({
+        model: openai('qwen-plus'),
+        messages: [{ role: 'user', content: `${prompt}\n\n【原题】\n${originalQuestion}\n\n【知识点】\n${knowledgePoint || '集合与子集'}\n\n【出题要求】\n请生成一道与上述题目"同类型"的变式练习题，考察相同的知识点，题型相同（选择/填空/计算），难度中等。` }],
+        maxTokens: 2000,
+      });
+
+      const content = result.text || '';
+      const parsed = parseSimilarQuestion(content);
+
+      return NextResponse.json({ success: true, ...parsed });
+    } catch (err) {
+      console.error('[SimilarQuestion] API失败:', err);
+      return NextResponse.json({
+        success: true,
+        question: generateDefaultSimilar(originalQuestion, knowledgePoint, difficulty)
+      });
     }
-
-    return NextResponse.json({ success: true, question: generateDefaultSimilar(originalQuestion, knowledgePoint, difficulty) });
   } catch (error) {
     console.error('[SimilarQuestion] 处理失败:', error);
     return NextResponse.json({ error: '生成失败' }, { status: 500 });

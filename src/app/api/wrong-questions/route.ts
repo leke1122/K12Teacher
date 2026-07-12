@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getWrongQuestions, addWrongQuestion } from '@/lib/wrongQuestionService';
+import { getWrongQuestions, addWrongQuestion, WrongQuestion } from '@/lib/wrongQuestionService';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,13 +13,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const subjectId = searchParams.get('subject') || undefined;
+    const id = searchParams.get('id') || undefined;
 
-    const questions = await getWrongQuestions('personal-user', subjectId);
+    const questions = await getWrongQuestions('personal-user', subjectId, id);
 
     return NextResponse.json({
       success: true,
       questions,
-      total: questions.length,
+      total: Array.isArray(questions) ? questions.length : 0,
     });
   } catch (error) {
     console.error('[API/wrong-questions] GET Error:', error);
@@ -33,7 +34,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subjectId, question, correctAnswer, userAnswer, analysis, difficulty, knowledgePoint } = body;
+    const { 
+      subjectId, 
+      question, 
+      correctAnswer, 
+      userAnswer, 
+      analysis, 
+      difficulty, 
+      knowledgePoint,
+      imageUrl,
+      isMastered,
+      wrongReason,
+    } = body;
 
     if (!subjectId || !question || !correctAnswer) {
       return NextResponse.json(
@@ -50,12 +62,16 @@ export async function POST(request: NextRequest) {
       userAnswer || '',
       analysis || '',
       difficulty || 'medium',
-      knowledgePoint || ''
+      knowledgePoint || '',
+      imageUrl || '',
+      isMastered,
+      wrongReason,
     );
 
     return NextResponse.json({
       success: !!id,
       id,
+      message: id ? '错题添加成功' : '错题添加失败',
     });
   } catch (error) {
     console.error('[API/wrong-questions] POST Error:', error);

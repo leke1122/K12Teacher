@@ -40,10 +40,17 @@ export function useTTS(options: UseTTSOptions = {}) {
 
   // 停止播放
   const stop = useCallback(() => {
+    // 停止浏览器 TTS
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    
+    // 停止 HTMLAudioElement
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;

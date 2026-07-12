@@ -7,6 +7,20 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pdfjs-dist'],
   },
+  async headers() {
+    return [
+      {
+        // GeoGebra iframe 需要被嵌入，禁用默认的 X-Frame-Options
+        source: '/geogebra/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

@@ -818,7 +818,7 @@ function PracticePageContent() {
                   <SimilarQuestion
                     question={currentQuestion}
                     onComplete={(correct) => { setSimilarCorrect(correct); setSimilarWrong(!correct); }}
-                    apiKey={settings?.deepseekKey}
+                    apiKey={settings?.qwenKey}
                     currentQuestionId={currentQuestion.id}
                   />
                 </div>

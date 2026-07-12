@@ -158,6 +158,23 @@ export function GeoGebraTutor({
 
   const selectedObjectNames = selectedObjects.map((o) => o.label || o.id).join('、') || '图形';
 
+  // 构建题目上下文，帮助 AI 验证学生答案
+  const buildProblemContext = (conversation: Message[]): string => {
+    // 提取对话中的关键信息（题目条件、AI 提出的问题）
+    const contextParts: string[] = [];
+    
+    for (const msg of conversation) {
+      if (msg.role === 'ai' && msg.content) {
+        // 保留 AI 的问题和引导
+        if (msg.content.includes('?') || msg.content.includes('思考') || msg.content.includes('计算')) {
+          contextParts.push(msg.content);
+        }
+      }
+    }
+    
+    return contextParts.slice(-5).join('\n') || '请从对话中理解当前题目和进度';
+  };
+
   // Keep problemImage ref in sync
   useEffect(() => {
     if (problemImage) {
@@ -256,7 +273,15 @@ export function GeoGebraTutor({
             'Content-Type': 'application/json',
             ...(apiKey ? { 'x-qwen-api-key': apiKey } : {}),
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            mode: 'initial',
+            imageBase64,
+            selectedObjects,
+            history: [],
+            hintLevel: 0,
+            topicMode: isTopicMode,
+            quickAction: overridePrompt || (quickActionId ? QUICK_ACTIONS.find(a => a.id === quickActionId)?.prompt : undefined),
+          }),
           signal: controller.signal,
         });
 
@@ -391,6 +416,8 @@ export function GeoGebraTutor({
             hintLevel: state.hintLevel,
             history,
             topicMode: !!problemImageRef.current,
+            // 传入完整的对话历史作为题目上下文，帮助 AI 验证答案
+            problemContext: buildProblemContext(state.conversation),
           }),
           signal: controller.signal,
         });

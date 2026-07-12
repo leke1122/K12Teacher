@@ -8,7 +8,15 @@ import { generateText } from 'ai';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { imageData, question, correctAnswer, knowledgePoint, apiKey } = await request.json();
+    const body = await request.json();
+    const { imageData, question, correctAnswer, knowledgePoint } = body;
+
+    // 从请求头、请求体或环境变量获取 API Key
+    const apiKey = request.headers.get('x-qwen-api-key')
+      || request.headers.get('x-api-key')
+      || body.apiKey
+      || process.env.QWEN_API_KEY
+      || '';
 
     if (!imageData) {
       return NextResponse.json({ error: '图片不能为空' }, { status: 400 });
@@ -25,7 +33,7 @@ export async function POST(request: NextRequest) {
         wrongReason: '未配置视觉识别API',
         correctSolution: correctAnswer || '请参考教材',
         score: 0,
-        feedback: '请在设置中配置 API Key 后重试',
+        feedback: '请在设置中配置 Qwen-VL API Key 后重试',
       });
     }
 
@@ -77,7 +85,7 @@ ${knowledgePoint || '高中数学'}
       });
 
       const result = await generateText({
-        model: openai('qwen-vl-plus'),
+        model: openai('qwen-vl-max'),
         messages: [
           { role: 'system', content: systemPrompt },
           {

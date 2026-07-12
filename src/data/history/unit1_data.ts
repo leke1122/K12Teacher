@@ -560,6 +560,7 @@ export interface CausalLink {
   sourceId: string;
   targetId: string;
   logic: string;
+  type?: string;
 }
 
 export const causalLinks: CausalLink[] = [

@@ -81,8 +81,12 @@ const USER_ID = 'personal-user';
 
 async function syncWrongQuestionsToSupabase(wq: WrongQuestion): Promise<void> {
   if (!supabase) throw new Error('Supabase not configured');
+
+  // 如果 ID 不是 UUID 格式，生成一个新的 UUID
+  const recordId = isValidUUID(wq.id) ? wq.id : generateUUID();
+
   const { error } = await supabase.from('wrong_questions').upsert({
-    id: wq.id,
+    id: recordId,
     user_id: USER_ID,
     subject_id: wq.subjectId,
     chapter_id: wq.chapterId,
@@ -101,6 +105,12 @@ async function syncWrongQuestionsToSupabase(wq: WrongQuestion): Promise<void> {
     created_at: wq.createdAt,
   }, { onConflict: 'id' });
   if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
+}
+
+// 检查是否是有效的 UUID 格式
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 }
 
 async function deleteWrongQuestionFromSupabase(id: string): Promise<void> {
@@ -205,6 +215,19 @@ export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   } catch (err) {
     console.warn('[PracticeService] Supabase sync failed (data saved in localStorage):', err);
   }
+}
+
+// 生成 UUID 格式的 ID（Supabase 需要）
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // 降级方案：生成符合 UUID v4 格式的字符串
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 // 同步版本（向后兼容）

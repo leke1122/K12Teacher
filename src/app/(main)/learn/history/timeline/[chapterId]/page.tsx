@@ -27,36 +27,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
-
-// 类型定义
-interface TimelineEvent {
-  id: string;
-  year: string;
-  title: string;
-  dynasty: string;
-  summary: string;
-  impact?: string;
-  category: string;
-  importance: number;
-  keyPeople: string[];
-}
-
-interface CausalLink {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  logic: string;
-  type: string;
-}
-
-interface Concept {
-  id: string;
-  name: string;
-  category: string;
-  definition: string;
-  keyPeople: string[];
-  examples?: string[];
-}
+import Drawer from '@/components/history/Drawer';
+import type { TimelineEvent, CausalLink, Concept } from '@/data/history/unit1_data';
 
 interface ExamFocus {
   conceptId: string;
@@ -108,8 +80,7 @@ function Unit1TimelinePage() {
 
   const [activeTab, setActiveTab] = useState('timeline');
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [graphDialogOpen, setGraphDialogOpen] = useState(false);
+  const [causalDrawerOpen, setCausalDrawerOpen] = useState(false);
   const [highlightEventId, setHighlightEventId] = useState<string | undefined>();
 
   // AI 问答状态
@@ -233,14 +204,12 @@ function Unit1TimelinePage() {
   const handleEventClick = useCallback((event: TimelineEvent) => {
     setSelectedEvent(event);
     setHighlightEventId(event.id);
-    setDetailDialogOpen(true);
   }, []);
 
   // 处理图谱点击
   const handleGraphEventClick = useCallback((event: TimelineEvent) => {
     setSelectedEvent(event);
     setHighlightEventId(event.id);
-    setDetailDialogOpen(true);
   }, []);
 
   // 发送 AI 问题
@@ -554,12 +523,13 @@ function Unit1TimelinePage() {
                                   className="h-6 text-xs ml-auto"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    setSelectedEvent(event);
                                     setHighlightEventId(event.id);
-                                    setGraphDialogOpen(true);
+                                    setCausalDrawerOpen(true);
                                   }}
                                 >
                                   <GitFork className="h-3 w-3 mr-1" />
-                                  查因果
+                                  查看因果
                                 </Button>
                               </div>
                             </CardContent>
@@ -584,12 +554,12 @@ function Unit1TimelinePage() {
                 <CardContent className="space-y-3">
                   <CausalGraphLegend />
                   <div className="h-[600px] border rounded-lg overflow-hidden">
-                    <CausalGraph
-                      events={knowledgeData.timelineEvents}
-                      causalLinks={knowledgeData.causalLinks}
-                      onEventClick={handleGraphEventClick}
-                      highlightEventId={highlightEventId}
-                    />
+                  <CausalGraph
+                    events={knowledgeData.timelineEvents as TimelineEvent[]}
+                    causalLinks={knowledgeData.causalLinks as CausalLink[]}
+                    onEventClick={handleGraphEventClick}
+                    highlightEventId={highlightEventId}
+                  />
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
                     点击节点查看详情，点击边查看因果逻辑
@@ -648,141 +618,113 @@ function Unit1TimelinePage() {
         )}
       </div>
 
-      {/* 事件详情弹窗 */}
-      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          {selectedEvent && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-amber-500" />
-                  {selectedEvent.title}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="outline">{selectedEvent.year}</Badge>
-                  <Badge variant="outline">{selectedEvent.dynasty}</Badge>
-                  <Badge>{selectedEvent.category}</Badge>
-                  {selectedEvent.importance >= 4 && (
-                    <Badge className="bg-amber-100 text-amber-700">核心考点</Badge>
-                  )}
-                </div>
+      {/* 事件详情 + 因果抽屉 */}
+      <Drawer
+        open={causalDrawerOpen}
+        onOpenChange={setCausalDrawerOpen}
+        title={selectedEvent ? selectedEvent.title : '事件详情'}
+      >
+        {selectedEvent && (
+          <div className="space-y-5 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{selectedEvent.year}</Badge>
+              <Badge variant="outline">{selectedEvent.dynasty}</Badge>
+              <Badge>{selectedEvent.category}</Badge>
+              {selectedEvent.importance >= 4 && (
+                <Badge className="bg-amber-100 text-amber-700">核心考点</Badge>
+              )}
+            </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      背景摘要
-                    </h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {selectedEvent.summary}
-                    </p>
-                  </div>
-
-                  {selectedEvent.impact && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1 text-amber-600">
-                        ✦ 历史影响
-                      </h4>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {selectedEvent.impact}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedEvent.keyPeople && selectedEvent.keyPeople.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
-                        <Users className="h-4 w-4 text-slate-400" />
-                        关键人物
-                      </h4>
-                      <div className="flex gap-2 flex-wrap">
-                        {selectedEvent.keyPeople.map((person) => (
-                          <Badge key={person} variant="secondary">
-                            {person}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 因果关系 */}
-                <div className="border-t pt-4 space-y-3">
-                  <h4 className="text-sm font-medium flex items-center gap-1">
-                    <GitFork className="h-4 w-4 text-slate-400" />
-                    因果关系
-                  </h4>
-                  {causes.length > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">前置原因：</p>
-                      <div className="space-y-2">
-                        {causes.map((link) => {
-                          const sourceEvent = getEventById(link.sourceId);
-                          return sourceEvent ? (
-                            <div
-                              key={link.id}
-                              className="text-sm p-2 bg-slate-50 rounded cursor-pointer hover:bg-slate-100"
-                              onClick={() => handleEventClick(sourceEvent)}
-                            >
-                              <span className="font-medium">{sourceEvent.title}</span>
-                              <p className="text-xs text-muted-foreground mt-1">{link.logic}</p>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {results.length > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">后续结果：</p>
-                      <div className="space-y-2">
-                        {results.map((link) => {
-                          const targetEvent = getEventById(link.targetId);
-                          return targetEvent ? (
-                            <div
-                              key={link.id}
-                              className="text-sm p-2 bg-amber-50 rounded cursor-pointer hover:bg-amber-100"
-                              onClick={() => handleEventClick(targetEvent)}
-                            >
-                              <span className="font-medium">{targetEvent.title}</span>
-                              <p className="text-xs text-muted-foreground mt-1">{link.logic}</p>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {causes.length === 0 && results.length === 0 && (
-                    <p className="text-sm text-muted-foreground">暂无因果关系数据</p>
-                  )}
-                </div>
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  背景摘要
+                </h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{selectedEvent.summary}</p>
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      {/* 因果图谱弹窗 */}
-      <Dialog open={graphDialogOpen} onOpenChange={setGraphDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GitFork className="h-5 w-5 text-amber-500" />
-              因果链知识图谱
-            </DialogTitle>
-          </DialogHeader>
-          <div className="h-[70vh]">
-            <CausalGraph
-              events={knowledgeData.timelineEvents}
-              causalLinks={knowledgeData.causalLinks}
-              onEventClick={handleGraphEventClick}
-              highlightEventId={highlightEventId}
-            />
+              {selectedEvent.impact && (
+                <div>
+                  <h4 className="text-sm font-medium mb-1 text-amber-600">✦ 历史影响</h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{selectedEvent.impact}</p>
+                </div>
+              )}
+
+              {selectedEvent.keyPeople && selectedEvent.keyPeople.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    关键人物
+                  </h4>
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedEvent.keyPeople.map((person) => (
+                      <Badge key={person} variant="secondary">{person}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-4 space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-1">
+                <GitFork className="h-4 w-4 text-slate-400" />
+                因果关系
+              </h4>
+              {causes.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">前置原因：</p>
+                  {causes.map((link) => {
+                    const sourceEvent = getEventById(link.sourceId);
+                    return sourceEvent ? (
+                      <div
+                        key={link.id}
+                        className="text-sm p-2 bg-slate-50 rounded cursor-pointer hover:bg-slate-100"
+                        onClick={() => handleEventClick(sourceEvent)}
+                      >
+                        <span className="font-medium">{sourceEvent.title}</span>
+                        <p className="text-xs text-muted-foreground mt-1">{link.logic}</p>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
+
+              {results.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">后续结果：</p>
+                  {results.map((link) => {
+                    const targetEvent = getEventById(link.targetId);
+                    return targetEvent ? (
+                      <div
+                        key={link.id}
+                        className="text-sm p-2 bg-amber-50 rounded cursor-pointer hover:bg-amber-100"
+                        onClick={() => handleEventClick(targetEvent)}
+                      >
+                        <span className="font-medium">{targetEvent.title}</span>
+                        <p className="text-xs text-muted-foreground mt-1">{link.logic}</p>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
+
+              {causes.length === 0 && results.length === 0 && (
+                <p className="text-sm text-muted-foreground">暂无因果关系数据</p>
+              )}
+
+              <div className="h-[420px] border rounded-lg overflow-hidden bg-white">
+                <CausalGraph
+                  events={knowledgeData.timelineEvents}
+                  causalLinks={knowledgeData.causalLinks}
+                  onEventClick={handleGraphEventClick}
+                  highlightEventId={selectedEvent.id}
+                />
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </Drawer>
 
       {/* AI 助教悬浮窗 */}
       {aiOpen && (

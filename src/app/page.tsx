@@ -16,9 +16,9 @@ const DailyAccumulation = dynamic(
   { ssr: false, loading: () => <div className="h-32 animate-pulse bg-gray-100 rounded-xl" /> }
 );
 
-const FocusTimer = dynamic(
-  () => import('@/components/ui/FocusTimer').then(mod => mod.FocusTimer),
-  { ssr: false, loading: () => <div className="h-32 animate-pulse bg-gray-100 rounded-xl" /> }
+const LearningStatsCard = dynamic(
+  () => import('@/components/dashboard/LearningStatsCard').then(mod => mod.LearningStatsCard),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse bg-gray-100 rounded-xl" /> }
 );
 
 interface WrongStats {
@@ -65,7 +65,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* 每日积累 + 错题本 */}
+      {/* 每日积累 + 错题本 + 学习统计 */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         <DailyAccumulation />
 
@@ -144,31 +144,9 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* 专注计时 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">⏱️ 专注学习</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FocusTimer subjectId={currentSubject || undefined} />
-          </CardContent>
-        </Card>
+        {/* 学习时长统计（替换原来的专注计时器） */}
+        <LearningStatsCard />
       </div>
-
-      {/* 当前学科 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="text-2xl">{subject?.icon}</span>
-            当前学科：{subject?.name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-base text-muted-foreground">
-            选择左侧学科开始学习之旅
-          </p>
-        </CardContent>
-      </Card>
 
       {!hasApiKey && (
         <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
