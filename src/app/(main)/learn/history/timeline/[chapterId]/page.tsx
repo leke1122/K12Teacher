@@ -165,34 +165,29 @@ function Unit1TimelinePage() {
           setDataSource(data.source || '');
           return;
         }
-
-        const fallback =
-          unitId === 'unit1'
-            ? {
-                timelineEvents: builtinTimelineEvents,
-                causalLinks: builtinCausalLinks,
-                concepts: builtinConcepts,
-                examFocus: [],
-                summary: '当前展示内置第一单元知识点；上传 docx 可替换为您的自定义内容。',
-                unitTitle: '第一单元：从中华文明起源到秦汉统一',
-                pageRange: '内置数据',
-              }
-            : null;
-
-        if (fallback) {
-          setKnowledgeData(fallback);
-          setDataSource('builtin');
-          return;
-        }
-
-        setError('该单元暂无可用知识点，请先导入教材目录或上传 docx。');
-        setDataSource('');
-      } else {
-        setError(data.message || data.hint || '加载数据失败');
-        if (data.hint) {
-          setError(`${data.message}\n\n💡 ${data.hint}`);
-        }
       }
+
+      const fallback =
+        unitId === 'unit1'
+          ? {
+              timelineEvents: builtinTimelineEvents,
+              causalLinks: builtinCausalLinks,
+              concepts: builtinConcepts,
+              examFocus: [],
+              summary: '当前展示内置第一单元知识点；上传 docx 可替换为您的自定义内容。',
+              unitTitle: '第一单元：从中华文明起源到秦汉统一',
+              pageRange: '内置数据',
+            }
+          : null;
+
+      if (fallback) {
+        setKnowledgeData(fallback);
+        setDataSource('builtin');
+        return;
+      }
+
+      setError('该单元暂无可用知识点，请先导入教材目录或上传 docx。');
+      setDataSource('');
     } catch (err) {
       console.error('加载知识点失败:', err);
       setError('网络错误，请检查连接后重试');

@@ -24,9 +24,9 @@ import {
 import Link from 'next/link';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
 import {
-  timelineEvents,
-  concepts,
-  causalLinks,
+  timelineEvents as builtinTimelineEvents,
+  concepts as builtinConcepts,
+  causalLinks as builtinCausalLinks,
   type TimelineEvent,
 } from '@/data/history/unit1_data';
 import type { CausalChain } from '@/app/api/history/causal-chain/route';
@@ -35,6 +35,12 @@ const CHAPTER_TITLES: Record<string, string> = {
   unit1: '第一单元：从中华文明起源到秦汉统一',
   'modern-china': '中国近代史',
   'ln-gaokao': '辽宁高考历史',
+};
+
+const DEFAULT_KNOWLEDGE = {
+  timelineEvents: [] as TimelineEvent[],
+  causalLinks: [] as typeof builtinCausalLinks,
+  concepts: [] as typeof builtinConcepts,
 };
 
 function CausalChainPageInner() {
@@ -56,6 +62,59 @@ function CausalChainPageInner() {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+
+  const [knowledgeData, setKnowledgeData] = useState(DEFAULT_KNOWLEDGE);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(true);
+
+  const loadKnowledgeData = useCallback(async () => {
+    setKnowledgeLoading(true);
+    try {
+      const response = await fetch('/api/history/knowledge/extract-by-pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapterId: unitId, unitId, textbookId: 'history-default' }),
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        const events = data.data.timelineEvents || [];
+        if (events.length > 0) {
+          setKnowledgeData({
+            timelineEvents: events,
+            causalLinks: data.data.causalLinks || [],
+            concepts: data.data.concepts || [],
+          });
+          setDataSource(data.source || '');
+          return;
+        }
+      }
+    } catch {
+      // 降级到内置数据
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, [unitId]);
+
+  useEffect(() => {
+    setSelectedEvent(null);
+    setChain(null);
+    setChainError(null);
+    loadKnowledgeData();
+  }, [chapterId, unitId, loadKnowledgeData]);
+
+  const timelineEvents = useMemo(
+    () => knowledgeData.timelineEvents.length ? knowledgeData.timelineEvents : builtinTimelineEvents,
+    [knowledgeData.timelineEvents],
+  );
+
+  const causalLinks = useMemo(
+    () => knowledgeData.causalLinks.length ? knowledgeData.causalLinks : builtinCausalLinks,
+    [knowledgeData.causalLinks],
+  );
+
+  const concepts = useMemo(
+    () => knowledgeData.concepts.length ? knowledgeData.concepts : builtinConcepts,
+    [knowledgeData.concepts],
+  );
 
   const loadChain = async () => {
     setChainLoading(true);
@@ -148,6 +207,7 @@ function CausalChainPageInner() {
             <p className="text-xs text-muted-foreground">
               高中历史统编版 · {CHAPTER_TITLES[chapterId] || chapterId} · {timelineEvents.length} 个核心事件
               {dataSource === 'docx_import' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
+              {knowledgeLoading && <span className="ml-2 text-muted-foreground">正在加载知识点...</span>}
             </p>
           </div>
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setAiOpen(true)}>

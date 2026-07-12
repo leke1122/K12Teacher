@@ -103,10 +103,10 @@ export async function POST(request: NextRequest) {
     const cacheKey = `ln_gaokao_knowledge_${chapterId}_${unitId || ''}`;
 
     // ========== 优先级 1：检查是否有 docx 导入的数据 ==========
-    // 尝试匹配单元标题（从 chapterId 或 unitId 中提取）
-    const searchTerms = [chapterId, unitId, pageStart, pageEnd].filter(Boolean);
-    for (const term of searchTerms) {
-      const docxImport = await findDocxImportByUnitTitle(String(term));
+    // 多关键词兜底匹配，避免 chapterId/unitId 与 unit_title 不一致时漏掉已导入 docx
+    const docxSearchTerms = [unitId, chapterId, '第一单元', '中国古代史'].filter(Boolean) as string[];
+    for (const term of docxSearchTerms) {
+      const docxImport = await findDocxImportByUnitTitle(term);
       if (docxImport?.data) {
         console.log('[extract-by-pages] 找到 docx 导入数据:', docxImport.id);
         return NextResponse.json({
