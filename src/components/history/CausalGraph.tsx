@@ -8,10 +8,12 @@ import ReactFlow, {
   Background,
   MarkerType,
   Position,
+  NodeProps,
 } from 'reactflow';
 import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
 import type { TimelineEvent, CausalLink } from '@/data/history/unit1_data';
+import { BookOpen } from 'lucide-react';
 
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
   政治: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
@@ -23,11 +25,6 @@ const categoryColors: Record<string, { bg: string; border: string; text: string 
 };
 
 const categoryOrder = ['经济', '政治', '思想', '文化', '军事', '社会'];
-
-function getCategoryRank(category: string) {
-  const idx = categoryOrder.indexOf(category);
-  return idx >= 0 ? idx : categoryOrder.length;
-}
 
 function getCategoryWeight(category: string) {
   const weights: Record<string, number> = {
@@ -127,6 +124,38 @@ interface CausalGraphProps {
   highlightEventId?: string;
 }
 
+function HistoryEventNode({ data }: NodeProps) {
+  const event = data?.event as TimelineEvent | undefined;
+  const colors = event ? categoryColors[event.category] || categoryColors.社会 : categoryColors.社会;
+  const isHighlighted = data?.highlightEventId === event?.id;
+
+  return (
+    <div
+      onClick={() => event && data?.onEventClick?.(event)}
+      style={{
+        padding: 10,
+        borderRadius: 12,
+        border: `2px solid ${colors.border}`,
+        background: colors.bg,
+        color: colors.text,
+        minWidth: 180,
+        cursor: 'pointer',
+        transform: isHighlighted ? 'scale(1.08)' : 'scale(1)',
+        transition: 'transform 0.2s ease',
+        boxShadow: isHighlighted ? '0 10px 25px rgba(0,0,0,0.08)' : 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <BookOpen className="h-4 w-4" style={{ color: colors.border }} />
+        <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3 }}>{event?.title}</div>
+      </div>
+      <div style={{ marginTop: 6, fontSize: 11, opacity: 0.8 }}>
+        {event?.dynasty} {event?.year}
+      </div>
+    </div>
+  );
+}
+
 export default function CausalGraph({
   events = [],
   causalLinks = [],
@@ -138,43 +167,28 @@ export default function CausalGraph({
     [events, causalLinks],
   );
 
-  const sortedNodes = useMemo(() => {
-    return [...initialNodes].sort((a, b) => {
-      const eventA = a.data?.event as TimelineEvent | undefined;
-      const eventB = b.data?.event as TimelineEvent | undefined;
-      const catDiff = getCategoryWeight(eventA?.category || '') - getCategoryWeight(eventB?.category || '');
-      if (catDiff !== 0) return catDiff;
-      return (eventA?.importance || 0) - (eventB?.importance || 0);
-    });
-  }, [initialNodes]);
+  const nodeTypes = useMemo(() => ({ historyEvent: HistoryEventNode }), []);
 
   const styledNodes = useMemo(() => {
-    return sortedNodes.map(node => {
+    return initialNodes.map(node => {
       const event = node.data?.event as TimelineEvent | undefined;
-      const colors = event ? categoryColors[event.category] || categoryColors.社会 : categoryColors.社会;
-      const isHighlighted = event?.id === highlightEventId;
 
       return {
         ...node,
-        style: {
-          ...node.style,
-          transform: isHighlighted ? 'scale(1.08)' : 'scale(1)',
-          zIndex: isHighlighted ? 10 : 1,
-          transition: 'transform 0.2s ease',
-        },
+        type: 'historyEvent',
         data: {
           ...node.data,
-          category: event?.category,
-          colors,
-          onClick: () => event && onEventClick?.(event),
+          onEventClick,
+          highlightEventId,
         },
       };
     });
-  }, [sortedNodes, highlightEventId, onEventClick]);
+  }, [initialNodes, highlightEventId, onEventClick]);
 
   return (
     <div className="w-full h-full min-h-[520px] bg-white rounded-lg">
       <ReactFlow
+        nodeTypes={nodeTypes}
         nodes={styledNodes}
         edges={initialEdges}
         fitView

@@ -2,13 +2,10 @@
  * 历史知识点 docx 解析器
  * 专门针对高中历史统编版知识点清单格式
  *
- * 文档格式特征：
- * - 无 markdown 标题，纯文本
- * - "数字、" 开头 → 主知识点（如 "2、分封制"）
- * - "**文字**" → 加粗标签（如 "**目的：**"）
- * - "① ② ③" 或 "a. b. c." → 子条目（影响/意义）
- * - "【政治】【经济】【思想】【教育】" → 分类段落
- * - "商鞅变法主要内容：" → 命名章节
+ * 设计目标：
+ * - 不遗漏任何一个编号主知识点
+ * - 不再把“影响：”“积极性：”“主要内容：”等子标题切成新概念块
+ * - 只按“编号主标题”切主块，必要时再做少量归并
  */
 
 export interface DocxParseResult {
@@ -43,6 +40,8 @@ export interface Concept {
   importance: 1 | 2 | 3 | 4 | 5;
   gaokaoFocus?: string;
   relatedEvents: string[];
+  year?: string;
+  dynasty?: string;
 }
 
 export interface TimelineEvent {
@@ -76,47 +75,45 @@ export interface ExamFocus {
 
 // ==================== 核心解析函数 ====================
 
-/**
- * 从 docx 提取的原始文本中解析出结构化数据
- */
 export function parseDocxTextToKnowledge(rawText: string, fileName?: string): DocxParseResult {
   const lines = rawText
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
-  // 1. 解析单元标题（从文件名提取或使用默认）
   const unitTitle = extractUnitTitle(rawText, fileName);
   const pageRange = extractPageRange(rawText);
 
-  // 2. 按主知识点分割内容块
   const conceptBlocks = splitIntoConceptBlocks(lines);
+  const mergedBlocks = mergeSubHeaderBlocks(conceptBlocks);
 
-  // 3. 逐块解析
   const concepts: Concept[] = [];
   const timelineEvents: TimelineEvent[] = [];
   const causalLinks: CausalLink[] = [];
 
-  for (const block of conceptBlocks) {
+  for (const block of mergedBlocks) {
     const concept = parseConceptBlock(block);
     if (concept) {
       concepts.push(concept);
-
-      // 从概念中提取时间轴事件
       const event = conceptToTimelineEvent(concept);
       if (event) timelineEvents.push(event);
     }
   }
 
-  // 4. 建立因果链
   const causalMap = buildCausalLinks(concepts);
   causalLinks.push(...causalMap);
 
-  // 5. 识别高考重点
-  const examFocus = identifyExamFocus(concepts);
+  const extraTimelineEvents = extractExtraTimelineEvents(concepts);
+  for (const event of extraTimelineEvents) {
+    if (!timelineEvents.some(ev => ev.title === event.title)) {
+      timelineEvents.push(event);
+    }
+  }
 
-  // 6. 生成摘要
+  const examFocus = identifyExamFocus(concepts);
   const summary = generateSummary(concepts);
+
+  timelineEvents.sort((a, b) => b.importance - a.importance || a.title.localeCompare(b.title, 'zh'));
 
   return {
     unitTitle,
@@ -135,7 +132,6 @@ export function parseDocxTextToKnowledge(rawText: string, fileName?: string): Do
 // ==================== 辅助解析函数 ====================
 
 function extractUnitTitle(text: string, fileName?: string): string {
-  // 优先从文件名提取
   if (fileName) {
     const match = fileName.match(/第一单元[^\s-]*(.*?)知识点清单/);
     if (match) return '第一单元 ' + match[1].trim();
@@ -143,7 +139,6 @@ function extractUnitTitle(text: string, fileName?: string): string {
     if (simpleMatch) return simpleMatch[1];
   }
 
-  // 从正文第一行提取
   const lines = text.split('\n').filter(l => l.trim());
   if (lines[0]) {
     const titleMatch = lines[0].match(/(第[一二三四五六七八九十]+单元[^\n]{0,50})/);
@@ -159,42 +154,17 @@ function extractPageRange(text: string): string {
   return '第 1 - 50 页';
 }
 
-/**
- * 按主知识点将文本分割成块
- * 支持：
- * 1. "数字、"开头（如 2、分封制）
- * 2. 特定章节标题格式
- * 3. 中文冒号结尾的标题行
- */
 function splitIntoConceptBlocks(lines: string[]): string[][] {
   const blocks: string[][] = [];
   let currentBlock: string[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // 跳过导航类行
+  for (const line of lines) {
     if (line.includes('纲要') && line.includes('复习提纲')) continue;
-    if (line.match(/^[新旧]?石器时代|代表性文化遗存$/)) continue;
+    if (/^[新旧]?石器时代|代表性文化遗存$/.test(line)) continue;
 
-    // 主知识点标题行检测
-    const isNumberedHeader = /^([一二三四五六七八九十\d]+[、.．][^:：\n]{2,40})/.test(line) &&
-      !line.includes('重要') && !line.includes('特点');
-
-    const isColonHeader = /^.{2,30}[：:]$/.test(line) &&
-      !line.startsWith('①') &&
-      !line.startsWith('②') &&
-      !line.startsWith('③') &&
-      !line.startsWith('a.') &&
-      !line.startsWith('b.') &&
-      !line.startsWith('c.') &&
-      !line.startsWith('积极') &&
-      !line.startsWith('消极') &&
-      !line.startsWith('影响') &&
-      !line.startsWith('意义') &&
-      !line.startsWith('评价');
-
-    const isConceptHeader = isNumberedHeader || isColonHeader;
+    const isConceptHeader = /^([一二三四五六七八九十\d]+[、.．][^:：\n]{2,40})/.test(line)
+      && !line.includes('重要')
+      && !line.includes('特点');
 
     if (isConceptHeader && currentBlock.length > 0) {
       blocks.push(currentBlock);
@@ -211,31 +181,55 @@ function splitIntoConceptBlocks(lines: string[]): string[][] {
   return blocks;
 }
 
-/**
- * 解析单个知识点块
- */
+function mergeSubHeaderBlocks(blocks: string[][]): string[][] {
+  if (blocks.length === 0) return blocks;
+
+  const merged: string[][] = [];
+  let current: string[] = [];
+
+  for (const block of blocks) {
+    const header = block[0] || '';
+    const isNumberedHeader = /^([一二三四五六七八九十\d]+[、.．][^:：\n]{2,40})/.test(header);
+
+    if (isNumberedHeader) {
+      if (current.length > 0) merged.push(current);
+      current = [...block];
+      continue;
+    }
+
+    if (current.length > 0 && block.length <= 8) {
+      current.push(...block);
+      continue;
+    }
+
+    if (current.length > 0) merged.push(current);
+    current = [...block];
+  }
+
+  if (current.length > 0) merged.push(current);
+  return merged;
+}
+
 function parseConceptBlock(lines: string[]): Concept | null {
   if (lines.length < 2) return null;
 
   const firstLine = lines[0];
-
-  // 提取概念名称（支持编号标题、冒号标题、破折号标题）
   const nameMatch = firstLine.match(/^([一二三四五六七八九十\d]+[、.．])?([^\n:：?？—]+)/);
   if (!nameMatch) return null;
 
   let name = nameMatch[2].replace(/[?？!！.,，。、：:]$/, '').trim();
   if (name.length < 2) return null;
 
-  // 判断类别
   const category = detectCategory(lines.join(' '), name);
-
-  // 提取各字段
   const fullText = lines.join('\n');
   const definition = extractField(lines, '含义', '定义', '内容') || extractCoreDescription(lines);
   const keyPoints = extractKeyPoints(lines);
   const impact = extractField(lines, '影响', '意义', '评价', '作用', '评价商鞅变法') || extractImpactSection(lines);
   const keyPeople = extractKeyPeople(fullText);
   const importance = calculateImportance(name, fullText);
+
+  const dynasty = detectDynastyFromText(`${name} ${fullText}`);
+  const year = extractYearFromText(`${name} ${fullText}`);
 
   return {
     id: slugify(name),
@@ -248,7 +242,32 @@ function parseConceptBlock(lines: string[]): Concept | null {
     importance,
     gaokaoFocus: detectGaokaoFocus(name, fullText),
     relatedEvents: extractRelatedEvents(fullText),
+    year,
+    dynasty,
   };
+}
+
+function extractYearFromText(text: string): string {
+  const yearMatch = text.match(/(前?\d+)年/);
+  if (yearMatch) return yearMatch[0];
+  return '';
+}
+
+function detectDynastyFromText(text: string): string {
+  const patterns: Array<{ pattern: RegExp; value: string }> = [
+    { pattern: /西周|周朝|周代/, value: '西周' },
+    { pattern: /春秋战国|春秋|战国/, value: '春秋战国' },
+    { pattern: /商朝|商代/, value: '商朝' },
+    { pattern: /秦朝|秦代|秦统一/, value: '秦朝' },
+    { pattern: /汉初|西汉|东汉|汉武帝|光武中兴|文景之治/, value: '汉代' },
+    { pattern: /先秦/, value: '先秦' },
+    { pattern: /秦汉/, value: '秦汉' },
+  ];
+
+  for (const item of patterns) {
+    if (item.pattern.test(text)) return item.value;
+  }
+  return '';
 }
 
 function extractField(lines: string[], ...keywords: string[]): string | null {
@@ -256,13 +275,11 @@ function extractField(lines: string[], ...keywords: string[]): string | null {
     const line = lines[i];
     for (const kw of keywords) {
       if (line.includes(kw) || line.startsWith(kw + '：') || line.startsWith(kw + ':')) {
-        // 提取冒号/冒号后的内容，并合并后续行直到下一个字段
         const colonIdx = line.indexOf('：');
         const colonIdx2 = line.indexOf(':');
         const idx = colonIdx >= 0 ? colonIdx : colonIdx2;
         let content = idx >= 0 ? line.substring(idx + 1).trim() : line.substring(kw.length).trim();
 
-        // 合并后续没有字段标题的行
         const rest: string[] = [];
         for (let j = i + 1; j < lines.length; j++) {
           const nextLine = lines[j];
@@ -283,7 +300,6 @@ function extractField(lines: string[], ...keywords: string[]): string | null {
 }
 
 function extractCoreDescription(lines: string[]): string | null {
-  // 尝试从第2-3行提取核心描述
   for (let i = 1; i < Math.min(3, lines.length); i++) {
     const line = lines[i];
     if (line.length > 10 && !line.match(/^[①②③④⑤]|^[a-z][.．]/)) {
@@ -297,7 +313,6 @@ function extractKeyPoints(lines: string[]): string[] {
   const points: string[] = [];
 
   for (const line of lines) {
-    // 匹配编号列表
     const numberedMatch = line.match(/^[①②③④⑤⑥⑦⑧⑨⑩]?\s*(.+)/);
     if (numberedMatch) {
       const content = numberedMatch[1].replace(/^[a-z][.．]\s*/, '').trim();
@@ -305,7 +320,6 @@ function extractKeyPoints(lines: string[]): string[] {
       continue;
     }
 
-    // 匹配 "a. b. c." 列表
     const letterMatch = line.match(/^[a-z][.．]\s*(.+)/);
     if (letterMatch) {
       const content = letterMatch[1].trim();
@@ -313,7 +327,7 @@ function extractKeyPoints(lines: string[]): string[] {
     }
   }
 
-  return [...new Set(points)].slice(0, 8);
+  return [...new Set(points)].slice(0, 10);
 }
 
 function extractImpactSection(lines: string[]): string | null {
@@ -387,30 +401,25 @@ function extractRelatedEvents(text: string): string[] {
 function detectCategory(text: string, name: string): Concept['category'] {
   const textLower = text + name;
 
-  // 政治类关键词
   const politicalKeywords = [
     '分封', '宗法', '礼乐', '变法', '郡县', '皇帝', '三公', '九卿',
     '中央集权', '大一统', '官僚', '贵族', '特权', '削藩', '推恩',
   ];
 
-  // 经济类关键词
   const economicKeywords = [
     '农业', '手工业', '土地', '井田', '小农', '重农', '抑商', '铁器',
     '牛耕', '赋税', '铸钱', '盐铁', '经济', '生产', '庄园',
   ];
 
-  // 思想类关键词
   const thoughtKeywords = [
     '百家争鸣', '儒家', '法家', '道家', '墨家', '孔子', '老子', '仁',
     '礼', '民本', '无为', '法治', '思想', '教育', '私学', '礼乐',
   ];
 
-  // 文化类关键词
   const culturalKeywords = [
     '文化', '文字', '统一', '书法', '文学', '艺术',
   ];
 
-  // 军事类关键词
   const militaryKeywords = [
     '战争', '军事', '争霸', '统一', '征服', '防御',
   ];
@@ -448,39 +457,11 @@ function calculateImportance(name: string, text: string): 1 | 2 | 3 | 4 | 5 {
 }
 
 function conceptToTimelineEvent(concept: Concept): TimelineEvent | null {
-  // 从概念名称和内容中提取年代信息
   const fullText = [concept.name, concept.definition, concept.keyPoints.join(' ')].join(' ');
+  const dynasty = concept.dynasty || detectDynastyFromText(fullText);
+  const year = concept.year || extractYearFromText(fullText);
 
-  let year = '';
-  let dynasty = '';
-
-  // 匹配朝代/时期
-  const eraPatterns: [RegExp, string][] = [
-    [/西周|周朝|周代/, '西周'],
-    [/春秋战国|春秋|战国/, '春秋战国'],
-    [/商朝|商代/, '商朝'],
-    [/秦朝|秦代/, '秦朝'],
-    [/汉初|西汉|东汉/, '汉代'],
-    [/先秦/, '先秦'],
-    [/秦汉/, '秦汉'],
-  ];
-
-  for (const [regex, era] of eraPatterns) {
-    if (regex.test(fullText)) {
-      dynasty = era;
-      break;
-    }
-  }
-
-  // 匹配具体年份
-  const yearMatch = fullText.match(/(前?\d+)年/);
-  if (yearMatch) {
-    year = yearMatch[0];
-  } else if (dynasty) {
-    year = dynasty;
-  }
-
-  if (!year && !dynasty) return null;
+  if (!dynasty && !year) return null;
 
   return {
     id: concept.id,
@@ -499,7 +480,6 @@ function buildCausalLinks(concepts: Concept[]): CausalLink[] {
   const links: CausalLink[] = [];
   const conceptNames = concepts.map(c => c.name);
 
-  // 预定义的因果关系（基于历史知识）
   const causalRules: Array<[string[], string[], string, '导致' | '促进' | '制约' | '推动']> = [
     [['铁器', '牛耕', '生产力'], ['井田制瓦解'], '生产工具改进推动土地制度变革', '导致'],
     [['井田制瓦解', '土地私有'], ['商鞅变法'], '井田制瓦解为变法创造条件', '推动'],
@@ -510,6 +490,19 @@ function buildCausalLinks(concepts: Concept[]): CausalLink[] {
     [['秦统一'], ['郡县制'], '统一后推广郡县制', '导致'],
     [['小农经济'], ['封建制度'], '小农经济是封建制度的基础', '导致'],
     [['汉初无为'], ['文景之治'], '无为而治恢复经济', '推动'],
+    [['汉初民生凋敝'], ['汉初无为'], '汉初现实状况决定休养生息政策', '导致'],
+    [['秦朝刑法严苛'], ['汉初无为'], '秦亡教训促使汉初采取宽松政策', '导致'],
+    [['商鞅变法'], ['专制主义中央集权制度'], '商鞅变法开启君主专制政治体制先河', '导致'],
+    [['商鞅变法'], ['郡县制'], '商鞅变法推动地方行政制度向郡县制转变', '推动'],
+    [['诸子百家'], ['百家争鸣'], '百家争鸣是诸子百家思想争鸣的历史现象', '促进'],
+    [['私学兴起'], ['百家争鸣'], '私学打破学在官府，推动百家争鸣', '促进'],
+    [['秦统一'], ['秦朝巩固统一措施'], '秦统一后需要巩固统一、稳定政局', '导致'],
+    [['秦统一'], ['专制主义中央集权制度'], '秦统一后建立大一统中央集权体制', '导致'],
+    [['春秋战国'], ['变法运动'], '大变革时代推动各国变法图强', '导致'],
+    [['铁器牛耕'], ['小农经济'], '生产力进步促进小农经济形成', '导致'],
+    [['秦统一'], ['秦朝巩固统一措施'], '统一后需要巩固政权、整合制度', '导致'],
+    [['汉初无为'], ['汉武帝大一统'], '文景之治为汉武帝时期奠定物质基础', '推动'],
+    [['庄园经济'], ['两汉文化'], '豪强地主经济与文化繁荣并存', '促进'],
   ];
 
   for (const [causes, effects, logic, type] of causalRules) {
@@ -532,6 +525,34 @@ function buildCausalLinks(concepts: Concept[]): CausalLink[] {
   }
 
   return links;
+}
+
+function extractExtraTimelineEvents(concepts: Concept[]): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  const candidates = [
+    { title: '早期国家政治制度', importance: 4 },
+    { title: '商鞅变法', importance: 5 },
+    { title: '秦统一', importance: 5 },
+    { title: '秦朝巩固统一措施', importance: 4 },
+    { title: '专制主义中央集权制度', importance: 5 },
+    { title: '郡县制', importance: 5 },
+    { title: '百家争鸣', importance: 5 },
+    { title: '汉武帝大一统', importance: 5 },
+    { title: '汉初无为而治', importance: 4 },
+    { title: '庄园经济', importance: 3 },
+  ];
+
+  for (const item of candidates) {
+    const concept = concepts.find(c => c.name.includes(item.title) || item.title.includes(c.name));
+    if (!concept) continue;
+    const extraEvent = conceptToTimelineEvent(concept);
+    if (extraEvent && !events.some(ev => ev.title === extraEvent.title)) {
+      events.push(extraEvent);
+    }
+  }
+
+  return events;
 }
 
 function identifyExamFocus(concepts: Concept[]): ExamFocus[] {

@@ -91,6 +91,11 @@ function Unit1TimelinePage() {
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
+  // 讲解状态：当前选中的时间点
+  const [activeExplainId, setActiveExplainId] = useState<string | null>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainText, setExplainText] = useState('');
+
   // 筛选状态
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
@@ -263,6 +268,40 @@ function Unit1TimelinePage() {
       setAiAnswer('网络错误，请稍后重试。');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleExplainEvent = async (event: TimelineEvent) => {
+    setActiveExplainId(event.id);
+    setExplainLoading(true);
+    setExplainText('');
+    try {
+      const apiKey = getApiKey();
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const question = `请严格依据高中历史统编版教材，讲解“${event.title}（${event.dynasty || event.year}）”：`
+        + `1. 时间与阶段定位；2. 背景；3. 主要表现或内容；4. 历史影响；5. 辽宁高考常见考法与注意事项。`
+        + `请严谨、条理清晰，不要编造教材外结论。`;
+
+      const response = await fetch('/api/history/qa', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ question }),
+      });
+      const json = await response.json();
+      if (json.success) {
+        setExplainText(json.data.answer);
+      } else {
+        setExplainText(json.message || '讲解获取失败，请稍后重试。');
+      }
+    } catch {
+      setExplainText('网络错误，请稍后重试。');
+    } finally {
+      setExplainLoading(false);
     }
   };
 
@@ -705,6 +744,34 @@ function Unit1TimelinePage() {
                   </div>
                 </div>
               )}
+
+              <div className="border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium flex items-center gap-1">
+                    <BookOpen className="h-4 w-4 text-indigo-400" />
+                    AI 教材讲解
+                  </h4>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={activeExplainId === selectedEvent.id && explainLoading}
+                    onClick={() => handleExplainEvent(selectedEvent)}
+                  >
+                    {activeExplainId === selectedEvent.id && explainLoading ? '讲解中...' : '生成讲解'}
+                  </Button>
+                </div>
+                {activeExplainId === selectedEvent.id && explainLoading && (
+                  <p className="text-xs text-muted-foreground">AI 正在按教材口径组织讲解...</p>
+                )}
+                {activeExplainId === selectedEvent.id && explainText && (
+                  <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 border rounded-md p-3">
+                    {explainText}
+                  </div>
+                )}
+                {activeExplainId !== selectedEvent.id && (
+                  <p className="text-xs text-muted-foreground">点击“生成讲解”获取该时间点的教材级讲解。</p>
+                )}
+              </div>
             </div>
 
             <div className="border-t pt-4 space-y-3">
