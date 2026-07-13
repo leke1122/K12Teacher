@@ -90,6 +90,7 @@ function Unit1TimelinePage() {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiDataSource, setAiDataSource] = useState<string>('');
 
   // 讲解状态：当前选中的时间点
   const [activeExplainId, setActiveExplainId] = useState<string | null>(null);
@@ -261,6 +262,7 @@ function Unit1TimelinePage() {
       const json = await response.json();
       if (json.success) {
         setAiAnswer(json.data.answer);
+        setAiDataSource(json.data.dataSource || 'builtin');
       } else {
         setAiAnswer(json.message || '抱歉，AI 服务暂时不可用。请检查是否已在设置页面配置 DeepSeek API Key。');
       }
@@ -343,10 +345,16 @@ function Unit1TimelinePage() {
             </h1>
             <p className="text-xs text-muted-foreground">
               高中历史 · {knowledgeData.pageRange || '辽宁高考方向'} · 共 {knowledgeData.timelineEvents.length} 个核心事件
-              {dataSource === 'docx_import' && (
-                <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>
-              )}
+              {dataSource === 'docx' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
+              {dataSource === 'builtin' && <span className="ml-2 text-muted-foreground">📚 教材内置知识</span>}
             </p>
+            {dataSource && (
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-xs font-normal">
+                  {dataSource === 'docx' ? '📝 您导入的知识点' : '📚 教材内置知识'}
+                </Badge>
+              </div>
+            )}
           </div>
 
           {/* 单元选择器 */}
@@ -402,7 +410,7 @@ function Unit1TimelinePage() {
                   unitTitle: result.unitTitle,
                   pageRange: result.pageRange,
                 });
-                setDataSource('docx_import');
+                setDataSource('docx');
                 loadKnowledgeData(selectedUnitId, true);
               }}
             />
@@ -437,9 +445,9 @@ function Unit1TimelinePage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => router.push('/textbook')}
+                      onClick={() => router.push('/subjects/history')}
                     >
-                      去上传教材
+                      去学科页
                     </Button>
                   </div>
                 </div>
@@ -861,6 +869,12 @@ function Unit1TimelinePage() {
               <div className="text-xs bg-amber-50 p-2 rounded border border-amber-200">
                 <p className="font-medium text-amber-800 mb-1">📚 学习建议</p>
                 <p className="text-amber-700">{knowledgeData.summary}</p>
+              </div>
+            )}
+
+            {aiDataSource && (
+              <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
+                {aiDataSource === 'docx' ? '📝 基于您导入的知识点' : '📚 基于教材知识'}
               </div>
             )}
 

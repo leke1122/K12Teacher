@@ -62,6 +62,7 @@ function CausalChainPageInner() {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiDataSource, setAiDataSource] = useState<string>('');
 
   const [knowledgeData, setKnowledgeData] = useState(DEFAULT_KNOWLEDGE);
   const [knowledgeLoading, setKnowledgeLoading] = useState(true);
@@ -171,6 +172,7 @@ function CausalChainPageInner() {
       const json = await response.json();
       if (json.success) {
         setAiAnswer(json.data.answer);
+        setAiDataSource(json.data.dataSource || 'builtin');
       } else {
         setAiAnswer(json.message || '抱歉，AI 服务暂时不可用。请检查是否已在设置页面配置 DeepSeek API Key。');
       }
@@ -206,9 +208,17 @@ function CausalChainPageInner() {
             </h1>
             <p className="text-xs text-muted-foreground">
               高中历史统编版 · {CHAPTER_TITLES[chapterId] || chapterId} · {timelineEvents.length} 个核心事件
-              {dataSource === 'docx_import' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
+              {dataSource === 'docx' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
+              {dataSource === 'builtin' && <span className="ml-2 text-muted-foreground">📚 教材内置知识</span>}
               {knowledgeLoading && <span className="ml-2 text-muted-foreground">正在加载知识点...</span>}
             </p>
+            {dataSource && (
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-xs font-normal">
+                  {dataSource === 'docx' ? '📝 您导入的知识点' : '📚 教材内置知识'}
+                </Badge>
+              </div>
+            )}
           </div>
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setAiOpen(true)}>
             <MessageCircle className="h-4 w-4" />
@@ -552,6 +562,11 @@ function CausalChainPageInner() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {aiDataSource && (
+              <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
+                {aiDataSource === 'docx' ? '📝 基于您导入的知识点' : '📚 基于教材知识'}
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 className="flex-1 border rounded px-3 py-2 text-sm"
