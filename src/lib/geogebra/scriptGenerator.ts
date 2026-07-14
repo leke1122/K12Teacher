@@ -29,21 +29,27 @@ export function generateGeoGebraScript(data: GeometryData): string {
 function generateSolidGeometry(data: GeometryData): string[] {
   const cmds: string[] = [];
 
+  cmds.push('SetViewDirection(Vector((1, 1, 1)))');
+  cmds.push('SetAxesRatio(1, 1, 1)');
+
   data.points?.forEach((point) => {
     cmds.push(`${point.id}=(${point.x},${point.y},${point.z})`);
   });
 
+  const seen = new Set<string>();
   data.faces?.forEach((face) => {
     if (face.length >= 3) {
-      // Polygon 直接用顶点名不加引号
       const vertices = face.join(',');
-      cmds.push(`Polygon(${vertices})`);
+      const key = vertices;
+      if (!seen.has(key)) {
+        seen.add(key);
+        cmds.push(`Polygon(${vertices})`);
+      }
     }
   });
 
   data.edges?.forEach((edge) => {
     if (!isEdgeCoveredByFace(edge, data.faces)) {
-      // Segment 的点参数不加引号，直接是变量名
       cmds.push(`Segment(${edge.from},${edge.to})`);
     }
   });

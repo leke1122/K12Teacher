@@ -196,13 +196,15 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
               setIsLoading(false);
               addLog('✅ GeoGebra 就绪');
 
-              if (pendingScriptRef.current) {
-                const pending = pendingScriptRef.current;
-                pendingScriptRef.current = null;
-                executeGeoGebraScript(pending);
-              } else if (script && autoExecute) {
-                executeGeoGebraScript(script);
-              }
+              setTimeout(() => {
+                if (pendingScriptRef.current) {
+                  const pending = pendingScriptRef.current;
+                  pendingScriptRef.current = null;
+                  executeGeoGebraScript(pending);
+                } else if (script && autoExecute) {
+                  executeGeoGebraScript(script);
+                }
+              }, 300);
 
               onLoad?.();
             },
