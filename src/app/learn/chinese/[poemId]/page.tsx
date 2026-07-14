@@ -83,6 +83,26 @@ function buildAnnotatedHtml(text: string) {
     .join('');
 }
 
+function splitAnnotations(text: string): string[] {
+  const tokens = Array.from(text);
+  const segments: string[] = [];
+  let buffer = '';
+
+  for (const char of tokens) {
+    buffer += char;
+    if (/[。！？；\n\r]/.test(char)) {
+      const trimmed = buffer.trim();
+      if (trimmed) segments.push(trimmed);
+      buffer = '';
+    }
+  }
+
+  const trimmed = buffer.trim();
+  if (trimmed) segments.push(trimmed);
+
+  return segments;
+}
+
 function ChinesePoemDetailPageContent() {
   const params = useParams();
   const poemId = params.poemId as string;
@@ -349,12 +369,18 @@ function ChinesePoemDetailPageContent() {
               <ScrollArea className="h-[420px] rounded-md border">
                 {poem.annotations && Object.keys(poem.annotations).length ? (
                   <div className="divide-y">
-                    {Object.entries(poem.annotations).map(([word, meaning]) => (
-                      <div key={word} className="flex flex-col gap-1 p-3 md:flex-row md:items-start md:gap-4">
-                        <span className="font-mono text-base font-semibold text-slate-900">{word}</span>
-                        <span className="text-sm text-slate-700">{meaning as string}</span>
-                      </div>
-                    ))}
+                    {Object.entries(poem.annotations).flatMap(([word, meaning]) => {
+                      const items = splitAnnotations(String(meaning));
+                      if (!items.length) {
+                        return [];
+                      }
+                      return items.map((item, idx) => (
+                        <div key={`${word}-${idx}`} className="flex flex-col gap-1 p-3 md:flex-row md:items-start md:gap-4">
+                          <span className="font-mono text-base font-semibold text-slate-900">{idx === 0 ? word : ''}</span>
+                          <span className="text-sm text-slate-700 whitespace-pre-wrap">{item}</span>
+                        </div>
+                      ));
+                    })}
                   </div>
                 ) : (
                   <p className="p-4 text-sm text-slate-500">暂无注释</p>
