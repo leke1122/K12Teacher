@@ -43,7 +43,7 @@ export default function GeoGebraUnifiedPage() {
 
   const viewerRef = useRef<GeoGebraViewerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { steps, isLoading: isGeneratingSteps, generateSteps, reset: resetTutorial } = useTutorial();
+  const { steps, isLoading: isGeneratingSteps, generateSteps, reset: resetTutorial } = useTutorial(() => settings.qwenKey || (typeof window !== 'undefined' ? localStorage.getItem('qwen_api_key') : null));
 
   // Listen for GeoGebra selection change events from iframe
   useEffect(() => {

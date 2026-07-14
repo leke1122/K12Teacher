@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { TutorialStep } from '@/types/geometry';
 
-export function useTutorial() {
+export function useTutorial(getApiKey?: () => string | null) {
   const [steps, setSteps] = useState<TutorialStep[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,11 +13,18 @@ export function useTutorial() {
     setError(null);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      const apiKey = typeof getApiKey === 'function' ? getApiKey() : null;
+      if (apiKey) {
+        headers['x-qwen-api-key'] = apiKey;
+      }
+
       const response = await fetch('/api/ai/tutorial', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ geometryData }),
       });
 
@@ -39,7 +46,7 @@ export function useTutorial() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [getApiKey]);
 
   const reset = useCallback(() => {
     setSteps([]);
