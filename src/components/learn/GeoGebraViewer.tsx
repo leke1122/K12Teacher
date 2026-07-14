@@ -55,7 +55,7 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
       onError,
       className,
       height = '100%',
-      materialId = 'j7mkvch6',
+      materialId,
     },
     ref
   ) => {
@@ -174,9 +174,8 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
           addLog('创建 GeoGebra 实例...');
 
           // 创建 applet 配置
-          const parameters = {
+          const parameters: Record<string, unknown> = {
             id: 'ggbApplet',
-            material_id: materialId,
             width: containerRef.current?.clientWidth || 800,
             height: containerRef.current?.clientHeight || 600,
             showMenuBar: false,
@@ -208,6 +207,10 @@ export const GeoGebraViewer = forwardRef<GeoGebraViewerRef, GeoGebraViewerProps>
               onLoad?.();
             },
           };
+
+          if (materialId) {
+            parameters.material_id = materialId;
+          }
 
           // 创建并注入 applet
           const applet = new G.GGBApplet(parameters, true);
