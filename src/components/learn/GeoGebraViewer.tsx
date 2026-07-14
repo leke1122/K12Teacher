@@ -22,7 +22,9 @@ export interface GeoGebraViewerRef {
 }
 
 // 加载 GeoGebra 脚本
-function loadGeoGebraScript(): Promise<void> {
+const SCRIPT_URL = 'https://cdn.geogebra.org/apps/deployggb.js';
+
+function loadGeoGebraScript(retries = 2): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window !== 'undefined' && (window as any).GGBApplet) {
       resolve();
@@ -30,10 +32,16 @@ function loadGeoGebraScript(): Promise<void> {
     }
 
     const script = document.createElement('script');
-    script.src = 'https://cdn.geogebra.org/apps/deps/ggbLibrary.js';
+    script.src = SCRIPT_URL;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('加载 GeoGebra 脚本失败'));
+    script.onerror = () => {
+      if (retries > 0) {
+        setTimeout(() => loadGeoGebraScript(retries - 1).then(resolve).catch(reject), 1000);
+      } else {
+        reject(new Error('加载 GeoGebra 脚本失败'));
+      }
+    };
     document.head.appendChild(script);
   });
 }
