@@ -344,7 +344,7 @@ export async function POST(request: NextRequest) {
                 gaokaoFocus: found.gaokaoFocus || '高考考点',
                 relatedEvents: [],
                 typicalQuestions: [],
-                importance: Math.min((found.importance || 3) as 1 | 2 | 3 | 4 | 5, 5),
+                importance: Math.min(3, 5) as 1 | 2 | 3 | 4 | 5,
                 source: 'docx_import'
               };
             }
