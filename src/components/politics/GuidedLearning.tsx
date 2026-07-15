@@ -648,53 +648,82 @@ export default function GuidedLearningPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* 详细原文内容 */}
-              {currentSection.detailContent && (
-                <div className="space-y-3">
-                  {Object.entries(currentSection.detailContent).map(([key, value]) => {
-                    if (!value) return null;
-                    const labels: Record<string, string> = {
-                      productivity: '生产力', ownership: '生产资料所有制', distribution: '个人消费品分配',
-                      laborRelation: '劳动关系', politics: '政治上层建筑', culture: '思想上层建筑',
-                      mainContradiction: '主要矛盾', basicContradiction: '基本矛盾', evaluation: '总体评价',
-                      detail: '详细内容', basicFeature: '基本特征', mainManifestations: '主要表现',
-                      directCauses: '直接原因', rootCause: '根本原因', progress: '进步性', limitation: '局限性',
-                      theoreticalFoundation: '理论基石', fiveProcesses: '五大过程', threeLeaps: '三次飞跃',
-                      whyNotEnded: '为什么不会终结',
-                    };
-                    const label = labels[key] || key;
-                    // 跳过非字符串/非数组的对象（这些通过单独的类型字段处理）
-                    if (typeof value !== 'string' && !Array.isArray(value) && typeof value === 'object') continue;
-                    return (
-                      <div key={key} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
-                        <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
-                          <Table2 className="h-3 w-3" /> {label}
-                        </h4>
-                        {Array.isArray(value) ? (
-                          <ul className="space-y-1">
-                            {value.map((item, i) => (
-                              <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                                <span className="text-pink-400 flex-shrink-0">·</span>
-                                <span>{String(item)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : typeof value === 'object' && value !== null ? (
-                          <ul className="space-y-1">
-                            {Object.entries(value as Record<string, string>).map(([subKey, subVal]) => (
-                              <li key={subKey} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                                <span className="text-pink-400 flex-shrink-0">·</span>
-                                <span>{subVal}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{String(value)}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {currentSection.detailContent && (() => {
+                const labels: Record<string, string> = {
+                  productivity: '生产力', ownership: '生产资料所有制', distribution: '个人消费品分配',
+                  laborRelation: '劳动关系', politics: '政治上层建筑', culture: '思想上层建筑',
+                  mainContradiction: '主要矛盾', basicContradiction: '基本矛盾', evaluation: '总体评价',
+                  detail: '详细内容', basicFeature: '基本特征', mainManifestations: '主要表现',
+                  directCauses: '直接原因', rootCause: '根本原因', progress: '进步性', limitation: '局限性',
+                  theoreticalFoundation: '理论基石', fiveProcesses: '五大过程', threeLeaps: '三次飞跃',
+                  whyNotEnded: '为什么不会终结',
+                };
+                return (
+                  <div className="space-y-3">
+                    {Object.entries(currentSection.detailContent)
+                      .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+                      .map(([key, value]) => {
+                        const label = labels[key] || key;
+                        return (
+                          <div key={key} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
+                            <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+                              <Table2 className="h-3 w-3" /> {label}
+                            </h4>
+                            {Array.isArray(value) ? (
+                              <ul className="space-y-1">
+                                {value.map((item, i) => (
+                                  <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                                    <span className="text-pink-400 flex-shrink-0">·</span>
+                                    <span>{String(item)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{String(value)}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                );
+              })()}
+              {currentSection.detailContent?.theoreticalFoundation && (() => {
+                const tf = currentSection.detailContent.theoreticalFoundation!;
+                return (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
+                      <Table2 className="h-3 w-3" /> 理论基石详解
+                    </h4>
+                    <ul className="space-y-1">
+                      <li className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                        <span className="text-pink-400 flex-shrink-0">·</span>
+                        <span><strong>唯物史观：</strong>{tf.materialistHistory}</span>
+                      </li>
+                      <li className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                        <span className="text-pink-400 flex-shrink-0">·</span>
+                        <span><strong>剩余价值学说：</strong>{tf.surplusValue}</span>
+                      </li>
+                    </ul>
+                  </div>
+                );
+              })()}
+              {currentSection.detailContent?.directCauses && currentSection.detailContent.directCauses.length > 0 && (() => {
+                return (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
+                      <Table2 className="h-3 w-3" /> 直接原因详解
+                    </h4>
+                    <ul className="space-y-1">
+                      {currentSection.detailContent.directCauses.map((cause, i) => (
+                        <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                          <span className="text-pink-400 flex-shrink-0">{i + 1}.</span>
+                          <span>{cause}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
 
               {/* 重要引文 */}
               {currentSection.importantQuote && (
