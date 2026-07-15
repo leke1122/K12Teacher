@@ -38,6 +38,13 @@ function getPageInfo(pathname: string, currentSubject: string | null) {
     return PAGE_NAMES[pathname];
   }
 
+  // 学科主页：/subjects/math → 数学
+  const subjectsMatch = pathname.match(/^\/subjects\/([^\/]+)/);
+  if (subjectsMatch) {
+    const subject = SUBJECTS.find((s) => s.id === subjectsMatch[1]);
+    return { name: subject?.name || '学科', icon: subject?.icon || '📚' };
+  }
+
   // 按路径长度从长到短排序，优先匹配更具体的路径
   const sortedPaths = Object.entries(SUBJECT_PATHS)
     .sort((a, b) => b[0].length - a[0].length);
@@ -46,12 +53,6 @@ function getPageInfo(pathname: string, currentSubject: string | null) {
     if (pathname === path || pathname.startsWith(path + '/')) {
       return { name: subject.name, icon: subject.icon };
     }
-  }
-
-  // 学科主页：/subjects/math → 数学
-  if (pathname.startsWith('/subjects/')) {
-    const subject = SUBJECTS.find((s) => s.id === currentSubject);
-    return { name: subject?.name || '学科', icon: subject?.icon || '📚' };
   }
 
   // 默认返回学科名
