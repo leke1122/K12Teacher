@@ -273,20 +273,22 @@ export async function GET(request: NextRequest) {
         if (importData?.data?.concepts) {
           // 将 docx 导入的概念转换为必背知识
           const docxItems: HistoryMustKnowItem[] = importData.data.concepts
-            .filter((c: { importance?: number; gaokaoFocus?: string }) => (c.importance ?? 0) >= 3 || c.gaokaoFocus)
-            .map((c: { id: string; name: string; category: string; definition: string; keyPoints: string[]; impact: string; gaokaoFocus?: string; importance?: number }, idx: number) => ({
-              id: `docx-${c.id}`,
-              unitId,
-              unitTitle: importData.data?.unitTitle || '历史单元',
-              title: c.name,
-              content: c.definition,
-              explanation: [c.definition, ...(c.keyPoints || [])].join('\n'),
-              gaokaoFocus: c.gaokaoFocus || '高考考点',
-              relatedEvents: [],
-              typicalQuestions: [],
-              importance: Math.min((c.importance || 3) as 1 | 2 | 3 | 4 | 5, 5),
-              source: 'docx_import' as const
-            }));
+            .map((c: { id: string; name: string; category: string; definition: string; keyPoints?: string[]; impact?: string; gaokaoFocus?: string; importance?: number }, idx: number) => {
+              const imp = c.importance ?? 3;
+              return {
+                id: `docx-${c.id}`,
+                unitId,
+                unitTitle: importData.data?.unitTitle || '历史单元',
+                title: c.name,
+                content: c.definition,
+                explanation: [c.definition, ...(c.keyPoints || [])].join('\n'),
+                gaokaoFocus: c.gaokaoFocus || '高考考点',
+                relatedEvents: [],
+                typicalQuestions: [],
+                importance: (imp >= 1 && imp <= 5 ? imp : 3) as 1 | 2 | 3 | 4 | 5,
+                source: 'docx_import' as const
+              };
+            });
           items = [...docxItems, ...items.filter(i => i.source === 'builtin')];
         }
       } catch (dbError) {

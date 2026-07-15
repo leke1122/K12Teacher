@@ -97,11 +97,10 @@ export function HistoryGuidedLearning({ unitId = 'unit1', unitTitle }: HistoryGu
   // 获取 API Key
   const getApiKey = () => {
     try {
-      const stored = localStorage.getItem('edumind-settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed?.settings?.deepseekKey || parsed?.deepseekKey || '';
-      }
+      const raw = localStorage.getItem('edumind-settings');
+      if (!raw) return '';
+      const parsed = JSON.parse(raw);
+      return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
     } catch {}
     return '';
   };

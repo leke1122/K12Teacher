@@ -89,7 +89,14 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
     setChatAnswer('');
 
     try {
-      const apiKey = localStorage.getItem('edumind-deepseek-key') || '';
+      const apiKey = (() => {
+        try {
+          const raw = localStorage.getItem('edumind-settings');
+          if (!raw) return '';
+          const parsed = JSON.parse(raw);
+          return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
+        } catch { return ''; }
+      })();
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) {
@@ -120,7 +127,14 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
 
     setChatLoading(true);
     try {
-      const apiKey = localStorage.getItem('edumind-deepseek-key') || '';
+      const apiKey = (() => {
+        try {
+          const raw = localStorage.getItem('edumind-settings');
+          if (!raw) return '';
+          const parsed = JSON.parse(raw);
+          return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
+        } catch { return ''; }
+      })();
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) {
@@ -132,7 +146,8 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
         headers,
         body: JSON.stringify({
           question: `关于"${selectedItem.title}"（${selectedItem.dynasty || selectedItem.year || ''}）：${chatQuestion}`,
-          context: `历史必背知识：${selectedItem.content}\n高考关联：${selectedItem.gaokaoFocus}`
+          context: `历史必背知识：${selectedItem.content}\n高考关联：${selectedItem.gaokaoFocus}`,
+          unitId,
         }),
       });
 

@@ -83,16 +83,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { sectionId, action } = body;
 
-    // 生成练习题
+      // 生成练习题
     if (action === 'generate-practice') {
       const section = GUIDED_SECTIONS.find(s => s.id === sectionId);
       if (!section) {
         return NextResponse.json({ success: false, message: '章节不存在' }, { status: 404 });
       }
 
-      const apiKey = process.env.DEEPSEEK_API_KEY;
+      const authHeader = request.headers.get('authorization');
+      const apiKey = authHeader?.replace('Bearer ', '') || process.env.DEEPSEEK_API_KEY;
       if (!apiKey) {
-        // 返回默认练习题
         return NextResponse.json({
           success: true,
           questions: generateFallbackQuestions(section),
@@ -171,12 +171,14 @@ export async function POST(request: NextRequest) {
       const { message, sectionId, history } = body;
       const section = GUIDED_SECTIONS.find(s => s.id === sectionId);
 
-      const apiKey = process.env.DEEPSEEK_API_KEY;
+      // 优先从请求头获取用户配置的 API Key，其次用服务端环境变量
+      const authHeader = request.headers.get('authorization');
+      let apiKey = authHeader?.replace('Bearer ', '') || process.env.DEEPSEEK_API_KEY;
       if (!apiKey) {
         return NextResponse.json({
           success: false,
-          message: '请先配置 DeepSeek API Key',
-        }, { status: 400 });
+          message: '请先在设置页面配置 DeepSeek API Key',
+        }, { status: 401 });
       }
 
       const systemPrompt = `你是高中思想政治课的辅导教师，正在进行引导式教学。

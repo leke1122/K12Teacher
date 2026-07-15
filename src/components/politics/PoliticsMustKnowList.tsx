@@ -87,7 +87,16 @@ export function PoliticsMustKnowList({ chapterId, chapterTitle }: PoliticsMustKn
     setChatAnswer('');
 
     try {
-      const apiKey = localStorage.getItem('edumind-deepseek-key') || '';
+      const apiKey = localStorage.getItem('edumind-settings')
+        ? (() => {
+            try {
+              const raw = localStorage.getItem('edumind-settings');
+              if (!raw) return '';
+              const parsed = JSON.parse(raw);
+              return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
+            } catch { return ''; }
+          })()
+        : '';
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) {
@@ -118,25 +127,31 @@ export function PoliticsMustKnowList({ chapterId, chapterTitle }: PoliticsMustKn
 
     setChatLoading(true);
     try {
-      const apiKey = localStorage.getItem('edumind-deepseek-key') || '';
+      const apiKey = localStorage.getItem('edumind-settings')
+        ? (() => {
+            try {
+              const raw = localStorage.getItem('edumind-settings');
+              if (!raw) return '';
+              const parsed = JSON.parse(raw);
+              return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
+            } catch { return ''; }
+          })()
+        : '';
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
-      const response = await fetch('/api/politics/qa', {
+      const response = await fetch('/api/politics/must-know', {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          question: `关于"${selectedItem.title}"：${chatQuestion}`,
-          context: `政治必背知识：${selectedItem.content}`
-        }),
+        body: JSON.stringify({ itemId: selectedItem.id, question: chatQuestion }),
       });
 
       const data = await response.json();
-      if (data.success) {
-        setChatAnswer(data.data.answer);
+      if (data.success && data.data) {
+        setChatAnswer(data.data.explanation || '讲解已生成');
       } else {
         setChatAnswer('抱歉，AI 服务暂时不可用。请检查是否已配置 DeepSeek API Key。');
       }

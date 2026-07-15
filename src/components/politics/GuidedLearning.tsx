@@ -513,9 +513,24 @@ export default function GuidedLearningPage() {
     setChatLoading(true);
 
     try {
+      // 读取用户配置的 API Key
+      const apiKey = (() => {
+        try {
+          const raw = localStorage.getItem('edumind-settings');
+          if (!raw) return '';
+          const parsed = JSON.parse(raw);
+          return parsed?.state?.settings?.deepseekKey || parsed?.settings?.deepseekKey || '';
+        } catch { return ''; }
+      })();
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${apiKey}`;
+      }
+
       const res = await fetch('/api/politics/guided-learning', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           action: 'chat',
           sectionId: currentSection.id,
@@ -527,7 +542,7 @@ export default function GuidedLearningPage() {
       if (json.success) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: json.reply }]);
       } else {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我暂时无法回答，请稍后再试。' }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: json.message || '抱歉，我暂时无法回答，请稍后再试。' }]);
       }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请检查连接后重试。' }]);
