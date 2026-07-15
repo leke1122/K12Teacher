@@ -148,7 +148,7 @@ export function parsePoliticsDocx(rawText: string, fileName?: string, rawHtml?: 
     evaluation: f.evaluation,
   }));
 
-  const concepts = extractConcepts(text, socialFormsFull);
+  const concepts = extractConcepts(text);
   const timelineEvents = extractTimelineEvents(text);
   const causalLinks = buildCausalLinks(concepts, timelineEvents);
   const examFocus = identifyExamFocus(concepts);
@@ -156,7 +156,7 @@ export function parsePoliticsDocx(rawText: string, fileName?: string, rawHtml?: 
 
   // 从HTML提取详细内容（经济危机、空想社会主义、科学社会主义）
   const capitalistCrisis = rawHtml ? extractCapitalistCrisisFromHtml(rawHtml) : extractCapitalistCrisisFromText(text);
-  const capitalistWhyDoomed = extractCapitalistWhyDoomed(text);
+  const capitalistWhyDoomed = extractCapitalistWhyDoomedFromText(text);
   const utopianSocialism = rawHtml ? extractUtopianSocialismFromHtml(rawHtml) : extractUtopianSocialismFromText(text);
   const scientificSocialism = rawHtml ? extractScientificSocialismFromHtml(rawHtml) : extractScientificSocialismFromText(text);
   const communistManifesto = extractCommunistManifesto(text);
@@ -515,11 +515,11 @@ function extractSocialFormsFromText(text: string): SocialFormFullRecord[] {
       if (match) {
         const value = match[0].replace(/^[^：:]*[：:]/, '').trim();
         if (key === 'ownership' || key === 'distribution') {
-          (record.productionRelation as Record<string, string>)[key] = value;
+          (record.productionRelation as unknown as Record<string, string>)[key] = value;
         } else if (key === 'politics' || key === 'culture') {
-          (record.superstructure as Record<string, string>)[key] = value;
+          (record.superstructure as unknown as Record<string, string>)[key] = value;
         } else {
-          (record as Record<string, string>)[key] = value;
+          (record as unknown as Record<string, string>)[key] = value;
         }
       }
     }
@@ -731,4 +731,33 @@ function extractCommunistManifesto(text: string): CommunistManifestoRecord {
   }
 
   return result;
+}
+
+/**
+ * 从文本提取资本主义必然灭亡内容
+ */
+function extractCapitalistWhyDoomedFromText(text: string): string[] {
+  const result: string[] = [];
+
+  const keywords = ['资本主义必然灭亡', '基本矛盾是总根源', '终将代替资本主义', '历史发展的必然趋势'];
+  for (const kw of keywords) {
+    const idx = text.indexOf(kw);
+    if (idx !== -1) {
+      const slice = text.slice(idx, idx + 600);
+      const sentences = slice.match(/[^。！？]{20,150}[。！？]/g);
+      if (sentences) {
+        result.push(...sentences.map(s => s.trim()));
+      }
+    }
+  }
+
+  if (result.length === 0) {
+    return [
+      '资本主义基本矛盾是资本主义社会一切矛盾和冲突的总根源。资本主义基本矛盾的发展贯穿于资本主义社会的始终，决定着资本主义的命运。',
+      '生产社会化的程度越高，资本、生产资料、劳动产品就越集中在少数资本家手里，资本主义社会基本矛盾的尖锐化就越不可避免。',
+      '资本主义终究要被社会主义所取代，虽然这是一个漫长的过程，但这是历史发展的必然趋势。',
+    ];
+  }
+
+  return [...new Set(result)].slice(0, 5);
 }
