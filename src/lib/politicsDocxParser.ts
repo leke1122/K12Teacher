@@ -566,7 +566,7 @@ function extractCapitalistCrisisFromText(text: string): CapitalistCrisisRecord {
       const slice = text.slice(crisisIdx, crisisIdx + 2000);
       const numberedMatches = slice.matchAll(/[①②③][^。\n]{10,200}/g);
       for (const m of numberedMatches) result.directCauses.push(m[0].trim());
-      const plainMatches = slice.matchAll(/矛盾[：:]\s*([^。\n]{10,200}/g);
+      const plainMatches = slice.matchAll(/矛盾[：:]\s*([^。\n]{10,200})/g);
       for (const m of plainMatches) {
         if (result.directCauses.length < 3) {
           result.directCauses.push(m[1].trim());
