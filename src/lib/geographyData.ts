@@ -218,6 +218,52 @@ export const LOCATION_ANALYSIS_CASES: LocationAnalysisCase[] = [
   },
 ];
 
+export interface GeographyChapter {
+  id: string;
+  title: string;
+  category: 'natural' | 'human' | 'regional' | 'resource';
+  categoryName: string;
+  chapterLabel: string;
+}
+
+export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
+  {
+    id: 'compulsory-1',
+    title: '必修第一册（自然地理）',
+    category: 'natural',
+    categoryName: '自然地理',
+    chapterLabel: '必修第一册',
+  },
+  {
+    id: 'compulsory-2',
+    title: '必修第二册（人文地理）',
+    category: 'human',
+    categoryName: '人文地理',
+    chapterLabel: '必修第二册',
+  },
+  {
+    id: 'selective-1',
+    title: '选择性必修一（自然地理进阶）',
+    category: 'natural',
+    categoryName: '自然地理进阶',
+    chapterLabel: '选择性必修一',
+  },
+  {
+    id: 'selective-2',
+    title: '选择性必修二（区域发展）',
+    category: 'regional',
+    categoryName: '区域发展',
+    chapterLabel: '选择性必修二',
+  },
+  {
+    id: 'selective-3',
+    title: '选择性必修三（资源环境与国家安全）',
+    category: 'resource',
+    categoryName: '资源环境与国家安全',
+    chapterLabel: '选择性必修三',
+  },
+];
+
 export const CHAPTERS = {
   'compulsory-1': '必修第一册',
   'compulsory-2': '必修第二册',
