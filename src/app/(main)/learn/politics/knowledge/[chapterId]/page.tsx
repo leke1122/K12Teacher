@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Sparkles,
-  BookOpen, BookMarked, FileQuestion
+  BookOpen, BookMarked, FileQuestion, Star
 } from 'lucide-react';
 import Link from 'next/link';
 import GuidedLearning from '@/components/politics/GuidedLearning';
+import { PoliticsMustKnowList } from '@/components/politics/PoliticsMustKnowList';
 
 export default function PoliticsKnowledgePage() {
   const params = useParams();
@@ -35,7 +36,27 @@ export default function PoliticsKnowledgePage() {
         </div>
 
         {/* 学习模式选择卡片 */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <button
+            onClick={() => setActiveTab('mustKnow')}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+              activeTab === 'mustKnow'
+                ? 'border-red-400 bg-red-50 dark:bg-red-950/30 shadow-sm'
+                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-red-300'
+            }`}
+          >
+            <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900 flex items-center justify-center">
+              <Star className="h-6 w-6 text-red-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">必背清单</p>
+              <p className="text-xs text-slate-500 mt-0.5">核心内容 · 讲解</p>
+            </div>
+            {activeTab === 'mustKnow' && (
+              <Badge className="bg-red-500 text-white text-xs border-0">进行中</Badge>
+            )}
+          </button>
+
           <button
             onClick={() => setActiveTab('guided')}
             className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
@@ -92,6 +113,7 @@ export default function PoliticsKnowledgePage() {
         </div>
 
         {/* 内容区 */}
+        {activeTab === 'mustKnow' && <PoliticsMustKnowList chapterId={chapterId} />}
         {activeTab === 'guided' && <GuidedLearning />}
         {activeTab === 'textbook' && <TextbookPreview />}
         {activeTab === 'practice' && <PracticePreview chapterId={chapterId} />}

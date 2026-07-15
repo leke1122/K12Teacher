@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,9 +23,9 @@ import {
   Brain,
   FileQuestion,
   Lightbulb,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
-import { timelineEvents, concepts } from '@/data/history/unit1_data';
 
 // 练习题类型
 interface PracticeQuestion {
@@ -42,6 +43,7 @@ interface PracticeQuestion {
     author?: string;
     source?: string;
   };
+  gaokaoTag?: string;
 }
 
 // 从历史数据生成练习题
@@ -190,7 +192,7 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 };
 
 export default function HistoryPracticePage() {
-  const [questions] = useState<PracticeQuestion[]>(generatePracticeQuestions);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [showResult, setShowResult] = useState(false);
@@ -199,6 +201,75 @@ export default function HistoryPracticePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
   const [historyMode, setHistoryMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+
+  // 获取 API Key
+  const getApiKey = () => {
+    try {
+      const stored = localStorage.getItem('edumind-settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed?.settings?.deepseekKey || parsed?.deepseekKey || '';
+      }
+    } catch {}
+    return '';
+  };
+
+  // 加载练习题
+  const loadQuestions = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/history/practice');
+      const data = await response.json();
+      if (data.success && data.data?.questions) {
+        setQuestions(data.data.questions);
+      }
+    } catch (error) {
+      console.error('加载练习题失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 加载初始数据
+  useEffect(() => {
+    loadQuestions();
+  }, []);
+
+  // 生成新题目
+  const generateNewQuestions = async () => {
+    setGenerating(true);
+    try {
+      const apiKey = getApiKey();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const response = await fetch('/api/history/practice', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          unitId: 'unit1',
+          difficulty: difficultyFilter === 'all' ? 'medium' : difficultyFilter,
+          count: 10,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.data?.questions) {
+        setQuestions(data.data.questions);
+        setAnswers({});
+        setCurrentIndex(0);
+        setShowResult(false);
+      }
+    } catch (error) {
+      console.error('生成练习题失败:', error);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
@@ -376,14 +447,29 @@ export default function HistoryPracticePage() {
               历史综合练习
             </h1>
             <p className="text-xs text-muted-foreground">
-              高中历史统编版 · {questions.length} 道练习题
+              {loading ? '加载中...' : `高中历史统编版 · ${questions.length} 道练习题`}
             </p>
           </div>
-          <Button
-            variant={historyMode ? 'default' : 'outline'}
-            size="sm"
-            className="gap-1"
-            onClick={() => setHistoryMode(!historyMode)}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={generateNewQuestions}
+              disabled={generating}
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {generating ? '生成中...' : 'AI 生成新题'}
+            </Button>
+            <Button
+              variant={historyMode ? 'default' : 'outline'}
+              size="sm"
+              className="gap-1"
+              onClick={() => setHistoryMode(!historyMode)}
           >
             <Brain className="h-4 w-4" />
             历史模式

@@ -25,10 +25,14 @@ import {
   Send,
   ChevronDown,
   AlertCircle,
+  Star,
+  Brain,
 } from 'lucide-react';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
 import Drawer from '@/components/history/Drawer';
 import { DocxImportButton } from '@/components/history/DocxImportButton';
+import { HistoryMustKnowList } from '@/components/history/HistoryMustKnowList';
+import { HistoryGuidedLearning } from '@/components/history/HistoryGuidedLearning';
 import type { TimelineEvent, CausalLink, Concept } from '@/data/history/unit1_data';
 import { timelineEvents as builtinTimelineEvents, concepts as builtinConcepts, causalLinks as builtinCausalLinks } from '@/data/history/unit1_data';
 
@@ -514,6 +518,14 @@ function Unit1TimelinePage() {
             className="space-y-3"
           >
             <TabsList>
+              <TabsTrigger value="mustKnow" className="gap-1">
+                <Star className="h-4 w-4" />
+                必背清单
+              </TabsTrigger>
+              <TabsTrigger value="guided" className="gap-1">
+                <Brain className="h-4 w-4" />
+                引导学习
+              </TabsTrigger>
               <TabsTrigger value="timeline" className="gap-1">
                 <CalendarDays className="h-4 w-4" />
                 垂直时间轴
@@ -527,6 +539,24 @@ function Unit1TimelinePage() {
                 概念词典
               </TabsTrigger>
             </TabsList>
+
+            {/* 必背知识清单 */}
+            <TabsContent value="mustKnow">
+              <Card>
+                <CardContent className="p-4">
+                  <HistoryMustKnowList unitId={chapterId} unitTitle={knowledgeData.unitTitle} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 引导式学习 */}
+            <TabsContent value="guided">
+              <Card>
+                <CardContent className="p-4">
+                  <HistoryGuidedLearning unitId={chapterId} unitTitle={knowledgeData.unitTitle} />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* 垂直时间轴 */}
             <TabsContent value="timeline">
