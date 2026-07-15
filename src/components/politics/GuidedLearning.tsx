@@ -678,7 +678,7 @@ function ThinkAnswer({ question, sectionId, onReveal }: {
   const [answer, setAnswer] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
 
-  const defaultAnswers: Record<string, string[]> = {
+  const defaultAnswers: Record<string, Record<string, string>> = {
     'overview': {
       '为什么说第一课是本册教材的逻辑起点？':
         '因为第一课系统回顾了从原始社会到资本主义社会的演进历程，阐释了生产关系一定要适应生产力、上层建筑一定要适应经济基础这两大人类社会发展的基本规律。这些规律是理解整个人类社会发展逻辑的基础，也是理解中国特色社会主义由来、创立、发展、完善的理论前提。',
