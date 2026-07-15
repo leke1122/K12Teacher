@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
           // 将 docx 导入的概念转换为必背知识
           const docxItems: HistoryMustKnowItem[] = importData.data.concepts
             .filter((c: { importance?: number; gaokaoFocus?: string }) => (c.importance ?? 0) >= 3 || c.gaokaoFocus)
-            .map((c: { id: string; name: string; category: string; definition: string; keyPoints: string[]; impact: string; gaokaoFocus?: string }, idx: number) => ({
+            .map((c: { id: string; name: string; category: string; definition: string; keyPoints: string[]; impact: string; gaokaoFocus?: string; importance?: number }, idx: number) => ({
               id: `docx-${c.id}`,
               unitId,
               unitTitle: importData.data?.unitTitle || '历史单元',
