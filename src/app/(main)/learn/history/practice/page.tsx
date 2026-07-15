@@ -470,10 +470,10 @@ export default function HistoryPracticePage() {
               size="sm"
               className="gap-1"
               onClick={() => setHistoryMode(!historyMode)}
-          >
-            <Brain className="h-4 w-4" />
-            历史模式
-          </Button>
+            >
+              <Brain className="h-4 w-4" />
+              历史模式
+            </Button>
         </div>
 
         {/* 进度条 */}
