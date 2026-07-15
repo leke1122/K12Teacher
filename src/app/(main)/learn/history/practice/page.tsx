@@ -654,14 +654,11 @@ export default function HistoryPracticePage() {
                   {currentQuestion.relatedEvents && currentQuestion.relatedEvents.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-amber-700">相关事件：</span>
-                      {currentQuestion.relatedEvents.map(eventId => {
-                        const event = timelineEvents.find(e => e.id === eventId);
-                        return event ? (
-                          <Badge key={eventId} variant="outline" className="text-xs">
-                            {event.title}
-                          </Badge>
-                        ) : null;
-                      })}
+                      {currentQuestion.relatedEvents.map((eventId, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {eventId}
+                        </Badge>
+                      ))}
                     </div>
                   )}
                 </div>
