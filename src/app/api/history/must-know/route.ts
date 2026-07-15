@@ -332,7 +332,7 @@ export async function POST(request: NextRequest) {
         try {
           const importData = await findDocxImportByUnitId(unitId);
           if (importData?.data?.concepts) {
-            const found = importData.data.concepts.find((c: { id: string }) => `docx-${c.id}` === itemId);
+            const found = importData.data.concepts.find((c: { id: string; importance?: number }) => `docx-${c.id}` === itemId);
             if (found) {
               item = {
                 id: `docx-${found.id}`,
