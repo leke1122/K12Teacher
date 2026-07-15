@@ -662,6 +662,8 @@ export default function GuidedLearningPage() {
                       whyNotEnded: '为什么不会终结',
                     };
                     const label = labels[key] || key;
+                    // 跳过非字符串/非数组的对象（这些通过单独的类型字段处理）
+                    if (typeof value !== 'string' && !Array.isArray(value) && typeof value === 'object') continue;
                     return (
                       <div key={key} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
                         <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
@@ -672,12 +674,21 @@ export default function GuidedLearningPage() {
                             {value.map((item, i) => (
                               <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
                                 <span className="text-pink-400 flex-shrink-0">·</span>
-                                <span>{item}</span>
+                                <span>{String(item)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : typeof value === 'object' && value !== null ? (
+                          <ul className="space-y-1">
+                            {Object.entries(value as Record<string, string>).map(([subKey, subVal]) => (
+                              <li key={subKey} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                                <span className="text-pink-400 flex-shrink-0">·</span>
+                                <span>{subVal}</span>
                               </li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{value}</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{String(value)}</p>
                         )}
                       </div>
                     );
