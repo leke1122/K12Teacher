@@ -1,75 +1,75 @@
-# K12Teacher / 高中自学平台
+# K12Teacher
 
-一个面向高中自学的 AI 辅助学习平台，覆盖 **政治、历史、地理** 等学科，支持教材上传、知识点构建、引导式练习、卡牌记忆、时间线与因果链、GeoGebra 动态图形、错题管理与多端学习记录。
+An AI-assisted self-study platform for high school learners, covering subjects such as **Politics**, **History**, and **Geography**. It helps students upload textbooks, build knowledge structures, practice guided exercises, review with flashcards, explore timelines and causal chains, visualize with GeoGebra, and track learning progress.
 
-> 目标：把教材内容转成可学、可练、可复习的结构化学习路径，降低自学门槛。
+> Goal: turn textbook content into structured, learnable, and reviewable learning paths.
 
-## 功能总览
+## Features
 
-- **学科中心**：统一入口管理政治、历史、地理等学科，按侧边栏快速切换。
-- **教材管理**：上传 PDF/DOCX 教材，提取章节与小节，生成可点击的学习树。
-- **知识点与知识图谱**：自动抽取或导入章节概念、逻辑关系、时间轴、因果链。
-- **引导式学习**：概念辨析、判断→论证→辨析→完善、课本还原、综合应用、论述训练。
-- **卡牌记忆**：按章节生成概念卡、事件卡、论述卡，用于间隔复习。
-- **历史时间线 / 因果链 / 材料分析**：可视化的历史学习工具，强化时空与因果逻辑。
-- **地理可视化**：交互地图、区域对比、位置分析与可视化探索。
-- **GeoGebra 动态图形**：数学几何动态演示与引导式讲解。
-- **AI 辅导**：知识讲解、相似题、错题分析与批改，支持多轮追问。
-- **错题本 / 单词 / 每日积累**：覆盖薄弱点、词汇与长期积累。
-- **学习记录与统计**：进度追踪、练习统计、薄弱分析，方便复盘。
+- **Subject hub**: unified entry point for subjects with quick sidebar switching.
+- **Textbook management**: upload PDF/DOCX files, extract chapters and sections, and build a clickable learning tree.
+- **Knowledge graph**: import or auto-extract concepts, relationships, timelines, and causal chains.
+- **Guided learning**: concept discrimination, textbook restoration, synthesis, and argumentation training.
+- **Flashcards**: concept, event, and essay cards for spaced review.
+- **History tools**: timeline, causal chain, and material analysis for stronger chronological and logical thinking.
+- **Geography visualization**: interactive maps, regional comparisons, location analysis, and visual exploration.
+- **GeoGebra**: dynamic geometry visualization with guided explanation.
+- **AI tutoring**: knowledge explanations, similar questions, wrong-question analysis, and multi-turn follow-up.
+- **Wrong questions, vocabulary, daily accumulation**: cover weak points, vocabulary, and long-term growth.
+- **Learning records and analytics**: progress tracking, exercise statistics, and weakness analysis.
 
-## 学习路径
+## Learning Paths
 
-### 政治（思想政治）
-入口：`/subjects/politics` → 章节选择 → 功能模块
+### Politics
+Entry: `/subjects/politics` -> chapter selection -> module
 
-建议路径：
-1. 知识点学习 — 问题→关系→应用
-2. 概念辨析 — 判断→论证→辨析→完善
-3. 时政链接 — 事实→匹配→应用
-4. 课本还原 — 基于教材原文深度讲解
-5. 综合应用 — 跨模块案例分析训练
-6. 论述训练 — 高考风格论述题精练
-7. 卡牌复习 — 概念与重点随记随练
+Recommended flow:
+1. Knowledge learning
+2. Concept discrimination
+3. Current affairs
+4. Textbook restoration
+5. Synthesis
+6. Essay practice
+7. Flashcards
 
-### 历史
-入口：`/subjects/history` → 章节选择 → 功能模块
+### History
+Entry: `/subjects/history` -> chapter selection -> module
 
-建议路径：
-1. 时间轴 — 建立章节框架与时间脉络
-2. 因果链 — 梳理事件的前因后果与逻辑
-3. 知识点 — 章节概念与核心内容
-4. 课本还原 — 教材原文学习
-5. 综合练习 — 材料分析与实战训练
-6. 分析页面 — 结构化复盘与要点提炼
-7. 卡牌复习 — 关键事件与概念记忆
+Recommended flow:
+1. Timeline
+2. Causal chain
+3. Knowledge
+4. Textbook restoration
+5. Practice
+6. Analysis
+7. Flashcards
 
-### 地理
-入口：`/subjects/geography` → 章节选择 → 功能模块
+### Geography
+Entry: `/subjects/geography` -> chapter selection -> module
 
-建议路径：
-1. 知识点 — 原理、规律、模式
-2. 交互地图 — 空间感知与区域定位
-3. 区域对比 — 区域特征横向比较
-4. 位置分析 — 区位条件拆解
-5. 实践练习 — 综合题与案例分析
-6. 可视化探索 — 动态图表辅助理解
-7. 卡牌复习 — 高频模板与术语记忆
+Recommended flow:
+1. Knowledge
+2. Interactive map
+3. Regional comparison
+4. Location analysis
+5. Practice
+6. Visual exploration
+7. Flashcards
 
-## 技术栈
+## Tech Stack
 
-- **Next.js 14** + **App Router**
+- **Next.js 14** with App Router
 - **TypeScript**
 - **Tailwind CSS** + **Radix UI** + **shadcn/ui**
-- **Zustand** 状态管理
-- **Supabase** 账号与数据存储
-- **Vercel** 托管
-- **AI SDK** + **DeepSeek** 等模型接口
-- **PDF/DOCX 解析**：pdf-parse、pdfjs-dist、mammoth、jszip
-- **可视化**：ECharts、ECharts for React、React Flow、KaTeX、GeoGebra
-- **语音合成/识别**：阿里云 / 讯飞 TTS
+- **Zustand**
+- **Supabase**
+- **Vercel**
+- **AI SDK** + model integrations
+- **PDF/DOCX parsing**: pdf-parse, pdfjs-dist, mammoth, jszip
+- **Visualization**: ECharts, ECharts for React, React Flow, KaTeX, GeoGebra
+- **Speech**: Alibaba Cloud / iFlytek TTS
 
-## 快速开始
+## Getting Started
 
 ```bash
 git clone <your-fork-url>
@@ -78,42 +78,42 @@ npm install
 npm run dev
 ```
 
-环境变量示例：
+Environment variables examples:
 - `.env.local`
 - DeepSeek API Key
-- Supabase 配置
-- TTS / AI Key（按需配置）
+- Supabase config
+- TTS / AI keys as needed
 
-## 项目结构
+## Project Structure
 
-- `src/app/`：页面路由
-- `src/components/`：可复用组件
-- `src/lib/`：工具、数据加载、AI 调用
-- `src/data/` / `src/stores/`：教材数据与状态管理
-- `src/app/api/`：接口层，负责知识抽取、练习生成、讲解与批改
+- `src/app/` - routes and pages
+- `src/components/` - reusable components
+- `src/lib/` - utilities, data loading, AI calls
+- `src/data/`, `src/stores/` - textbook data and state management
+- `src/app/api/` - API layer for knowledge extraction, practice generation, explanation, and grading
 
-## 在线预览
+## Live Preview
 
-开发预览：
+Dev preview:
 https://k12-teacher-np5uirg51-leke1122s-projects.vercel.app
 
-生产站（可选）：
+Production:
 https://k12-teacher-theta.vercel.app
 
-## 贡献
+## Contributing
 
-欢迎提交 Issue / PR，尤其欢迎：
-- 新学科内容模板
-- 练习生成与批改体验优化
-- 可视化组件增强
-- 移动端体验改进
+Issues and PRs are welcome, especially for:
+- new subject templates
+- practice generation and grading UX
+- visualization components
+- mobile experience
 
-## 路线图
+## Roadmap
 
-- 更多学科模板（物理、化学、英语）
-- 学习计划与推荐顺序自动生成
-- 离线导出 / PDF 错题本
-- 多账号进度同步与分享
+- more subject templates
+- automatic study plan and recommended order
+- offline export / PDF wrong-question notebook
+- multi-account progress sync and sharing
 
 ## License
 
