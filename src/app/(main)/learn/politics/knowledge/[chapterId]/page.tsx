@@ -1,27 +1,17 @@
 'use client';
 
-import { Suspense, useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Loader2, Sparkles, Layers, Clock, BookOpen } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, Layers, Clock, BookOpen, Table2 } from 'lucide-react';
 import Link from 'next/link';
 import GuidedLearning from '@/components/politics/GuidedLearning';
-import { POLITICS_UNIT1 } from '@/data/politics/unit1_data';
-
-interface SocialForm {
-  id: string;
-  name: string;
-  productivity: string;
-  productionRelation: string;
-  superstructure: string;
-  mainContradiction: string;
-  basicContradiction: string;
-  evaluation: string;
-}
+import { SOCIAL_FORMS_FULL, CAPITALIST_CRISIS, CAPITALIST_WHY_DOOMED, UNIT1_FULL_DATA } from '@/data/politics/unit1_full_data';
+import type { SocialFormFull } from '@/data/politics/unit1_full_data';
 
 interface Concept {
   id: string;
@@ -54,7 +44,7 @@ interface CausalLink {
 interface KnowledgePayload {
   unitTitle: string;
   overview: string;
-  socialForms: SocialForm[];
+  socialForms: SocialFormFull[];
   concepts: Concept[];
   timelineEvents: TimelineEvent[];
   causalLinks: CausalLink[];
@@ -70,7 +60,7 @@ export default function PoliticsKnowledgePage() {
   const [activeTab, setActiveTab] = useState('knowledge');
   const [data, setData] = useState<KnowledgePayload | null>(null);
   const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
-  const [selectedSocialForm, setSelectedSocialForm] = useState<SocialForm | null>(null);
+  const [selectedSocialForm, setSelectedSocialForm] = useState<SocialFormFull | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -78,7 +68,21 @@ export default function PoliticsKnowledgePage() {
       try {
         const res = await fetch(`/api/politics/knowledge/load?chapterId=${encodeURIComponent(chapterId)}`);
         const json = await res.json();
-        if (json.success) setData(json);
+        if (json.success) {
+          // 优先使用 Word 完整数据
+          const fullData = UNIT1_FULL_DATA;
+          setData({
+            unitTitle: json.unitTitle || fullData.scientificSocialism.founding.birthMark.replace('《', '').replace('》', ''),
+            overview: fullData.bookOverview,
+            socialForms: fullData.socialForms,
+            concepts: json.concepts || [],
+            timelineEvents: json.timelineEvents || [],
+            causalLinks: json.causalLinks || [],
+            examFocus: json.examFocus || [],
+            keyQuotes: json.keyQuotes || [],
+            summary: json.summary || '社会主义从空想到科学、从理论到实践的发展。',
+          });
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -89,7 +93,6 @@ export default function PoliticsKnowledgePage() {
   }, [chapterId]);
 
   const concepts = useMemo(() => data?.concepts || [], [data?.concepts]);
-  const socialForms = useMemo(() => data?.socialForms || [], [data?.socialForms]);
   const events = useMemo(() => data?.timelineEvents || [], [data?.timelineEvents]);
   const causalLinks = useMemo(() => data?.causalLinks || [], [data?.causalLinks]);
 
@@ -200,28 +203,174 @@ export default function PoliticsKnowledgePage() {
                 正在加载社会形态...
               </div>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {socialForms.map(form => (
-                  <Card
-                    key={form.id}
-                    className={selectedSocialForm?.id === form.id ? 'border-pink-400 shadow-md' : ''}
-                    onClick={() => setSelectedSocialForm(form)}
-                  >
-                    <CardContent className="p-4">
-                      <p className="font-semibold text-slate-800">{form.name}</p>
-                      {selectedSocialForm?.id === form.id && (
-                        <div className="mt-3 space-y-2 text-xs text-slate-600">
-                          <p><span className="font-semibold">生产力：</span>{form.productivity}</p>
-                          <p><span className="font-semibold">生产关系：</span>{form.productionRelation}</p>
-                          <p><span className="font-semibold">上层建筑：</span>{form.superstructure}</p>
-                          <p><span className="font-semibold">主要矛盾：</span>{form.mainContradiction}</p>
-                          <p><span className="font-semibold">基本矛盾：</span>{form.basicContradiction}</p>
-                          <p><span className="font-semibold">评价：</span>{form.evaluation}</p>
+              <div className="space-y-4">
+                {/* 完整社会形态对比表 */}
+                <Card className="overflow-hidden">
+                  <CardHeader className="bg-pink-50 py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Table2 className="h-4 w-4 text-pink-500" />
+                      社会形态对比总表（Word 原文完整版）
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50">
+                            <th className="border border-slate-200 p-2 text-left font-semibold w-24 sticky left-0 bg-slate-50 z-10">社会形态</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">生产力</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">生产资料所有制</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">分配制度</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">人与人关系</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">政治上层建筑</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">主要矛盾</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">基本矛盾</th>
+                            <th className="border border-slate-200 p-2 text-left font-semibold">总体评价</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {SOCIAL_FORMS_FULL.map((form, idx) => (
+                            <tr
+                              key={form.id}
+                              className={`cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} ${selectedSocialForm?.id === form.id ? 'bg-pink-50' : 'hover:bg-pink-50/30'}`}
+                              onClick={() => setSelectedSocialForm(selectedSocialForm?.id === form.id ? null : form)}
+                            >
+                              <td className="border border-slate-200 p-2 font-semibold text-pink-700 sticky left-0 bg-inherit z-10">
+                                {form.name}
+                              </td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.productivity}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.productionRelation.ownership}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.productionRelation.distribution}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.laborRelation}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.superstructure.politics}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.mainContradiction}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.basicContradiction}</td>
+                              <td className="border border-slate-200 p-2 text-slate-700">{form.evaluation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 资本主义经济危机详情 */}
+                <Card className="border-red-100">
+                  <CardHeader className="bg-red-50 py-3">
+                    <CardTitle className="text-base text-red-700">资本主义经济危机（详细内容）</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3 text-sm">
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg p-3 border">
+                        <p className="font-semibold text-red-700 mb-1">① 基本特征</p>
+                        <p className="text-slate-700">{CAPITALIST_CRISIS.basicFeature}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border">
+                        <p className="font-semibold text-red-700 mb-1">② 根本原因</p>
+                        <p className="text-slate-700">{CAPITALIST_CRISIS.rootCause}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border">
+                      <p className="font-semibold text-red-700 mb-2">③ 主要表现</p>
+                      <p className="text-slate-700">{CAPITALIST_CRISIS.mainManifestations}</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border">
+                      <p className="font-semibold text-red-700 mb-2">④ 直接原因（三点）</p>
+                      {CAPITALIST_CRISIS.directCauses.map((cause, idx) => (
+                        <div key={idx} className="flex items-start gap-2 mb-1">
+                          <span className="text-red-500 font-semibold">{String.fromCharCode(65 + idx)}.</span>
+                          <span className="text-slate-700">{cause}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 资本主义为什么必然灭亡 */}
+                <Card className="border-orange-100">
+                  <CardHeader className="bg-orange-50 py-3">
+                    <CardTitle className="text-base text-orange-700">为什么资本主义必然灭亡？</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {CAPITALIST_WHY_DOOMED.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-xs flex items-center justify-center font-semibold">
+                          {idx + 1}
+                        </span>
+                        <p className="text-sm text-slate-700">{item}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* 资本主义评价 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">资本主义社会评价</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                      <p className="font-semibold text-emerald-700 text-sm mb-1">进步性</p>
+                      <p className="text-sm text-emerald-800">{UNIT1_FULL_DATA.capitalistEvaluation.progress}</p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="font-semibold text-red-700 text-sm mb-1">局限性</p>
+                      <p className="text-sm text-red-800">{UNIT1_FULL_DATA.capitalistEvaluation.limitation}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 选中社会形态详细卡片 */}
+                {selectedSocialForm && (
+                  <Card className="border-pink-300 bg-gradient-to-br from-pink-50 to-purple-50">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-pink-700">{selectedSocialForm.name} · 详细内容</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">生产力</p>
+                        <p className="text-slate-600">{selectedSocialForm.productivity}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">生产资料所有制</p>
+                        <p className="text-slate-600">{selectedSocialForm.productionRelation.ownership}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">分配制度</p>
+                        <p className="text-slate-600">{selectedSocialForm.productionRelation.distribution}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">人与人关系</p>
+                        <p className="text-slate-600">{selectedSocialForm.laborRelation}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">政治上层建筑</p>
+                        <p className="text-slate-600">{selectedSocialForm.superstructure.politics}</p>
+                      </div>
+                      {selectedSocialForm.superstructure.culture && (
+                        <div>
+                          <p className="font-semibold text-slate-700 mb-1">文化上层建筑</p>
+                          <p className="text-slate-600">{selectedSocialForm.superstructure.culture}</p>
                         </div>
                       )}
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">主要矛盾</p>
+                        <p className="text-slate-600">{selectedSocialForm.mainContradiction}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">基本矛盾</p>
+                        <p className="text-slate-600">{selectedSocialForm.basicContradiction}</p>
+                      </div>
+                      <div className="bg-pink-50 rounded-lg p-3">
+                        <p className="font-semibold text-pink-700 mb-1">总体评价</p>
+                        <p className="text-pink-800">{selectedSocialForm.evaluation}</p>
+                        {selectedSocialForm.detail && (
+                          <p className="text-pink-700 mt-2">{selectedSocialForm.detail}</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
-                ))}
+                )}
               </div>
             )}
           </TabsContent>
@@ -253,7 +402,7 @@ export default function PoliticsKnowledgePage() {
           </TabsContent>
 
           <TabsContent value="guided">
-            <GuidedLearning concepts={concepts} />
+            <GuidedLearning />
           </TabsContent>
         </Tabs>
       </div>

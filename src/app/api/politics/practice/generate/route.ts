@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured, findDocxImportByUnitId, findDocxImportByUnitTitle } from '@/lib/supabase';
 import type { PoliticsParseResult } from '@/lib/politicsDocxParser';
 import { POLITICS_UNIT1 } from '@/data/politics/unit1_data';
+import { UNIT1_FULL_DATA, GUIDED_SECTIONS } from '@/data/politics/unit1_full_data';
 
 interface PracticeQuestion {
   id: string;
@@ -46,10 +47,45 @@ export async function POST(request: NextRequest) {
     const concepts = data.concepts.slice(0, 6);
     const events = data.timelineEvents.slice(0, 6);
     const focuses = data.examFocus.slice(0, 6);
+    const fullSections = GUIDED_SECTIONS;
+    const bookOverview = UNIT1_FULL_DATA.bookOverview;
+    const socialForms = UNIT1_FULL_DATA.socialForms;
+    const capitalistCrisis = UNIT1_FULL_DATA.capitalistCrisis;
 
     const prompt = `你是辽宁省高中政治命题专家，熟悉统编版教材和辽宁卷命题特点。请基于以下知识点生成 ${count} 道${type === 'material' ? '材料分析题' : type === 'essay' ? '论述题' : '选择题'}。
 
-## 知识点
+## 课本原文（第一课：社会主义从空想到科学、从理论到实践的发展）
+
+### 全书整体感知
+${bookOverview}
+
+### 社会形态对比（原文）
+${socialForms.map(sf => `
+【${sf.name}】
+生产力：${sf.productivity}
+生产资料所有制：${sf.productionRelation.ownership}
+分配制度：${sf.productionRelation.distribution}
+人与人关系：${sf.laborRelation}
+政治上层建筑：${sf.superstructure.politics}
+主要矛盾：${sf.mainContradiction}
+基本矛盾：${sf.basicContradiction}
+总体评价：${sf.evaluation}
+`).join('\n')}
+
+### 资本主义经济危机
+基本特征：${capitalistCrisis.basicFeature}
+主要表现：${capitalistCrisis.mainManifestations}
+直接原因：${capitalistCrisis.directCauses.map((c, i) => `${i + 1}. ${c}`).join('；')}
+根本原因：${capitalistCrisis.rootCause}
+
+### 为什么资本主义必然灭亡
+${UNIT1_FULL_DATA.capitalistWhyDoomed.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+### 资本主义评价
+进步性：${UNIT1_FULL_DATA.capitalistEvaluation.progress}
+局限性：${UNIT1_FULL_DATA.capitalistEvaluation.limitation}
+
+### 核心知识点
 ${JSON.stringify({ concepts, events, focuses }, null, 2)}
 
 ## 要求
