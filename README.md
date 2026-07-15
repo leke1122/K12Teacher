@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# K12Teacher / 高中自学平台
 
-## Getting Started
+一个面向高中自学的 AI 辅助学习平台，覆盖 **政治、历史、地理** 等学科，支持教材上传、知识点构建、引导式练习、卡牌记忆、时间线与因果链、GeoGebra 动态图形、错题管理与多端学习记录。
 
-First, run the development server:
+> 目标：把教材内容转成可学、可练、可复习的结构化学习路径，降低自学门槛。
+
+## 功能总览
+
+- **学科中心**：统一入口管理政治、历史、地理等学科，按侧边栏快速切换。
+- **教材管理**：上传 PDF/DOCX 教材，提取章节与小节，生成可点击的学习树。
+- **知识点与知识图谱**：自动抽取或导入章节概念、逻辑关系、时间轴、因果链。
+- **引导式学习**：概念辨析、判断→论证→辨析→完善、课本还原、综合应用、论述训练。
+- **卡牌记忆**：按章节生成概念卡、事件卡、论述卡，用于间隔复习。
+- **历史时间线 / 因果链 / 材料分析**：可视化的历史学习工具，强化时空与因果逻辑。
+- **地理可视化**：交互地图、区域对比、位置分析与可视化探索。
+- **GeoGebra 动态图形**：数学几何动态演示与引导式讲解。
+- **AI 辅导**：知识讲解、相似题、错题分析与批改，支持多轮追问。
+- **错题本 / 单词 / 每日积累**：覆盖薄弱点、词汇与长期积累。
+- **学习记录与统计**：进度追踪、练习统计、薄弱分析，方便复盘。
+
+## 学习路径
+
+### 政治（思想政治）
+入口：`/subjects/politics` → 章节选择 → 功能模块
+
+建议路径：
+1. 知识点学习 — 问题→关系→应用
+2. 概念辨析 — 判断→论证→辨析→完善
+3. 时政链接 — 事实→匹配→应用
+4. 课本还原 — 基于教材原文深度讲解
+5. 综合应用 — 跨模块案例分析训练
+6. 论述训练 — 高考风格论述题精练
+7. 卡牌复习 — 概念与重点随记随练
+
+### 历史
+入口：`/subjects/history` → 章节选择 → 功能模块
+
+建议路径：
+1. 时间轴 — 建立章节框架与时间脉络
+2. 因果链 — 梳理事件的前因后果与逻辑
+3. 知识点 — 章节概念与核心内容
+4. 课本还原 — 教材原文学习
+5. 综合练习 — 材料分析与实战训练
+6. 分析页面 — 结构化复盘与要点提炼
+7. 卡牌复习 — 关键事件与概念记忆
+
+### 地理
+入口：`/subjects/geography` → 章节选择 → 功能模块
+
+建议路径：
+1. 知识点 — 原理、规律、模式
+2. 交互地图 — 空间感知与区域定位
+3. 区域对比 — 区域特征横向比较
+4. 位置分析 — 区位条件拆解
+5. 实践练习 — 综合题与案例分析
+6. 可视化探索 — 动态图表辅助理解
+7. 卡牌复习 — 高频模板与术语记忆
+
+## 技术栈
+
+- **Next.js 14** + **App Router**
+- **TypeScript**
+- **Tailwind CSS** + **Radix UI** + **shadcn/ui**
+- **Zustand** 状态管理
+- **Supabase** 账号与数据存储
+- **Vercel** 托管
+- **AI SDK** + **DeepSeek** 等模型接口
+- **PDF/DOCX 解析**：pdf-parse、pdfjs-dist、mammoth、jszip
+- **可视化**：ECharts、ECharts for React、React Flow、KaTeX、GeoGebra
+- **语音合成/识别**：阿里云 / 讯飞 TTS
+
+## 快速开始
 
 ```bash
+git clone <your-fork-url>
+cd <project-folder>
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+环境变量示例：
+- `.env.local`
+- DeepSeek API Key
+- Supabase 配置
+- TTS / AI Key（按需配置）
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 项目结构
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/`：页面路由
+- `src/components/`：可复用组件
+- `src/lib/`：工具、数据加载、AI 调用
+- `src/data/` / `src/stores/`：教材数据与状态管理
+- `src/app/api/`：接口层，负责知识抽取、练习生成、讲解与批改
 
-## Learn More
+## 在线预览
 
-To learn more about Next.js, take a look at the following resources:
+开发预览：
+https://k12-teacher-np5uirg51-leke1122s-projects.vercel.app
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+生产站（可选）：
+https://k12-teacher-theta.vercel.app
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 贡献
 
-## Deploy on Vercel
+欢迎提交 Issue / PR，尤其欢迎：
+- 新学科内容模板
+- 练习生成与批改体验优化
+- 可视化组件增强
+- 移动端体验改进
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 路线图
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 更多学科模板（物理、化学、英语）
+- 学习计划与推荐顺序自动生成
+- 离线导出 / PDF 错题本
+- 多账号进度同步与分享
+
+## License
+
+MIT
