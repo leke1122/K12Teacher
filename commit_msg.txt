@@ -1,0 +1,9 @@
+feat(politics): 完整Word表格解析+Supabase同步+增强引导学习
+
+- 导入API使用mammoth HTML模式保留表格结构
+- politicsDocxParser重写，提取所有知识点字段
+  (所有制/分配/劳动关系/政治文化上层建筑/主要矛盾/基本矛盾/总体评价)
+- 完整数据存储到Supabase docx_imports表，支持跨设备同步
+- GuidedLearning重构：动态加载+详细原文讲解+每知识点5题+引导问答
+- 新增"引导"标签页：可选问题+逐步引导+参考答案
+- 练习题可选择5/10/15/20题数量，按考点标注

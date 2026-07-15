@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const unitId = String(body.unitId || '').trim();
     const type = String(body.type || 'choice').trim();
-    const count = Math.min(Math.max(Number(body.count || 5), 1), 8);
+    const count = Math.min(Math.max(Number(body.count || 5), 1), 5);
 
     let docxData: PoliticsParseResult | null = null;
     let importId: string | null = null;

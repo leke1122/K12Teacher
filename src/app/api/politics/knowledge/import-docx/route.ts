@@ -6,6 +6,27 @@ import { setServerData } from '@/lib/serverStorage';
 
 const USER_ID = 'personal-user';
 
+/**
+ * 提取包含表格的HTML内容，用于保留表格结构
+ */
+async function extractHtmlWithTables(buffer: Buffer): Promise<{ text: string; html: string }> {
+  // 1. 纯文本（降级备用）
+  const textResult = await mammoth.extractRawText({ buffer });
+  const rawText = textResult.value;
+
+  // 2. HTML模式，保留表格结构
+  const htmlResult = await mammoth.convertToHtml({ buffer }, {
+    styleMap: [
+      "table -> table.bordered",
+      "tr -> tr",
+      "td -> td",
+    ]
+  });
+  const rawHtml = htmlResult.value;
+
+  return { text: rawText, html: rawHtml };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -24,14 +45,16 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const extractResult = await mammoth.extractRawText({ buffer });
-    const rawText = extractResult.value;
+
+    // 同时提取纯文本和HTML（HTML用于保留表格结构）
+    const { text: rawText, html: rawHtml } = await extractHtmlWithTables(buffer);
 
     if (!rawText || rawText.trim().length < 50) {
       return NextResponse.json({ success: false, message: '文档内容过少或无法读取' }, { status: 400 });
     }
 
-    const parsedData = parsePoliticsDocx(rawText, file.name);
+    // 使用同时包含文本和HTML的数据进行解析
+    const parsedData = parsePoliticsDocx(rawText, file.name, rawHtml);
     if (unitId) parsedData.unitId = unitId;
 
     const importId = `politics_docx_import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

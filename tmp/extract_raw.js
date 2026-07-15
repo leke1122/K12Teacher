@@ -1,0 +1,1 @@
+﻿const fs=require("fs");const mammoth=require("mammoth");const src=process.argv[2],out=process.argv[3];mammoth.extractRawText({path:src}).then(r=>{fs.writeFileSync(out,r.value,"utf8");console.log("OK raw chars="+r.value.length)}).catch(e=>{console.error("ERR",e.message);process.exit(1)});

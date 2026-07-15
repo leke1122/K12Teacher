@@ -1,0 +1,1 @@
+﻿const fs=require("fs");const mammoth=require("mammoth");const src=process.argv[2],out=process.argv[3];mammoth.convertToMarkdown({path:src}).then(r=>{fs.writeFileSync(out,r.value,"utf8");console.log("OK md chars="+r.value.length+" messages="+r.messages.length);r.messages.forEach(m=>console.log("MSG",m.type,m.message))}).catch(e=>{console.error("ERR",e.message);process.exit(1)});
