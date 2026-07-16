@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured, getTextbookChapters, getChapterDetail, findDocxImportByUnitTitle, getTextbookBySubject } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, getTextbook, getTextbookChapters, getChapterDetail, findDocxImportByUnitTitle, getTextbookBySubject } from '@/lib/supabase';
 import { getServerData, setServerData } from '@/lib/serverStorage';
 import type { DocxParseResult } from '@/lib/docxParser';
 
