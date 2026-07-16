@@ -58,6 +58,17 @@ function fixYuansuConfusion(text: string): string {
   // 步骤5：移除所有零宽空格
   result = result.replace(/\u200B/g, '');
 
+  // 步骤6：修复历史课本特有乱码（DOCX特殊字体映射错误，字母被拼在一起）
+  const garbledPairs: [string, string][] = [
+    ['cM', 'M'], ['cd', 'M'], ['CM', 'M'],
+    ['CF', 'H'], ['cF', 'H'],
+    ['D4', 'D'],
+    ['DM', 'M'],
+  ];
+  for (const [garbled, correct] of garbledPairs) {
+    result = result.split(garbled).join(correct);
+  }
+
   return result;
 }
 
