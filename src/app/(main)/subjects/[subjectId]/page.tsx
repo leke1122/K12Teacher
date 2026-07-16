@@ -199,7 +199,7 @@ export default function SubjectPage() {
             <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 mb-4 text-sm">
               <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">💡 推荐学习路径</p>
               <p className="text-amber-700 dark:text-amber-300 text-xs leading-relaxed">
-                <strong>1. 按课学习：</strong>选择下方单元 → 点击「进入学习」→ 完成课本还原、知识点精讲等7个模块<br/>
+                <strong>1. 按课学习：</strong>点击下方课节名称 → 完成课本还原、知识点精讲等7个模块<br/>
                 <strong>2. 全局复习：</strong>使用时间轴、历史卡牌、因果链、综合练习进行跨单元复习
               </p>
             </div>
@@ -401,7 +401,7 @@ export default function SubjectPage() {
                                   key={sIdx}
                                   size="sm"
                                   variant="outline"
-                                  className="justify-start text-xs h-auto py-2 px-3"
+                                  className="justify-start text-xs h-auto py-2 px-3 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700"
                                   onClick={() => router.push(`/learn/history/${chapterId}/${sectionId}`)}
                                 >
                                   <span className="font-medium mr-1">{section.sectionIndex}</span>
@@ -411,23 +411,6 @@ export default function SubjectPage() {
                             })}
                           </div>
                         )}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {chapter.sections && chapter.sections.length > 0 && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="gap-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white"
-                              onClick={() => {
-                                const firstSection = chapter.sections![0];
-                                const sectionId = encodeURIComponent(firstSection.sectionIndex + '_' + firstSection.sectionTitle);
-                                router.push(`/learn/history/${chapterId}/${sectionId}`);
-                              }}
-                            >
-                              <Sparkles className="h-3.5 w-3.5" />
-                              进入学习
-                            </Button>
-                          )}
-                        </div>
                       </div>
                     );
                   })}
