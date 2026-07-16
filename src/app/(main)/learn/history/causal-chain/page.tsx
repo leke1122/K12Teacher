@@ -30,12 +30,7 @@ import {
   type TimelineEvent,
 } from '@/data/history/unit1_data';
 import type { CausalChain } from '@/app/api/history/causal-chain/route';
-
-const CHAPTER_TITLES: Record<string, string> = {
-  unit1: '第一单元：从中华文明起源到秦汉统一',
-  'modern-china': '中国近代史',
-  'ln-gaokao': '辽宁高考历史',
-};
+import { useTextbooks } from '@/hooks/useTextbooks';
 
 const DEFAULT_KNOWLEDGE = {
   timelineEvents: [] as TimelineEvent[],
@@ -47,6 +42,7 @@ function CausalChainPageInner() {
   const params = useParams();
   const chapterId = useMemo(() => (params.chapterId as string) || 'unit1', [params.chapterId]);
   const unitId = useMemo(() => (params.unitId as string) || chapterId, [params.unitId, chapterId]);
+  const { chapters } = useTextbooks('history');
 
   const [activeTab, setActiveTab] = useState('graph');
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
@@ -66,6 +62,16 @@ function CausalChainPageInner() {
 
   const [knowledgeData, setKnowledgeData] = useState(DEFAULT_KNOWLEDGE);
   const [knowledgeLoading, setKnowledgeLoading] = useState(true);
+
+  // 根据 chapterId 查找章节标题
+  const chapterTitle = useMemo(() => {
+    for (const ch of chapters) {
+      if (String(ch.chapterIndex) === chapterId || ch.chapterIndex?.toString() === chapterId) {
+        return `第${ch.chapterIndex}单元 ${ch.chapterTitle}`;
+      }
+    }
+    return '历史';
+  }, [chapters, chapterId]);
 
   const loadKnowledgeData = useCallback(async () => {
     setKnowledgeLoading(true);
@@ -207,7 +213,7 @@ function CausalChainPageInner() {
               历史因果链分析
             </h1>
             <p className="text-xs text-muted-foreground">
-              高中历史统编版 · {CHAPTER_TITLES[chapterId] || chapterId} · {timelineEvents.length} 个核心事件
+              高中历史统编版 · {chapterTitle} · {timelineEvents.length} 个核心事件
               {dataSource === 'docx' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
               {dataSource === 'builtin' && <span className="ml-2 text-muted-foreground">📚 教材内置知识</span>}
               {knowledgeLoading && <span className="ml-2 text-muted-foreground">正在加载知识点...</span>}

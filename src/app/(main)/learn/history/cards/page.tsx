@@ -11,12 +11,7 @@ import type { HistoryCardItem } from '@/components/history/HistoryCard';
 import { ArrowLeft, Loader2, Sparkles, BookOpen, Layers, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { timelineEvents, concepts } from '@/data/history/unit1_data';
-
-const CHAPTERS: Record<string, { title: string }> = {
-  'unit1': { title: '第一单元：从中华文明起源到秦汉统一' },
-  'modern-china': { title: '中国近代史' },
-  'ln-gaokao': { title: '辽宁高考历史' },
-};
+import { useTextbooks } from '@/hooks/useTextbooks';
 
 // 从 unit1_data 生成默认卡牌
 function generateDefaultCards(): HistoryCardItem[] {
@@ -56,12 +51,23 @@ function HistoryCardsPageContent() {
   const params = useParams();
   const chapterId = useMemo(() => (params.chapterId as string) || 'unit1', [params.chapterId]);
   const unitId = useMemo(() => (params.unitId as string) || chapterId, [params.unitId, chapterId]);
+  const { chapters } = useTextbooks('history');
   const [cards, setCards] = useState<HistoryCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('practice');
   const [source, setSource] = useState<'default' | 'generated' | 'api' | 'docx_import'>('default');
+
+  // 根据 chapterId 查找章节标题
+  const chapterTitle = useMemo(() => {
+    for (const ch of chapters) {
+      if (String(ch.chapterIndex) === chapterId || ch.chapterIndex?.toString() === chapterId) {
+        return `第${ch.chapterIndex}单元 ${ch.chapterTitle}`;
+      }
+    }
+    return '历史';
+  }, [chapters, chapterId]);
 
   const loadCards = async () => {
     setLoading(true);
@@ -158,7 +164,7 @@ function HistoryCardsPageContent() {
           <div className="flex-1">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <Layers className="h-5 w-5 text-blue-500" />
-              {CHAPTERS[chapterId]?.title || '历史'} · 历史卡牌
+              {chapterTitle} · 历史卡牌
             </h1>
             <p className="text-xs text-muted-foreground">
               共 {cards.length} 张卡牌 · 已掌握 {masteredCount} 张

@@ -231,7 +231,7 @@ function Unit1TimelinePage() {
   useEffect(() => {
     loadChapters();
     loadKnowledgeData(chapterId);
-    loadMustKnowItems('unit1');
+    loadMustKnowItems(chapterId); // 使用实际的 chapterId
   }, [chapterId, loadChapters, loadKnowledgeData, loadMustKnowItems]);
 
   // 筛选事件

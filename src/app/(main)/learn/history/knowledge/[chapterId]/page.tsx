@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { HISTORY_CHAPTERS } from '@/lib/historyData';
 import { updateStepProgress } from '@/lib/historyProgress';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTextbooks } from '@/hooks/useTextbooks';
 
 // 历史知识点类型
 interface HistoryKnowledgePoint {
@@ -55,6 +56,7 @@ function KnowledgePageContent() {
   const params = useParams();
   const chapterId = typeof params.chapterId === 'string' ? params.chapterId : 'modern-china';
   const { settings } = useSettingsStore();
+  const { chapters } = useTextbooks('history');
 
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
@@ -68,10 +70,23 @@ function KnowledgePageContent() {
   const [cached, setCached] = useState(false);
   const [generatingQuiz, setGeneratingQuiz] = useState(false);
 
-  const chapterInfo = HISTORY_CHAPTERS[chapterId as keyof typeof HISTORY_CHAPTERS] || {
-    title: chapterId,
-    subtitle: '',
-  };
+  // 根据 chapterId 查找章节信息
+  const chapterInfo = useMemo(() => {
+    // 先尝试从上传的章节中查找
+    for (const ch of chapters) {
+      if (String(ch.chapterIndex) === chapterId || ch.chapterIndex?.toString() === chapterId) {
+        return {
+          title: ch.chapterTitle,
+          subtitle: '',
+        };
+      }
+    }
+    // 降级到旧配置
+    return HISTORY_CHAPTERS[chapterId as keyof typeof HISTORY_CHAPTERS] || {
+      title: `第${chapterId}单元`,
+      subtitle: '',
+    };
+  }, [chapters, chapterId]);
 
   useEffect(() => {
     updateStepProgress('history', chapterId, 'knowledge', 'in_progress');
