@@ -160,11 +160,8 @@ export default function TextbookRestorePage() {
   const [pdfSections, setPdfSections] = useState<Section[]>([]);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // 演示数据（降级用）
-  const [sections] = useState<Section[]>(DEMO_SECTIONS);
-
-  // 当前使用的章节列表（有 PDF 内容时用 pdfSections，否则用 sections）
-  const sections = pdfSections.length > 0 ? pdfSections : sections;
+  // 当前使用的章节列表（有 PDF 内容时用 pdfSections，否则用演示数据）
+  const sections = pdfSections.length > 0 ? pdfSections : DEMO_SECTIONS;
 
   useEffect(() => {
     loadTextbooks();
@@ -304,24 +301,37 @@ export default function TextbookRestorePage() {
    * 从 fullText 中手动按页码提取内容（当没有 pages 数组时）
    */
   function extractContentByPageRangeManual(fullText: string, startPage: number, endPage: number): string {
-    // 尝试按页码标记提取
+    // 尝试按页码标记提取（简单模式，避免复杂正则）
     const patterns = [
-      /=====+\s*[第]?\s*(\d+)\s*[页]+\s*=+[\s\S]*?(?=====+\s*[第]?\s*\d+\s*[页]+\s*=|$(?!\n))/g,
-      /---+\s*[第]?\s*(\d+)\s*[页]+\s*-+-[\s\S]*?(?---+\s*[第]?\s*\d+\s*[页]+\s*-|$(?!\n))/g,
+      /=====[\s\u4e00-\u9fa5第\s]+(\d+)[\s\u4e00-\u9fa5页]+\s*=====/gu,
+      /---[\s\u4e00-\u9fa5第\s]+(\d+)[\s\u4e00-\u9fa5页]+\s*---/gu,
+      /第\s*(\d+)\s*页/gu,
     ];
 
     for (const pattern of patterns) {
-      const matches: Array<{ page: number; content: string }> = [];
+      const pages: Map<number, { start: number; end: number }> = new Map();
       let match;
       pattern.lastIndex = 0;
       while ((match = pattern.exec(fullText)) !== null) {
-        const page = parseInt(match[1], 10);
-        if (page >= startPage && page <= endPage) {
-          matches.push({ page, content: match[0] });
-        }
+        const pageNum = parseInt(match[1], 10);
+        pages.set(pageNum, { start: match.index, end: 0 });
       }
-      if (matches.length > 0) {
-        return matches.map(m => m.content).join('\n\n');
+      if (pages.size >= 2) {
+        const sortedPages = Array.from(pages.entries()).sort((a, b) => a[0] - b[0]);
+        for (let i = 0; i < sortedPages.length; i++) {
+          const [, pos] = sortedPages[i];
+          if (i < sortedPages.length - 1) {
+            pos.end = sortedPages[i + 1][1].start;
+          } else {
+            pos.end = fullText.length;
+          }
+        }
+        let result = '';
+        for (let i = startPage; i <= endPage; i++) {
+          const pos = pages.get(i);
+          if (pos) result += fullText.slice(pos.start, pos.end) + '\n\n';
+        }
+        if (result.trim().length > 100) return result.trim();
       }
     }
 
