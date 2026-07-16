@@ -5,6 +5,20 @@ export interface GeographySection {
   keywords?: string[];
 }
 
+export interface GeographyMustKnowItem {
+  id: string;
+  unitId: string;
+  unitTitle: string;
+  title: string;
+  year?: string;
+  dynasty?: string;
+  content: string;
+  explanation: string;
+  gaokaoFocus: string;
+  relatedEvents: string[];
+  importance: 1 | 2 | 3 | 4 | 5;
+}
+
 export interface TableRecord {
   title: string;
   headers: string[];
