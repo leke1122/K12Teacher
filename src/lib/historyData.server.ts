@@ -45,11 +45,12 @@ async function queryWithRetry<T>(
 
 export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null> {
   // 1. 优先从 Supabase 读取（带重试 + RLS 兜底策略）
-  if (isSupabaseConfigured && supabaseClient) {
+  const client = supabaseClient;
+  if (isSupabaseConfigured && client) {
     // 方法A：精确按 user_id + subject_id 查询
     const { data: supabaseData, error: supabaseError, attempts } = await queryWithRetry(
       async () => {
-        const result = await supabaseClient
+        const result = await client
           .from('textbook_cache')
           .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at')
           .eq('user_id', 'personal-user')
@@ -91,7 +92,7 @@ export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null
     // 方法B：RLS 过滤导致空结果 → 不带 user_id 过滤查询所有历史教材
     console.log('[historyData.server] 带 user_id 过滤无结果，尝试不带 user_id 查询...');
     const { data: noUserIdData, error: noUserIdError } = await queryWithRetry(async () => {
-      const result = await supabaseClient
+      const result = await client
         .from('textbook_cache')
         .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at')
         .eq('subject_id', 'history')
