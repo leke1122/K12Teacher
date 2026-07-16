@@ -84,7 +84,7 @@ function Unit1TimelinePage() {
     [params.chapterId, searchParams],
   );
 
-  const [activeTab, setActiveTab] = useState('timeline');
+  const [activeTab, setActiveTab] = useState('mustKnow');
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [causalDrawerOpen, setCausalDrawerOpen] = useState(false);
   const [highlightEventId, setHighlightEventId] = useState<string | undefined>();
@@ -331,8 +331,8 @@ function Unit1TimelinePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
       <div className="w-full px-4 py-4">
-        {/* 顶部导航 */}
-        <div className="flex items-center gap-3 mb-4">
+        {/* 顶部导航 - 固定 */}
+        <div className="sticky top-0 z-50 bg-gradient-to-br from-slate-50 to-amber-50/30 backdrop-blur-sm -mx-4 px-4 py-3 border-b border-slate-200/50 flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -343,7 +343,7 @@ function Unit1TimelinePage() {
             返回
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-amber-500" />
               📜 {knowledgeData.unitTitle || '历史时间轴'}
             </h1>
@@ -421,6 +421,8 @@ function Unit1TimelinePage() {
           </div>
         </div>
 
+        {/* 主内容区 */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
         {/* 加载状态 */}
         {loading && (
           <Card className="mb-4">
@@ -943,6 +945,7 @@ function Unit1TimelinePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -312,9 +312,9 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
 
       {/* 详情对话框 */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 flex-wrap">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-2 border-b">
+            <DialogTitle className="flex items-center gap-2 flex-wrap text-lg">
               <BookOpen className="h-5 w-5 text-amber-500" />
               {selectedItem?.title}
               {selectedItem?.dynasty && (
@@ -325,8 +325,8 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1">
-            <div className="space-y-4 p-1">
+          <div className="flex-1 overflow-y-auto p-1">
+            <div className="space-y-4">
               {selectedItem && (
                 <>
                   {/* 必背内容 */}
@@ -451,9 +451,10 @@ export function HistoryMustKnowList({ unitId = 'unit1', unitTitle }: HistoryMust
                   </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
     );
   }
+
