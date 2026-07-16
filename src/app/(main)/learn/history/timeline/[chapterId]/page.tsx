@@ -544,7 +544,7 @@ function Unit1TimelinePage() {
             <TabsContent value="mustKnow">
               <Card>
                 <CardContent className="p-4">
-                  <HistoryMustKnowList unitId={chapterId} unitTitle={knowledgeData.unitTitle} />
+                  <HistoryMustKnowList unitId="unit1" unitTitle={knowledgeData.unitTitle} />
                 </CardContent>
               </Card>
             </TabsContent>
