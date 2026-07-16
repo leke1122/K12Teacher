@@ -112,22 +112,28 @@ export default function GeographyKnowledgePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
-      <div className="w-full px-4 py-4">
-        <div className="flex items-center gap-3 mb-4">
-          <Link href="/learn/geography">
-            <Button variant="ghost" size="sm" className="gap-1">
-              <ArrowLeft className="h-4 w-4" />
-              返回
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-800">地理 · {data?.unitTitle || '第一章 宇宙中的地球'}</h1>
-            <p className="text-xs text-slate-500">📝 高考地理核心知识点</p>
+      {/* 固定页头 */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Link href="/learn/geography">
+              <Button variant="ghost" size="sm" className="gap-1">
+                <ArrowLeft className="h-4 w-4" />
+                返回
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">地理 · {data?.unitTitle || '第一章 宇宙中的地球'}</h1>
+              <p className="text-xs text-slate-500">高考地理核心知识点</p>
+            </div>
+            <Badge variant="outline" className="bg-emerald-50">
+              {learnedItems.size}/{mustKnowItems.length} 已学习
+            </Badge>
           </div>
-          <Badge variant="outline" className="bg-emerald-50">
-            {learnedItems.size}/{mustKnowItems.length} 已学习
-          </Badge>
         </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
 
         {/* 高考重点提示 */}
         {data?.examFocus && data.examFocus.length > 0 && (

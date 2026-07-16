@@ -205,33 +205,39 @@ function KnowledgePageContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
-      <div className="w-full px-4 py-4 space-y-4">
-        {/* 顶部 */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
-            <ArrowLeft className="h-4 w-4" />
-            返回
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              <Brain className="h-5 w-5 text-amber-500" />
-              历史知识点学习 · {chapterInfo.title}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              基于教材提取，严格遵循史实
-            </p>
+      {/* 固定页头 */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          {/* 顶部 */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
+              <ArrowLeft className="h-4 w-4" />
+              返回
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Brain className="h-5 w-5 text-amber-500" />
+                历史知识点学习 · {chapterInfo.title}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                基于教材提取，严格遵循史实
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => loadKnowledge(true)}
+              disabled={extracting}
+            >
+              {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {extracting ? '提取中' : '重新提取'}
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={() => loadKnowledge(true)}
-            disabled={extracting}
-          >
-            {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {extracting ? '提取中' : '重新提取'}
-          </Button>
         </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
 
         {knowledgeItems.length === 0 ? (
           <Card>
