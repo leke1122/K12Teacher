@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured, getTextbook, getTextbookChapters, getChapterDetail, findDocxImportByUnitTitle } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, getTextbookChapters, getChapterDetail, findDocxImportByUnitTitle, getTextbookBySubject } from '@/lib/supabase';
 import { getServerData, setServerData } from '@/lib/serverStorage';
 import type { DocxParseResult } from '@/lib/docxParser';
 
@@ -157,8 +157,10 @@ export async function POST(request: NextRequest) {
     // 2. 从 textbook_cache 读取指定页的文本
     if (isSupabaseConfigured && supabase) {
       try {
-        // 获取教材缓存
-        const textbookData = await getTextbook(textbookId || '');
+        // 优先用 textbookId 查询，没有则按 subject_id 查最新上传的教材
+        let textbookData = textbookId
+          ? await getTextbook(textbookId)
+          : await getTextbookBySubject('history');
         if (textbookData?.pages) {
           const pages = textbookData.pages as { pageNumber: number; content: string }[];
           const filteredPages = pages.filter(
@@ -166,7 +168,6 @@ export async function POST(request: NextRequest) {
           );
           pageContent = filteredPages.map((p) => `[第${p.pageNumber}页]\n${p.content}`).join('\n\n');
         } else if (textbookData?.full_text) {
-          // 如果没有分页数据，返回提示
           pageContent = `[教材内容在第 ${actualPageStart}-${actualPageEnd} 页]\n\n注意：需要从 PDF 中提取指定页的文本内容`;
         }
       } catch (err) {

@@ -268,6 +268,23 @@ export async function getTextbook(textbookId: string) {
 }
 
 /**
+ * 按学科获取最新教材（用于前端没有传 textbookId 的情况）
+ */
+export async function getTextbookBySubject(subjectId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('textbook_cache')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('subject_id', subjectId)
+    .order('uploaded_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (error) return null;
+  return data;
+}
+
+/**
  * 保存教材数据到Supabase
  */
 export async function saveTextbookCache(data: TextbookCacheItem) {
