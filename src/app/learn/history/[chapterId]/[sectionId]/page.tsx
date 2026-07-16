@@ -18,15 +18,15 @@ import {
 } from 'lucide-react';
 import { useTextbooks } from '@/hooks/useTextbooks';
 
-// 7个功能模块定义
+// 7个功能模块定义 - 按学习顺序排列
 const MODULES = [
-  { id: 'textbook',  label: '课本还原',    icon: BookOpen,  desc: '逐段阅读教材原文',           color: 'blue' },
-  { id: 'knowledge', label: '知识点精讲',  icon: Brain,     desc: '核心知识点卡片式讲解',        color: 'purple' },
-  { id: 'timeline',  label: '时间轴',      icon: Clock,     desc: '事件脉络按时间排列',          color: 'amber' },
-  { id: 'cards',     label: '历史卡牌',    icon: Layers,    desc: '翻转卡片记忆关键内容',        color: 'cyan' },
-  { id: 'causal',    label: '因果链',      icon: Link2,     desc: '分析事件远因→近因→后果',     color: 'rose' },
-  { id: 'analysis',  label: '史料分析',    icon: FileText,  desc: '解读史料并回答问题',         color: 'green' },
-  { id: 'practice',  label: '综合练习',    icon: BarChart3, desc: '本课相关选择题与材料题',     color: 'indigo' },
+  { id: 'textbook',  label: '课本还原',    icon: BookOpen,  desc: '阅读教材原文',           color: 'blue' },
+  { id: 'knowledge', label: '知识点精讲',  icon: Brain,     desc: '核心考点详解',           color: 'purple' },
+  { id: 'timeline',  label: '时间轴',      icon: Clock,     desc: '事件脉络梳理',           color: 'amber' },
+  { id: 'cards',     label: '历史卡牌',   icon: Layers,    desc: '关键内容记忆',           color: 'cyan' },
+  { id: 'causal',    label: '因果链',      icon: Link2,     desc: '因果逻辑分析',           color: 'rose' },
+  { id: 'analysis',  label: '史料分析',    icon: FileText,  desc: '史料解读训练',           color: 'green' },
+  { id: 'practice',  label: '综合练习',   icon: BarChart3, desc: '学习成果检验',           color: 'indigo' },
 ];
 
 function ModuleCard({
@@ -167,6 +167,29 @@ function HistoryLessonPageContent() {
             </Badge>
           )}
         </div>
+
+        {/* 学习流程说明 */}
+        <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                <span className="text-amber-600 dark:text-amber-400 font-bold">💡</span>
+              </div>
+              <div>
+                <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-1">本课学习流程</p>
+                <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                  <p><strong>① 课本还原</strong> → 阅读教材原文，理解基础内容</p>
+                  <p><strong>② 知识点精讲</strong> → AI 详细讲解核心知识点</p>
+                  <p><strong>③ 时间轴</strong> → 梳理事件发展脉络</p>
+                  <p><strong>④ 历史卡牌</strong> → 记忆关键人物、事件</p>
+                  <p><strong>⑤ 因果链</strong> → 理解事件因果关系</p>
+                  <p><strong>⑥ 史料分析</strong> → 练习史料解读能力</p>
+                  <p><strong>⑦ 综合练习</strong> → 检验学习成果</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 模块网格入口 */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

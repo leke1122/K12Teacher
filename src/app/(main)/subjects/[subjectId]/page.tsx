@@ -101,12 +101,12 @@ export default function SubjectPage() {
     );
   }
 
-  // 历史学科特有功能入口
+  // 历史学科特有功能入口 - 用于全学科复习
   const historyFeatures = [
-    { icon: Clock, name: '时间轴', desc: '辽宁高考考点', href: '/learn/history/timeline/ln-gaokao', color: 'amber' },
-    { icon: Layers, name: '历史卡牌', desc: '间隔记忆', href: '/learn/history/cards', color: 'blue' },
-    { icon: Link2, name: '因果链', desc: '逻辑分析', href: '/learn/history/causal-chain', color: 'purple' },
-    { icon: BarChart3, name: '综合练习', desc: '实战训练', href: '/learn/history/practice', color: 'emerald' },
+    { icon: Clock, name: '时间轴', desc: '纵向梳理历史脉络', href: '/learn/history/timeline/ln-gaokao', color: 'amber' },
+    { icon: Layers, name: '历史卡牌', desc: '间隔重复记忆', href: '/learn/history/cards', color: 'blue' },
+    { icon: Link2, name: '因果链', desc: '事件逻辑关系', href: '/learn/history/causal-chain', color: 'purple' },
+    { icon: BarChart3, name: '综合练习', desc: '全学科实战训练', href: '/learn/history/practice', color: 'emerald' },
   ];
 
   // 章节学习状态
@@ -192,9 +192,17 @@ export default function SubjectPage() {
         {/* 历史学习功能入口 - 仅历史学科显示 */}
         {isHistory && (
           <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/60">
-            <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2">
               <span className="text-amber-500">📜</span> 历史学习中心
             </h2>
+            {/* 学习路径说明 */}
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 mb-4 text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">💡 推荐学习路径</p>
+              <p className="text-amber-700 dark:text-amber-300 text-xs leading-relaxed">
+                <strong>1. 按课学习：</strong>选择下方单元 → 点击「进入学习」→ 完成课本还原、知识点精讲等7个模块<br/>
+                <strong>2. 全局复习：</strong>使用时间轴、历史卡牌、因果链、综合练习进行跨单元复习
+              </p>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {historyFeatures.map((item) => {
                 const Icon = item.icon;
@@ -404,33 +412,6 @@ export default function SubjectPage() {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2 mt-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs"
-                            onClick={() => router.push(`/learn/history/knowledge/${chapterId}`)}
-                          >
-                            <Brain className="h-3.5 w-3.5" />
-                            知识点
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs"
-                            onClick={() => router.push(`/learn/history/textbook/${chapterId}`)}
-                          >
-                            <BookText className="h-3.5 w-3.5" />
-                            课本还原
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs"
-                            onClick={() => router.push(`/learn/history/practice`)}
-                          >
-                            <FileQuestion className="h-3.5 w-3.5" />
-                            综合练习
-                          </Button>
                           {chapter.sections && chapter.sections.length > 0 && (
                             <Button
                               size="sm"
