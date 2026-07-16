@@ -110,6 +110,9 @@ function Unit1TimelinePage() {
   const [selectedUnitId, setSelectedUnitId] = useState<string>(chapterId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 必背清单数据（用于时间轴展示）
+  const [mustKnowItems, setMustKnowItems] = useState<any[]>([]);
+  const [mustKnowLoading, setMustKnowLoading] = useState(false);
 
   // 获取 API Key
   const getApiKey = () => {
@@ -206,11 +209,28 @@ function Unit1TimelinePage() {
     }
   }, []);
 
+  // 加载必背清单数据（用于时间轴展示）
+  const loadMustKnowItems = useCallback(async (unitId: string) => {
+    setMustKnowLoading(true);
+    try {
+      const response = await fetch(`/api/history/must-know?unitId=${encodeURIComponent(unitId)}`);
+      const data = await response.json();
+      if (data.success && data.data?.items) {
+        setMustKnowItems(data.data.items);
+      }
+    } catch (err) {
+      console.error('加载必背清单失败:', err);
+    } finally {
+      setMustKnowLoading(false);
+    }
+  }, []);
+
   // 初始加载
   useEffect(() => {
     loadChapters();
     loadKnowledgeData(chapterId);
-  }, [chapterId, loadChapters, loadKnowledgeData]);
+    loadMustKnowItems('unit1');
+  }, [chapterId, loadChapters, loadKnowledgeData, loadMustKnowItems]);
 
   // 筛选事件
   const filteredEvents = useMemo(() => {
@@ -560,103 +580,114 @@ function Unit1TimelinePage() {
               </Card>
             </TabsContent>
 
-            {/* 垂直时间轴 */}
+            {/* 垂直时间轴 - 基于必背清单 */}
             <TabsContent value="timeline">
-              {filteredEvents.length === 0 ? (
+              {mustKnowLoading ? (
+                <Card className="p-8 text-center">
+                  <Loader2 className="h-8 w-8 mx-auto text-amber-500 animate-spin mb-4" />
+                  <p className="text-muted-foreground">正在加载必背知识...</p>
+                </Card>
+              ) : mustKnowItems.length === 0 ? (
                 <Card className="p-8 text-center">
                   <CalendarDays className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                  <p className="text-muted-foreground">
-                    {chapters.length === 0
-                      ? '请先上传历史教材并导入目录'
-                      : '该单元暂无时间轴数据'}
-                  </p>
+                  <p className="text-muted-foreground">暂无必背知识数据</p>
                 </Card>
               ) : (
-                <div className="relative">
-                  {/* 时间轴中线 */}
-                  <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
+                <div>
+                  {/* 时间轴说明 */}
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="text-sm font-medium">时间轴视图：共 {mustKnowItems.length} 个必背知识点，按重要性排序</span>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    {/* 时间轴中线 */}
+                    <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
 
-                  {/* 时间轴事件 */}
-                  <div className="space-y-6 pl-4">
-                    {filteredEvents.map((event, index) => {
-                      const colors: Record<string, string> = {
-                        政治: 'border-amber-400 bg-amber-50',
-                        经济: 'border-emerald-400 bg-emerald-50',
-                        思想: 'border-violet-400 bg-violet-50',
-                        文化: 'border-pink-400 bg-pink-50',
-                        军事: 'border-red-400 bg-red-50',
-                        社会: 'border-slate-400 bg-slate-50',
-                      };
-                      const color = colors[event.category] || colors.社会;
+                    {/* 时间轴事件 */}
+                    <div className="space-y-4 pl-4">
+                      {mustKnowItems.map((item, index) => {
+                        // 根据重要性选择颜色
+                        const importanceColors = {
+                          5: 'border-red-400 bg-red-50',
+                          4: 'border-amber-400 bg-amber-50',
+                          3: 'border-emerald-400 bg-emerald-50',
+                          2: 'border-blue-400 bg-blue-50',
+                          1: 'border-slate-400 bg-slate-50',
+                        };
+                        const importanceStars = {
+                          5: '⭐⭐⭐⭐⭐',
+                          4: '⭐⭐⭐⭐',
+                          3: '⭐⭐⭐',
+                          2: '⭐⭐',
+                          1: '⭐',
+                        };
+                        const color = importanceColors[item.importance as keyof typeof importanceColors] || importanceColors[3];
 
-                      return (
-                        <div key={event.id} className="relative flex gap-4">
-                          {/* 时间点 */}
-                          <div className="relative z-10 flex-shrink-0">
-                            <div className={`w-12 h-12 rounded-full border-4 ${color} flex items-center justify-center bg-white shadow-sm`}>
-                              <span className="text-xs font-bold text-slate-600">{index + 1}</span>
+                        return (
+                          <div key={item.id} className="relative flex gap-4">
+                            {/* 时间点 */}
+                            <div className="relative z-10 flex-shrink-0">
+                              <div className={`w-12 h-12 rounded-full border-4 ${color} flex items-center justify-center bg-white shadow-sm`}>
+                                <span className="text-xs font-bold text-slate-600">{index + 1}</span>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* 事件卡片 */}
-                          <Card
-                            className={`flex-1 cursor-pointer transition-all hover:shadow-md border-l-4 ${color}`}
-                            onClick={() => handleEventClick(event)}
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div>
-                                  <Badge variant="outline" className="text-xs mb-1">
-                                    {event.year} · {event.dynasty}
-                                  </Badge>
-                                  <h3 className="text-base font-bold text-slate-800">
-                                    {event.title}
-                                    {event.importance >= 5 && (
-                                      <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                        常考
+                            {/* 知识点卡片 */}
+                            <Card className={`flex-1 transition-all hover:shadow-md border-l-4 ${color}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      {item.year && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {item.year}
+                                        </Badge>
+                                      )}
+                                      {item.dynasty && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {item.dynasty}
+                                        </Badge>
+                                      )}
+                                      <span className="text-xs" title={`重要性: ${item.importance}`}>
+                                        {importanceStars[item.importance as keyof typeof importanceStars]}
                                       </span>
-                                    )}
-                                  </h3>
+                                    </div>
+                                    <h3 className="text-base font-bold text-slate-800">
+                                      {item.title}
+                                      {item.importance >= 4 && (
+                                        <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                          重要考点
+                                        </span>
+                                      )}
+                                    </h3>
+                                  </div>
                                 </div>
-                                <Badge className="text-xs">
-                                  {event.category}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {event.summary}
-                              </p>
-                              {event.impact && (
-                                <p className="text-xs text-amber-600 mt-2 font-medium">
-                                  ✦ {event.impact}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 mt-3">
-                                {event.keyPeople && event.keyPeople.length > 0 && (
-                                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                                    <Users className="h-3 w-3" />
-                                    {event.keyPeople.slice(0, 2).join('、')}
-                                  </span>
+                                {/* 必背内容 */}
+                                <div className="bg-amber-50/50 rounded p-2 mb-2">
+                                  <p className="text-sm text-amber-900 line-clamp-2">
+                                    {item.content}
+                                  </p>
+                                </div>
+                                {/* 高考重点 */}
+                                {item.gaokaoFocus && (
+                                  <p className="text-xs text-indigo-600 font-medium">
+                                    🎯 {item.gaokaoFocus}
+                                  </p>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-xs ml-auto"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedEvent(event);
-                                    setHighlightEventId(event.id);
-                                    setCausalDrawerOpen(true);
-                                  }}
-                                >
-                                  <GitFork className="h-3 w-3 mr-1" />
-                                  查看因果
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      );
-                    })}
+                                {/* 相关事件 */}
+                                {item.relatedEvents && item.relatedEvents.length > 0 && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    🔗 相关：{item.relatedEvents.slice(0, 3).join('、')}
+                                  </p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
