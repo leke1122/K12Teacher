@@ -103,6 +103,8 @@ function Unit1TimelinePage() {
 
   // 筛选状态
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // 重要性筛选
+  const [importanceFilter, setImportanceFilter] = useState<number | null>(null);
 
   // 数据状态
   const [knowledgeData, setKnowledgeData] = useState<LnGaokaoKnowledge>(DEFAULT_DATA);
@@ -505,34 +507,6 @@ function Unit1TimelinePage() {
           </Card>
         )}
 
-        {/* 分类筛选 */}
-        <Card className="mb-4">
-          <CardContent className="p-3">
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-muted-foreground mr-2">筛选类别：</span>
-              <Button
-                size="sm"
-                variant={categoryFilter === 'all' ? 'default' : 'outline'}
-                className="h-7 text-xs"
-                onClick={() => setCategoryFilter('all')}
-              >
-                全部 ({knowledgeData.timelineEvents.length})
-              </Button>
-              {Object.entries(categoryStats).map(([cat, count]) => (
-                <Button
-                  key={cat}
-                  size="sm"
-                  variant={categoryFilter === cat ? 'default' : 'outline'}
-                  className="h-7 text-xs"
-                  onClick={() => setCategoryFilter(cat)}
-                >
-                  {cat} ({count})
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {!loading && !error && (
           <Tabs
             value={activeTab}
@@ -594,20 +568,73 @@ function Unit1TimelinePage() {
                 </Card>
               ) : (
                 <div>
-                  {/* 时间轴说明 */}
-                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-amber-800">
-                      <Sparkles className="h-4 w-4" />
-                      <span className="text-sm font-medium">时间轴视图：共 {mustKnowItems.length} 个必背知识点，按重要性排序</span>
-                    </div>
-                  </div>
+                  {/* 重要性筛选 */}
+                  <Card className="mb-4">
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-xs text-muted-foreground mr-2">重要性：</span>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === null ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => setImportanceFilter(null)}
+                        >
+                          全部 ({mustKnowItems.length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === 5 ? 'default' : 'outline'}
+                          className={`h-7 text-xs ${importanceFilter === 5 ? 'bg-red-500' : ''}`}
+                          onClick={() => setImportanceFilter(5)}
+                        >
+                          ⭐⭐⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 5).length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === 4 ? 'default' : 'outline'}
+                          className={`h-7 text-xs ${importanceFilter === 4 ? 'bg-amber-500' : ''}`}
+                          onClick={() => setImportanceFilter(4)}
+                        >
+                          ⭐⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 4).length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === 3 ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => setImportanceFilter(3)}
+                        >
+                          ⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 3).length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === 2 ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => setImportanceFilter(2)}
+                        >
+                          ⭐⭐ ({mustKnowItems.filter(i => i.importance === 2).length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={importanceFilter === 1 ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => setImportanceFilter(1)}
+                        >
+                          ⭐ ({mustKnowItems.filter(i => i.importance === 1).length})
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 时间轴事件 */}
                   <div className="relative">
                     {/* 时间轴中线 */}
                     <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
 
                     {/* 时间轴事件 */}
                     <div className="space-y-4 pl-4">
-                      {mustKnowItems.map((item, index) => {
+                      {mustKnowItems
+                        .filter(item => importanceFilter === null || item.importance === importanceFilter)
+                        .map((item, index) => {
                         // 根据重要性选择颜色
                         const importanceColors = {
                           5: 'border-red-400 bg-red-50',
