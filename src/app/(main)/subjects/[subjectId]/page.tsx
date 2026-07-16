@@ -48,6 +48,7 @@ export default function SubjectPage() {
 
   const subject = SUBJECTS.find((s) => s.id === subjectId);
   const isHistory = subjectId === 'history';
+  const isEnglish = subjectId === 'english';
 
   const handleExtractChapters = async () => {
     if (!settings?.deepseekKey) {
@@ -225,6 +226,43 @@ export default function SubjectPage() {
               })}
             </div>
           </div>
+        )}
+
+        {/* 英语语法学习入口 - 仅英语学科显示 */}
+        {isEnglish && (
+          <Card className="rounded-xl shadow-sm border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xl">
+                    📖
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">语法学习</h3>
+                    <p className="text-xs text-muted-foreground">8个阶段 · 43个知识点 · 高考全覆盖</p>
+                  </div>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5 bg-blue-500 hover:bg-blue-600 text-white"
+                  onClick={() => router.push('/learn/english/grammar')}
+                >
+                  开始学习
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs bg-white">词法基础</Badge>
+                <Badge variant="outline" className="text-xs bg-white">时态语态</Badge>
+                <Badge variant="outline" className="text-xs bg-white">非谓语动词</Badge>
+                <Badge variant="outline" className="text-xs bg-white">三大从句</Badge>
+                <Badge variant="outline" className="text-xs bg-white">特殊句式</Badge>
+                <Badge variant="outline" className="text-xs bg-white">情态动词</Badge>
+                <Badge variant="outline" className="text-xs bg-white">介词短语</Badge>
+                <Badge variant="outline" className="text-xs bg-white">高考综合</Badge>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* 可视化学习入口 - 非历史学科 */}
