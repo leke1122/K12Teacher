@@ -191,8 +191,6 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   '\u{72D7}': '独',
   '\u{7283}': '元',
   // 历史课本特有乱码（DOCX特殊字体映射错误）
-  '犃': 'A',   // 大写A
-  '犆': 'C',   // 大写C
   'CD': 'M',   // DOCX字体误渲染 → M（安史之乱）
   'CM': 'M',   // DOCX字体误渲染 → M
   'cd': 'M',   // DOCX字体误渲染 → 小写M
@@ -200,7 +198,6 @@ const MATH_SYMBOL_MAP: Record<string, string> = {
   'CF': 'H',   // DOCX字体误渲染 → H
   'cF': 'H',   // DOCX字体误渲染 → H
   'D4': 'D',   // DOCX字体误渲染
-  'D寸': 'D',  // DOCX字体误渲染
   'DM': 'M',   // DOCX字体误渲染
   // 数学教材常用汉字
   '\u{4EE5}': '以',
