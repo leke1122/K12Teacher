@@ -1,6 +1,6 @@
 // 历史学科统一教材读取
 // 优先从 Supabase textbook_cache 读取，回退到本地 serverStorage
-// 修复“未找到本课内容”问题：统一 subject_id='history' 的数据源
+// 修复"未找到本课内容"问题：统一 subject_id='history' 的数据源
 
 import { supabase as supabaseClient, isSupabaseConfigured } from './supabase';
 import {
@@ -19,37 +19,112 @@ export interface HistoryTextbookSource {
   source: 'supabase' | 'local';
 }
 
-export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null> {
-  // 1. 优先从 Supabase 读取
-  if (isSupabaseConfigured && supabaseClient) {
+/**
+ * 带重试的 Supabase 查询（解决冷启动/RLS 延迟问题）
+ */
+async function queryWithRetry<T>(
+  queryFn: () => Promise<{ data: T | null; error: unknown }>,
+  retries = 2,
+  delayMs = 500
+): Promise<{ data: T | null; error: unknown; attempts: number }> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
     try {
-      const { data, error } = await supabaseClient
+      const result = await queryFn();
+      return { ...result, attempts: attempt };
+    } catch (err) {
+      lastError = err;
+      if (attempt <= retries) {
+        console.log(`[historyData.server] 查询失败，${delayMs}ms后重试 (${attempt}/${retries}):`, err);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  return { data: null, error: lastError, attempts: retries + 1 };
+}
+
+export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null> {
+  // 1. 优先从 Supabase 读取（带重试 + RLS 兜底策略）
+  if (isSupabaseConfigured && supabaseClient) {
+    // 方法A：精确按 user_id + subject_id 查询
+    const { data: supabaseData, error: supabaseError, attempts } = await queryWithRetry(
+      async () => {
+        const result = await supabaseClient
+          .from('textbook_cache')
+          .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at')
+          .eq('user_id', 'personal-user')
+          .eq('subject_id', 'history')
+          .order('uploaded_at', { ascending: false })
+          .limit(1)
+          .single();
+        return { data: result.data as TextbookCacheItem | null, error: result.error };
+      }
+    );
+
+    console.log('[historyData.server] Supabase 查询结果 (user_id 过滤):', {
+      hasData: !!supabaseData,
+      error: supabaseError ? String(supabaseError) : null,
+      attempts,
+      dataKeys: supabaseData ? Object.keys(supabaseData) : [],
+      hasFullText: !!(supabaseData as any)?.full_text,
+      hasPages: !!((supabaseData as any)?.pages?.length),
+      userId: (supabaseData as any)?.user_id,
+      subjectId: (supabaseData as any)?.subject_id,
+    });
+
+    // 检查是否为 RLS 策略过滤导致的空结果
+    const isRlsEmpty =
+      (!supabaseData || !((supabaseData as any)?.textbook_id)) &&
+      (supabaseError === null || (supabaseError as any)?.code === 'PGRST116');
+
+    if (!isRlsEmpty && supabaseData && (supabaseData as any)?.textbook_id) {
+      return {
+        textbookId: (supabaseData as any).textbook_id,
+        textbookName: (supabaseData as any).textbook_name,
+        fullText: (supabaseData as any).full_text || undefined,
+        pages: ((supabaseData as any).pages as { pageNumber: number; content: string }[] | null) || undefined,
+        chapters: ((supabaseData as any).chapters as unknown[] | null) || undefined,
+        source: 'supabase',
+      };
+    }
+
+    // 方法B：RLS 过滤导致空结果 → 不带 user_id 过滤查询所有历史教材
+    console.log('[historyData.server] 带 user_id 过滤无结果，尝试不带 user_id 查询...');
+    const { data: noUserIdData, error: noUserIdError } = await queryWithRetry(async () => {
+      const result = await supabaseClient
         .from('textbook_cache')
-        .select('textbook_id, textbook_name, full_text, pages, chapters')
-        .eq('user_id', 'personal-user')
+        .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at')
         .eq('subject_id', 'history')
         .order('uploaded_at', { ascending: false })
         .limit(1)
         .single();
+      return { data: result.data as TextbookCacheItem | null, error: result.error };
+    });
 
-      if (!error && data) {
-        return {
-          textbookId: data.textbook_id,
-          textbookName: data.textbook_name,
-          fullText: data.full_text || undefined,
-          pages: (data.pages as { pageNumber: number; content: string }[] | null) || undefined,
-          chapters: (data.chapters as unknown[] | null) || undefined,
-          source: 'supabase',
-        };
-      }
-    } catch (err) {
-      console.warn('[historyData.server] Supabase读取失败，回退本地:', err);
+    console.log('[historyData.server] 无 user_id 过滤查询结果:', {
+      hasData: !!noUserIdData,
+      error: noUserIdError ? String(noUserIdError) : null,
+      userId: (noUserIdData as any)?.user_id,
+      hasFullText: !!(noUserIdData as any)?.full_text,
+    });
+
+    if (noUserIdData && (noUserIdData as any)?.textbook_id) {
+      return {
+        textbookId: (noUserIdData as any).textbook_id,
+        textbookName: (noUserIdData as any).textbook_name,
+        fullText: (noUserIdData as any).full_text || undefined,
+        pages: ((noUserIdData as any).pages as { pageNumber: number; content: string }[] | null) || undefined,
+        chapters: ((noUserIdData as any).chapters as unknown[] | null) || undefined,
+        source: 'supabase',
+      };
     }
   }
 
   // 2. 回退到本地 serverStorage
+  console.log('[historyData.server] 回退到本地 serverStorage...');
   const localTextbook = getLocalActiveTextbook('history');
   if (!localTextbook) {
+    console.warn('[historyData.server] 本地也无历史教材');
     return null;
   }
 
@@ -76,6 +151,15 @@ export async function getHistoryTextbookTextByPages(
     console.warn('[historyData.server] 未找到历史教材');
     return null;
   }
+
+  console.log('[historyData.server] getHistoryTextbookTextByPages:', {
+    chapterId,
+    textbookId: textbook.textbookId,
+    source: textbook.source,
+    hasFullText: !!textbook.fullText,
+    pagesCount: textbook.pages?.length || 0,
+    chaptersCount: textbook.chapters?.length || 0,
+  });
 
   const pages = textbook.pages;
   if (!pages?.length) {
@@ -186,11 +270,9 @@ export async function getHistoryLessonContent(lessonId: string): Promise<string 
     const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
     if (sections) {
       const section = sections.find((s) => {
-        const sIndex = String(s.sectionIndex).replace(/第/g, '').replace(/课/g, '').trim();
         return (
-          sIndex === normalizedId ||
           s.sectionIndex === lessonId ||
-          String(s.sectionIndex).includes(lessonId) ||
+          String(s.sectionIndex).includes(normalizedId) ||
           s.sectionTitle === lessonId ||
           String(s.sectionTitle).includes(lessonId)
         );
@@ -199,14 +281,14 @@ export async function getHistoryLessonContent(lessonId: string): Promise<string 
       if (section) {
         const sectionRecord = section as Record<string, unknown>;
         const pagesRecord = sectionRecord.pages as Record<string, unknown> | undefined;
-        const startPage = Number(pagesRecord?.start ?? 0);
-        const endPage = Number(pagesRecord?.end ?? 9999);
-        const sectionPages = pages.filter((p) => {
+        const start = Number(pagesRecord?.start ?? 0);
+        const end = Number(pagesRecord?.end ?? 9999);
+        const filteredPages = pages.filter((p) => {
           const num = Number(p.pageNumber);
-          return num >= startPage && num <= endPage;
+          return num >= start && num <= end;
         });
-        if (sectionPages.length > 0) {
-          return sectionPages.map((p) => p.content).join('\n\n');
+        if (filteredPages.length > 0) {
+          return filteredPages.map((p) => p.content).join('\n\n');
         }
       }
     }
@@ -217,11 +299,11 @@ export async function getHistoryLessonContent(lessonId: string): Promise<string 
 
 export async function getHistoryLessonTitle(lessonId: string): Promise<string | null> {
   const textbook = await getHistoryTextbook();
-  if (!textbook) return null;
+  if (!textbook?.chapters) return null;
 
   const chapters = textbook.chapters;
-  if (!chapters) return null;
 
+  // 标准化lessonId
   const normalizedId = lessonId.replace(/第/g, '').replace(/课/g, '').trim();
 
   for (const chapter of chapters) {
@@ -229,16 +311,16 @@ export async function getHistoryLessonTitle(lessonId: string): Promise<string | 
     const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
     if (sections) {
       const section = sections.find((s) => {
-        const sIndex = String(s.sectionIndex).replace(/第/g, '').replace(/课/g, '').trim();
         return (
-          sIndex === normalizedId ||
           s.sectionIndex === lessonId ||
-          String(s.sectionIndex).includes(lessonId)
+          String(s.sectionIndex).includes(normalizedId) ||
+          s.sectionTitle === lessonId ||
+          String(s.sectionTitle).includes(lessonId)
         );
       });
 
       if (section) {
-        return `${section.sectionIndex} ${section.sectionTitle}`;
+        return (section as Record<string, unknown>).sectionTitle as string || null;
       }
     }
   }
