@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,13 @@ function TextbookPageContent() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  useEffect(() => {
+    // settingsStore 使用 persist middleware，首次 hydration 后自动恢复
+    // 我们等待一下确保 settings 已加载
+    const timer = setTimeout(() => setSettingsLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const chapterInfo = HISTORY_CHAPTERS[chapterId as keyof typeof HISTORY_CHAPTERS] || {
     title: chapterId,
@@ -53,9 +60,10 @@ function TextbookPageContent() {
   useEffect(() => {
     updateStepProgress('history', chapterId, 'textbook', 'in_progress');
     loadContent();
-  }, [chapterId]);
+  }, [chapterId, settingsLoaded]);
 
   const loadContent = async () => {
+    if (!settingsLoaded) return; // 还没准备好，不加载
     setLoading(true);
     setError(null);
     try {
