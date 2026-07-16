@@ -204,58 +204,64 @@ function validateContent(text: string): { valid: boolean; reason: string } {
 }
 
 /**
- * 将文本分割为段落
- * 原则：保留所有有意义的短句，即使只有5-10字（如"思考："、"要求："）
+ * 将文本分割为段落（与 pdf-utils.ts 保持一致）
+ * 原则：
+ * 1. 优先保留原文换行分段（PDF自然段落边界）
+ * 2. 不按字符数截断，不把一段话拆成多段
+ * 3. 原文一段就一段，短段落（指示词如"思考："）也保留
  */
 function splitIntoParagraphs(text: string): string[] {
+  if (!text) return [];
+
   // 替换多种换行符为统一格式
   let normalized = text
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/\\n/g, '\n');
 
-  // 预处理：把教材常见的连续句分开处理
-  // 格式如："例1：...。...。...。要求：...。思考：..."
-  // 按"。"分割，但保留指示词开头的短句作为独立段落
+  // 方法1：优先按双换行分段（PDF自然段落边界）
+  let paragraphs = normalized
+    .split(/\n\s*\n/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
 
-  // 方法1: 按双换行分割（段落间有空行）
-  let paragraphs = normalized.split(/\n\s*\n/);
-
-  if (paragraphs.length < 3) {
-    // 方法2: 按单换行分割
-    paragraphs = normalized.split(/\n/);
+  // 如果双换行分段结果合理（>=3段），直接返回
+  if (paragraphs.length >= 3) {
+    return paragraphs;
   }
 
-  // 过滤完全空白段落
-  paragraphs = paragraphs.filter(p => p.trim().length > 0);
+  // 方法2：按单换行分段（有时PDF段落之间只有单换行）
+  paragraphs = normalized
+    .split(/\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 5);
 
-  // 进一步拆分：把包含多个完整句子的段落拆开
-  // 匹配模式：以 "要求："、"思考："、"例X："、"练习："、"注意：" 开头的短句
-  const result: string[] = [];
-  for (const para of paragraphs) {
-    // 按句子分隔符拆分
-    const sentences = para.split(/(?<=[。！？])/);
-    let current = '';
-    for (const sentence of sentences) {
-      const trimmed = sentence.trim();
-      if (!trimmed) continue;
-      // 如果当前句子以指示词开头（短句），单独成段
-      if (/^(要求|思考|例\d|练习|注意|证明|解|思考题)：/.test(trimmed) && trimmed.length <= 30) {
-        if (current.trim()) result.push(current.trim());
-        result.push(trimmed);
-        current = '';
-      } else if (current && current.length + trimmed.length > 300) {
-        // 当前段落够长了，保存并开始新段落
-        result.push(current.trim());
-        current = trimmed;
-      } else {
-        current += trimmed;
-      }
-    }
-    if (current.trim()) result.push(current.trim());
+  if (paragraphs.length >= 3) {
+    return paragraphs;
   }
 
-  return result;
+  // 方法3：按 PDF 常见页码标记分割（如 "===== 第 X 页 ====="）
+  const pageSplit = normalized
+    .split(/=====+\s*[第]?\s*\d+\s*[页]+\s*=+\n?/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
+
+  if (pageSplit.length >= 3) {
+    return pageSplit;
+  }
+
+  // 方法4：按常见章节序号分割（(1)、(2) 或 ①、② 等）
+  const sectionSplit = normalized
+    .split(/(?<=\n)(?=\(?[一二三四五六七八九十\d]+[．.、)）])/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
+
+  if (sectionSplit.length >= 3) {
+    return sectionSplit;
+  }
+
+  // 最终兜底：整段返回，不拆分（保持原文完整性）
+  return paragraphs.length > 0 ? paragraphs : [text.trim()];
 }
 
 /**

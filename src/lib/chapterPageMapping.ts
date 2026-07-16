@@ -184,6 +184,24 @@ export const SUBJECT_MAPPINGS: Record<string, SubjectMapping> = {
   // 更多学科和教材可在此添加：
   // physics_b1: { bookName: '...', sections: {...}, orderedSections: [...] },
   // chemistry_b1: { bookName: '...', sections: {...}, orderedSections: [...] },
+
+  // ============================================================
+  // 高中思想政治 必修1 中国特色社会主义
+  // 教材PDF对应页码（用户实测标注）
+  // ============================================================
+  politics_compulsory_1: {
+    bookName: '普通高中教科书·思想政治（必修1） 中国特色社会主义',
+    sections: {
+      // 第一课 原始社会的解体和阶级社会的演进
+      '1.1': { startPage: 28, endPage: 36 },
+      '1.2': { startPage: 37, endPage: 44 },
+      // 第二课 科学社会主义的理论与实践
+      '2.1': { startPage: 45, endPage: 52 },
+      '2.2': { startPage: 53, endPage: 60 },
+      '2.3': { startPage: 61, endPage: 68 },
+    },
+    orderedSections: ['1.1', '1.2', '2.1', '2.2', '2.3'],
+  },
 };
 
 // ============================================================

@@ -995,57 +995,60 @@ export function validateSectionBoundary(
 
 /**
  * 将课本还原文本拆分为独立段落，便于逐段展示
+ * 原则：
+ * 1. 优先保留原文换行分段（PDF/PDF转文本自然分段）
+ * 2. 不按字符数截断，不把一段话拆成多段
+ * 3. 原文一段就一段，短段落（指示词如"思考："）也保留
  */
 export function splitIntoParagraphs(text: string): string[] {
   if (!text) return [];
 
-  // 优先保留原文换行分段
-  let paragraphs = text
+  // 替换多种换行符为统一格式
+  let normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  // 方法1：优先按双换行分段（PDF自然段落边界）
+  let paragraphs = normalized
     .split(/\n\s*\n/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
+
+  // 如果双换行分段结果合理（>=3段），直接返回
+  if (paragraphs.length >= 3) {
+    return paragraphs;
+  }
+
+  // 方法2：按单换行分段（有时PDF段落之间只有单换行）
+  paragraphs = normalized
+    .split(/\n/)
     .map(p => p.trim())
-    .filter(p => p.length > 10);
+    .filter(p => p.length > 5);
 
-  // 如果换行分段过少，则按句末标点+序号规则补分段
-  if (paragraphs.length < 3) {
-    const sentenceSplit = text
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .split(/(?<=[。！？\n])/)
-      .map(s => s.trim())
-      .filter(s => s.length > 10);
-
-    if (sentenceSplit.length >= 3) {
-      paragraphs = sentenceSplit;
-    }
+  if (paragraphs.length >= 3) {
+    return paragraphs;
   }
 
-  // 若仍不足，再按常见序号切分
-  if (paragraphs.length < 3) {
-    const numberedSplit = text
-      .split(/(?=[\(（]?\d+[\)）])/)
-      .map(p => p.trim())
-      .filter(p => p.length > 10);
+  // 方法3：按 PDF 常见页码标记分割（如 "===== 第 X 页 ====="）
+  const pageSplit = normalized
+    .split(/=====+\s*[第]?\s*\d+\s*[页]+\s*=+\n?/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
 
-    if (numberedSplit.length >= 3) {
-      paragraphs = numberedSplit;
-    }
+  if (pageSplit.length >= 3) {
+    return pageSplit;
   }
 
-  // 兜底：按长度切分，尽量不在句中断开
-  if (paragraphs.length < 2 && text.length > 300) {
-    const chunks: string[] = [];
-    let pos = 0;
-    const chunkSize = 250;
-    while (pos < text.length) {
-      const end = Math.min(pos + chunkSize, text.length);
-      let cut = text.lastIndexOf('。', end);
-      if (cut <= pos) cut = text.lastIndexOf('，', end);
-      if (cut <= pos) cut = end;
-      chunks.push(text.substring(pos, cut + 1).trim());
-      pos = cut + 1;
-    }
-    paragraphs = chunks.filter(p => p.length > 10);
+  // 方法4：按常见章节序号分割（(1)、(2) 或 ①、② 等）
+  const sectionSplit = normalized
+    .split(/(?<=\n)(?=\(?[一二三四五六七八九十\d]+[．.、)）])/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 5);
+
+  if (sectionSplit.length >= 3) {
+    return sectionSplit;
   }
 
-  return paragraphs;
+  // 最终兜底：整段返回，不拆分（保持原文完整性）
+  return paragraphs.length > 0 ? paragraphs : [text.trim()];
 }

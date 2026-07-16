@@ -52,6 +52,90 @@ interface ChatMessage {
   content: string;
 }
 
+// 演示数据（当没有PDF内容时降级使用）
+const DEMO_SECTIONS: Section[] = [
+  {
+    id: 'intro',
+    title: '全书整体感知',
+    content: '本册教材紧紧围绕中国特色社会主义这个中心，讲述中特的由来、创立、发展、完善的过程。第一课回顾从原始社会到资本主义社会的历史发展，阐释生产关系一定要适应生产力，上层建筑一定要适应经济基础的规律是本册教材内容的逻辑起点。第二课《只有社会主义才能救中国》，第三课《只有中国特色社会主义才能发展中国》，第四课《只有坚持和发展中国特色社会主义才能实现中华民族伟大复兴》，层层递进，不断发展，是由人类社会发展的基本规律所决定的。',
+    mustRemember: [
+      { text: '中国特色社会主义是本册教材的核心主线', level: '核心' },
+      { text: '第一课是全册教材的逻辑起点', level: '重要' },
+      { text: '人类社会发展的基本规律决定了中国特色社会主义的历史必然', level: '核心' },
+    ],
+    thinkQuestion: '为什么说第一课是本册教材的逻辑起点？',
+    referenceAnswer: '因为第一课系统回顾了从原始社会到资本主义社会的演进历程，阐释了生产关系一定要适应生产力、上层建筑一定要适应经济基础这两大人类社会发展的基本规律。这些规律是理解整个人类社会发展逻辑的基础，也是理解中国特色社会主义由来、创立、发展、完善的理论前提。',
+  },
+  {
+    id: 'primitive',
+    title: '原始社会',
+    content: '原始社会是人类社会发展的最初阶段和最低阶段。生产力极其低下，石器是主要工具，人们共同劳动、共同占有生产资料，平均分配劳动产品。人与自然的矛盾是主要矛盾，氏族制度是上层建筑的核心。没有阶级、没有剥削。',
+    mustRemember: [
+      { text: '生产力极其低下，石器是主要工具', level: '基础' },
+      { text: '生产资料氏族公有，平均分配', level: '核心' },
+      { text: '主要矛盾：人与自然的矛盾', level: '重要' },
+      { text: '氏族制度：无阶级、无剥削', level: '重要' },
+    ],
+    thinkQuestion: '原始社会没有剥削压迫，但为什么说它是人类社会发展的最低阶段？',
+    referenceAnswer: '原始社会虽然没有人剥削人的现象，但生产力极其低下，人们的生活条件极为艰苦，物质极度匮乏。石器工具的使用使劳动效率极低，经常面临生存威胁。因此，虽然没有阶级压迫，但从生产力发展水平和人类整体生活水平来看，它是人类社会发展的最低阶段。',
+  },
+  {
+    id: 'slave',
+    title: '奴隶社会',
+    content: '奴隶社会代替原始社会是人类社会的第一个进步。金属工具使用、城市出现、文字发明、脑力劳动与体力劳动分工。奴隶主完全占有生产资料和奴隶，奴隶毫无人身自由。国家作为阶级统治工具产生。',
+    mustRemember: [
+      { text: '金属工具时代，社会分工越来越细', level: '基础' },
+      { text: '私有制确立——生产资料奴隶主占有', level: '核心' },
+      { text: '奴隶毫无人身自由', level: '重要' },
+      { text: '国家产生（阶级矛盾不可调和的产物）', level: '核心' },
+      { text: '评价：历史的进步——使人类进入文明时代', level: '核心' },
+    ],
+    thinkQuestion: '奴隶社会代替原始社会是历史的进步，这个"进步"如何理解？',
+    referenceAnswer: '这一"进步"体现在：①金属工具的广泛使用提高了劳动生产率；②城市的出现促进了商品交换和经济发展；③文字的发明使知识和经验得以保存传播；④脑力劳动与体力劳动分工推动了科学文化艺术的发展。虽然存在剥削压迫，但从人类整体文明发展的角度看，是历史的巨大进步。',
+  },
+  {
+    id: 'feudal',
+    title: '封建社会',
+    content: '铁制农具推广，生产力进一步提高。地主占有绝大部分土地，农民有一定人身自由但依附于地主。地租是主要剥削方式。君主专制、等级森严是政治特征。',
+    mustRemember: [
+      { text: '封建土地私有制——地主剥削农民的基础', level: '核心' },
+      { text: '农民有一定人身自由，有生产积极性', level: '基础' },
+      { text: '地租剥削（劳役地租、实物地租、货币地租）', level: '重要' },
+      { text: '君主专制、等级森严的政治特征', level: '基础' },
+    ],
+    thinkQuestion: '封建社会的"进步性"和"局限性"分别是什么？',
+    referenceAnswer: '进步性：经济文化长期发展，创造了灿烂的古代文明（四大发明等），农业、手工业、商业都有较大发展。局限性：地主占有土地，农民受剥削压迫；周期性经济危机（农民起义频繁）；君主专制压制民主发展，社会进步缓慢。',
+  },
+  {
+    id: 'capitalist',
+    title: '资本主义社会',
+    content: '工业革命带来生产力飞跃，但资本家占有生产资料，劳动者被迫出卖劳动力。生产社会化与资本主义私人占有的矛盾是基本矛盾。经济危机不可避免。',
+    mustRemember: [
+      { text: '工业革命：机器化、社会化大生产', level: '基础' },
+      { text: '生产资料资本家私人占有', level: '核心' },
+      { text: '雇佣劳动制度——资本家剥削工人', level: '核心' },
+      { text: '基本矛盾：生产社会化 vs 生产资料私人占有', level: '核心' },
+      { text: '经济危机：生产相对过剩', level: '重要' },
+    ],
+    thinkQuestion: '为什么经济危机是资本主义无法克服的痼疾？',
+    referenceAnswer: '因为经济危机的根本原因是资本主义基本矛盾——生产社会化与生产资料私人占有之间的矛盾。这个矛盾在资本主义制度内无法消除，只能通过危机暂时强制性地缓解，因此经济危机会周期性爆发，成为资本主义无法克服的痼疾。',
+  },
+  {
+    id: 'scientific',
+    title: '科学社会主义的创立',
+    content: '历史条件：①思想来源：空想社会主义。②历史前提：资本主义的发展和工人运动的兴起。两大理论基石：唯物史观（揭示人类社会发展一般规律）+ 剩余价值学说（揭示资本主义运行特殊规律）。诞生标志：1848年《共产党宣言》发表。',
+    mustRemember: [
+      { text: '思想来源：空想社会主义', level: '基础' },
+      { text: '历史前提：资本主义发展 + 工人运动兴起', level: '重要' },
+      { text: '唯物史观——揭示社会发展一般规律', level: '核心' },
+      { text: '剩余价值学说——揭示资本主义剥削秘密', level: '核心' },
+      { text: '1848年《共产党宣言》标志科学社会主义诞生', level: '核心' },
+    ],
+    thinkQuestion: '为什么唯物史观和剩余价值学说是科学社会主义的理论基石？',
+    referenceAnswer: '唯物史观揭示了人类社会发展的一般规律（生产力与生产关系的矛盾运动），使社会主义从空想变为科学有了理论依据；剩余价值学说揭示了资本主义运行的特殊规律（资本家剥削工人的秘密），使无产阶级革命有了科学论证。两者共同回答了"为什么社会主义必然代替资本主义"这一根本问题。',
+  },
+];
+
 export default function TextbookRestorePage() {
   const router = useRouter();
   const [textbooks, setTextbooks] = useState<Textbook[]>([]);
@@ -72,89 +156,15 @@ export default function TextbookRestorePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // 演示数据：第一课完整内容
-  const demoSections: Section[] = [
-    {
-      id: 'intro',
-      title: '全书整体感知',
-      content: '本册教材紧紧围绕中国特色社会主义这个中心，讲述中特的由来、创立、发展、完善的过程。第一课回顾从原始社会到资本主义社会的历史发展，阐释生产关系一定要适应生产力，上层建筑一定要适应经济基础的规律是本册教材内容的逻辑起点。第二课《只有社会主义才能救中国》，第三课《只有中国特色社会主义才能发展中国》，第四课《只有坚持和发展中国特色社会主义才能实现中华民族伟大复兴》，层层递进，不断发展，是由人类社会发展的基本规律所决定的。',
-      mustRemember: [
-        { text: '中国特色社会主义是本册教材的核心主线', level: '核心' },
-        { text: '第一课是全册教材的逻辑起点', level: '重要' },
-        { text: '人类社会发展的基本规律决定了中国特色社会主义的历史必然', level: '核心' },
-      ],
-      thinkQuestion: '为什么说第一课是本册教材的逻辑起点？',
-      referenceAnswer: '因为第一课系统回顾了从原始社会到资本主义社会的演进历程，阐释了生产关系一定要适应生产力、上层建筑一定要适应经济基础这两大人类社会发展的基本规律。这些规律是理解整个人类社会发展逻辑的基础，也是理解中国特色社会主义由来、创立、发展、完善的理论前提。',
-    },
-    {
-      id: 'primitive',
-      title: '原始社会',
-      content: '原始社会是人类社会发展的最初阶段和最低阶段。生产力极其低下，石器是主要工具，人们共同劳动、共同占有生产资料，平均分配劳动产品。人与自然的矛盾是主要矛盾，氏族制度是上层建筑的核心。没有阶级、没有剥削。',
-      mustRemember: [
-        { text: '生产力极其低下，石器是主要工具', level: '基础' },
-        { text: '生产资料氏族公有，平均分配', level: '核心' },
-        { text: '主要矛盾：人与自然的矛盾', level: '重要' },
-        { text: '氏族制度：无阶级、无剥削', level: '重要' },
-      ],
-      thinkQuestion: '原始社会没有剥削压迫，但为什么说它是人类社会发展的最低阶段？',
-      referenceAnswer: '原始社会虽然没有人剥削人的现象，但生产力极其低下，人们的生活条件极为艰苦，物质极度匮乏。石器工具的使用使劳动效率极低，经常面临生存威胁。因此，虽然没有阶级压迫，但从生产力发展水平和人类整体生活水平来看，它是人类社会发展的最低阶段。',
-    },
-    {
-      id: 'slave',
-      title: '奴隶社会',
-      content: '奴隶社会代替原始社会是人类社会的第一个进步。金属工具使用、城市出现、文字发明、脑力劳动与体力劳动分工。奴隶主完全占有生产资料和奴隶，奴隶毫无人身自由。国家作为阶级统治工具产生。',
-      mustRemember: [
-        { text: '金属工具时代，社会分工越来越细', level: '基础' },
-        { text: '私有制确立——生产资料奴隶主占有', level: '核心' },
-        { text: '奴隶毫无人身自由', level: '重要' },
-        { text: '国家产生（阶级矛盾不可调和的产物）', level: '核心' },
-        { text: '评价：历史的进步——使人类进入文明时代', level: '核心' },
-      ],
-      thinkQuestion: '奴隶社会代替原始社会是历史的进步，这个"进步"如何理解？',
-      referenceAnswer: '这一"进步"体现在：①金属工具的广泛使用提高了劳动生产率；②城市的出现促进了商品交换和经济发展；③文字的发明使知识和经验得以保存传播；④脑力劳动与体力劳动分工推动了科学文化艺术的发展。虽然存在剥削压迫，但从人类整体文明发展的角度看，是历史的巨大进步。',
-    },
-    {
-      id: 'feudal',
-      title: '封建社会',
-      content: '铁制农具推广，生产力进一步提高。地主占有绝大部分土地，农民有一定人身自由但依附于地主。地租是主要剥削方式。君主专制、等级森严是政治特征。',
-      mustRemember: [
-        { text: '封建土地私有制——地主剥削农民的基础', level: '核心' },
-        { text: '农民有一定人身自由，有生产积极性', level: '基础' },
-        { text: '地租剥削（劳役地租、实物地租、货币地租）', level: '重要' },
-        { text: '君主专制、等级森严的政治特征', level: '基础' },
-      ],
-      thinkQuestion: '封建社会的"进步性"和"局限性"分别是什么？',
-      referenceAnswer: '进步性：经济文化长期发展，创造了灿烂的古代文明（四大发明等），农业、手工业、商业都有较大发展。局限性：地主占有土地，农民受剥削压迫；周期性经济危机（农民起义频繁）；君主专制压制民主发展，社会进步缓慢。',
-    },
-    {
-      id: 'capitalist',
-      title: '资本主义社会',
-      content: '工业革命带来生产力飞跃，但资本家占有生产资料，劳动者被迫出卖劳动力。生产社会化与资本主义私人占有的矛盾是基本矛盾。经济危机不可避免。',
-      mustRemember: [
-        { text: '工业革命：机器化、社会化大生产', level: '基础' },
-        { text: '生产资料资本家私人占有', level: '核心' },
-        { text: '雇佣劳动制度——资本家剥削工人', level: '核心' },
-        { text: '基本矛盾：生产社会化 vs 生产资料私人占有', level: '核心' },
-        { text: '经济危机：生产相对过剩', level: '重要' },
-      ],
-      thinkQuestion: '为什么经济危机是资本主义无法克服的痼疾？',
-      referenceAnswer: '因为经济危机的根本原因是资本主义基本矛盾——生产社会化与生产资料私人占有之间的矛盾。这个矛盾在资本主义制度内无法消除，只能通过危机暂时强制性地缓解，因此经济危机会周期性爆发，成为资本主义无法克服的痼疾。',
-    },
-    {
-      id: 'scientific',
-      title: '科学社会主义的创立',
-      content: '历史条件：①思想来源：空想社会主义。②历史前提：资本主义的发展和工人运动的兴起。两大理论基石：唯物史观（揭示人类社会发展一般规律）+ 剩余价值学说（揭示资本主义运行特殊规律）。诞生标志：1848年《共产党宣言》发表。',
-      mustRemember: [
-        { text: '思想来源：空想社会主义', level: '基础' },
-        { text: '历史前提：资本主义发展 + 工人运动兴起', level: '重要' },
-        { text: '唯物史观——揭示社会发展一般规律', level: '核心' },
-        { text: '剩余价值学说——揭示资本主义剥削秘密', level: '核心' },
-        { text: '1848年《共产党宣言》标志科学社会主义诞生', level: '核心' },
-      ],
-      thinkQuestion: '为什么唯物史观和剩余价值学说是科学社会主义的理论基石？',
-      referenceAnswer: '唯物史观揭示了人类社会发展的一般规律（生产力与生产关系的矛盾运动），使社会主义从空想变为科学有了理论依据；剩余价值学说揭示了资本主义运行的特殊规律（资本家剥削工人的秘密），使无产阶级革命有了科学论证。两者共同回答了"为什么社会主义必然代替资本主义"这一根本问题。',
-    },
-  ];
+  // PDF 内容状态
+  const [pdfSections, setPdfSections] = useState<Section[]>([]);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  // 演示数据（降级用）
+  const [sections] = useState<Section[]>(DEMO_SECTIONS);
+
+  // 当前使用的章节列表（有 PDF 内容时用 pdfSections，否则用 sections）
+  const sections = pdfSections.length > 0 ? pdfSections : sections;
 
   useEffect(() => {
     loadTextbooks();
@@ -163,6 +173,12 @@ export default function TextbookRestorePage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // 当选择的单元变化时，加载对应 PDF 内容
+  useEffect(() => {
+    if (!selectedUnit || !selectedTextbook) return;
+    loadPdfSections(selectedTextbook.id, selectedUnit.id);
+  }, [selectedUnit, selectedTextbook]);
 
   const loadTextbooks = async () => {
     setLoading(true);
@@ -184,6 +200,207 @@ export default function TextbookRestorePage() {
       setLoading(false);
     }
   };
+
+  /**
+   * 根据单元ID获取章节序号（如 "politics-compulsory-1-unit1" → "1.1"）
+   * 支持格式：
+   * - politics-compulsory-1-unit1 → 1.1（第一课）
+   * - politics-compulsory-1-unit2 → 1.2（第二课）
+   */
+  function getSectionIndex(unitId: string): string {
+    const match = unitId.match(/unit(\d+)$/i);
+    if (!match) return '1.1';
+    const unitNum = parseInt(match[1], 10);
+    // unit1 → 1.1, unit2 → 1.2, unit3 → 2.1, unit4 → 2.2
+    if (unitNum === 1) return '1.1';
+    if (unitNum === 2) return '1.2';
+    if (unitNum === 3) return '2.1';
+    if (unitNum === 4) return '2.2';
+    if (unitNum === 5) return '2.3';
+    return `${Math.ceil(unitNum / 2)}.${((unitNum - 1) % 2) + 1}`;
+  }
+
+  /**
+   * 从 PDF 加载并拆分章节内容
+   */
+  const loadPdfSections = async (textbookId: string, unitId: string) => {
+    setPdfLoading(true);
+    setPdfSections([]);
+    setActiveSectionIndex(0);
+    try {
+      // 1. 加载 PDF 内容
+      const pdfRes = await fetch(`/api/textbook/pdf?textbookId=${encodeURIComponent(textbookId)}`);
+      const pdfJson = await pdfRes.json();
+
+      if (!pdfJson.success || !pdfJson.pdf?.full_text && !pdfJson.pdf?.pages?.length) {
+        console.log('[Textbook] 未找到PDF内容，使用演示数据');
+        setPdfLoading(false);
+        return;
+      }
+
+      const fullText = pdfJson.pdf.full_text || pdfJson.pdf.fullText || '';
+      const pages = pdfJson.pdf.pages || [];
+
+      // 2. 确定页码范围（基于 politics_compulsory_1 映射）
+      const sectionIndex = getSectionIndex(unitId);
+      const pageRanges: Record<string, { start: number; end: number }> = {
+        '1.1': { start: 28, end: 36 },
+        '1.2': { start: 37, end: 44 },
+        '2.1': { start: 45, end: 52 },
+        '2.2': { start: 53, end: 60 },
+        '2.3': { start: 61, end: 68 },
+      };
+      const range = pageRanges[sectionIndex] || { start: 28, end: 50 };
+
+      // 3. 提取指定页码范围的内容
+      let content = '';
+      if (pages.length > 0) {
+        // 优先用 pages 数组
+        const filtered = pages.filter((p: any) => p.pageNumber >= range.start && p.pageNumber <= range.end);
+        content = filtered.map((p: any) => p.content).join('\n\n');
+      } else {
+        // 回退到 full_text 手动提取
+        content = extractContentByPageRangeManual(fullText, range.start, range.end);
+      }
+
+      if (!content || content.length < 50) {
+        console.log('[Textbook] 提取内容为空，使用演示数据');
+        setPdfLoading(false);
+        return;
+      }
+
+      // 4. 拆分段落（不按字符数截断，保持原文段落完整性）
+      const paragraphs = splitParagraphsSmart(content);
+
+      // 5. 转换为 Section 格式
+      const extracted: Section[] = paragraphs.map((para, idx) => {
+        // 尝试从内容中提取关键知识点
+        const keyPoints = extractKeyPoints(para);
+        return {
+          id: `pdf-${idx}`,
+          title: `第 ${idx + 1} 段`,
+          content: para,
+          mustRemember: keyPoints.map(text => ({
+            text,
+            level: '核心' as const,
+          })),
+          thinkQuestion: generateThinkQuestion(para),
+          referenceAnswer: '',
+        };
+      });
+
+      if (extracted.length > 0) {
+        console.log(`[Textbook] 从PDF加载 ${extracted.length} 个段落`);
+        setPdfSections(extracted);
+      }
+    } catch (e) {
+      console.error('[Textbook] 加载PDF失败:', e);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  /**
+   * 从 fullText 中手动按页码提取内容（当没有 pages 数组时）
+   */
+  function extractContentByPageRangeManual(fullText: string, startPage: number, endPage: number): string {
+    // 尝试按页码标记提取
+    const patterns = [
+      /=====+\s*[第]?\s*(\d+)\s*[页]+\s*=+[\s\S]*?(?=====+\s*[第]?\s*\d+\s*[页]+\s*=|$(?!\n))/g,
+      /---+\s*[第]?\s*(\d+)\s*[页]+\s*-+-[\s\S]*?(?---+\s*[第]?\s*\d+\s*[页]+\s*-|$(?!\n))/g,
+    ];
+
+    for (const pattern of patterns) {
+      const matches: Array<{ page: number; content: string }> = [];
+      let match;
+      pattern.lastIndex = 0;
+      while ((match = pattern.exec(fullText)) !== null) {
+        const page = parseInt(match[1], 10);
+        if (page >= startPage && page <= endPage) {
+          matches.push({ page, content: match[0] });
+        }
+      }
+      if (matches.length > 0) {
+        return matches.map(m => m.content).join('\n\n');
+      }
+    }
+
+    // 回退：按字符数估算
+    const charsPerPage = 2000;
+    const startIdx = (startPage - 1) * charsPerPage;
+    const endIdx = endPage * charsPerPage;
+    return fullText.slice(startIdx, endIdx);
+  }
+
+  /**
+   * 智能拆分段落（与 pdf-utils.ts 保持一致）
+   * 原则：原文一段就一段，不按字符数截断
+   */
+  function splitParagraphsSmart(text: string): string[] {
+    if (!text) return [];
+
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 方法1：按双换行分段（PDF自然段落边界）
+    let paragraphs = normalized
+      .split(/\n\s*\n/)
+      .map(p => p.replace(/\n/g, ' ').trim())
+      .filter(p => p.length > 5);
+
+    if (paragraphs.length >= 3) return paragraphs;
+
+    // 方法2：按单换行分段
+    paragraphs = normalized
+      .split(/\n/)
+      .map(p => p.trim())
+      .filter(p => p.length > 5);
+
+    if (paragraphs.length >= 3) return paragraphs;
+
+    // 方法3：按PDF页码标记分割
+    const pageSplit = normalized
+      .split(/=====+\s*[第]?\s*\d+\s*[页]+\s*=+\n?/)
+      .map(p => p.replace(/\n/g, ' ').trim())
+      .filter(p => p.length > 5);
+
+    if (pageSplit.length >= 3) return pageSplit;
+
+    return paragraphs.length > 0 ? paragraphs : [text.trim()];
+  }
+
+  /**
+   * 从段落内容中提取关键知识点
+   */
+  function extractKeyPoints(para: string): string[] {
+    const keyPoints: string[] = [];
+    // 提取包含重要概念的短句
+    const concepts = ['刺史', '酷吏', '豪强', '游侠', '币制', '铸币权', '盐铁官营', '均输平准', '董仲舒', '尊崇儒术', '郡级', '刺史', '垄断', '财产税', '抑制工商业'];
+    for (const concept of concepts) {
+      if (para.includes(concept) && keyPoints.length < 3) {
+        // 提取包含该概念的完整短句
+        const idx = para.indexOf(concept);
+        const start = Math.max(0, idx - 10);
+        const end = Math.min(para.length, idx + concept.length + 20);
+        const snippet = para.slice(start, end).replace(/\n/g, ' ');
+        if (!keyPoints.includes(snippet)) {
+          keyPoints.push(snippet);
+        }
+      }
+    }
+    return keyPoints;
+  }
+
+  /**
+   * 根据段落内容生成思考题
+   */
+  function generateThinkQuestion(para: string): string {
+    // 根据内容关键词生成引导问题
+    if (para.includes('刺史')) return '汉武帝在政治上采取了哪些措施来加强中央集权？';
+    if (para.includes('币制') || para.includes('盐铁')) return '汉武帝在经济上是如何增加政府收入、抑制豪强势力的？';
+    if (para.includes('董仲舒') || para.includes('儒术')) return '汉武帝"独尊儒术"与先秦儒学有什么不同？';
+    if (para.includes('罢黜')) return '"罢黜百家，独尊儒术"有什么历史意义？';
+    return '请仔细阅读上文，思考这些措施的历史意义是什么？';
+  }
 
   const handleUpload = async (file: File) => {
     setUploadLoading(true);
@@ -228,7 +445,7 @@ export default function TextbookRestorePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'chat',
-          sectionId: demoSections[activeSectionIndex]?.id || 'intro',
+          sectionId: sections[activeSectionIndex]?.id || 'intro',
           message: currentInput,
           history: chatMessages,
         }),
@@ -246,9 +463,9 @@ export default function TextbookRestorePage() {
     }
   };
 
-  const currentSection = demoSections[activeSectionIndex];
-  const progress = demoSections.length > 0
-    ? Math.round(((activeSectionIndex + 1) / demoSections.length) * 100)
+  const currentSection = sections[activeSectionIndex];
+  const progress = sections.length > 0
+    ? Math.round(((activeSectionIndex + 1) / sections.length) * 100)
     : 0;
 
   return (
@@ -345,12 +562,12 @@ export default function TextbookRestorePage() {
                 <span className="text-sm font-medium">章节内容</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{activeSectionIndex + 1}/{demoSections.length}</span>
+                <span className="text-xs text-slate-500">{activeSectionIndex + 1}/{sections.length}</span>
                 <Progress value={progress} className="w-20 h-1.5" />
               </div>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {demoSections.map((sec, idx) => (
+              {sections.map((sec, idx) => (
                 <button
                   key={sec.id}
                   onClick={() => { setActiveSectionIndex(idx); setShowThinking(false); setShowAnswer(false); setUserAnswer(''); }}
@@ -436,7 +653,7 @@ export default function TextbookRestorePage() {
                     size="sm"
                     className="gap-1 bg-amber-500 hover:bg-amber-600 text-white"
                     onClick={() => {
-                      if (activeSectionIndex < demoSections.length - 1) {
+                      if (activeSectionIndex < sections.length - 1) {
                         setActiveSectionIndex(i => i + 1);
                         setShowThinking(false);
                         setShowAnswer(false);
@@ -527,14 +744,14 @@ export default function TextbookRestorePage() {
                     size="sm"
                     className="bg-purple-500 hover:bg-purple-600 text-white"
                     onClick={() => {
-                      if (activeSectionIndex < demoSections.length - 1) {
+                      if (activeSectionIndex < sections.length - 1) {
                         setActiveSectionIndex(i => i + 1);
                         setShowThinking(false);
                         setShowAnswer(false);
                         setUserAnswer('');
                       }
                     }}
-                    disabled={activeSectionIndex === demoSections.length - 1}
+                    disabled={activeSectionIndex === sections.length - 1}
                   >
                     下一段 <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -630,20 +847,20 @@ export default function TextbookRestorePage() {
             <ArrowLeft className="h-4 w-4" /> 上一段
           </Button>
           <span className="text-xs text-slate-500">
-            {activeSectionIndex + 1} / {demoSections.length}
+            {activeSectionIndex + 1} / {sections.length}
           </span>
           <Button
             size="sm"
             className="gap-1 bg-amber-500 hover:bg-amber-600 text-white"
             onClick={() => {
-              if (activeSectionIndex < demoSections.length - 1) {
+              if (activeSectionIndex < sections.length - 1) {
                 setActiveSectionIndex(i => i + 1);
                 setShowThinking(false);
                 setShowAnswer(false);
                 setUserAnswer('');
               }
             }}
-            disabled={activeSectionIndex === demoSections.length - 1}
+            disabled={activeSectionIndex === sections.length - 1}
           >
             下一段 <ChevronRight className="h-4 w-4" />
           </Button>
