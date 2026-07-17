@@ -17,7 +17,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useSubjectStore } from '@/stores/subjectStore';
 import { useHistoryStore } from '@/stores/historyStore';
 import { extractSectionContent, findSectionContent, findNextSectionTitle, extractContentByPageRange, fixMathSymbols, splitIntoParagraphs } from '@/lib/pdf-utils';
-import { getBantuMathB1Range, normalizeChapters, normalizeSectionId } from '@/lib/chapterPageMapping';
+import { getBantuMathB1Range, normalizeChapters, normalizeSectionId, getSectionPageRange } from '@/lib/chapterPageMapping';
 import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/services/supabaseService';
 import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
@@ -183,6 +183,21 @@ function TextbookPageContent() {
         if (content.length > 100) return content;
       } else {
         const content = extractSectionContent({ full_text: fullText }, chapterRange.start, chapterRange.end);
+        console.log('[getSectionContent] extractSectionContent(full_text) 返回长度:', content.length);
+        if (content.length > 100) return content;
+      }
+    }
+
+    // 历史教材专用：从 SUBJECT_MAPPINGS 获取页码范围
+    const historyRange = getSectionPageRange(subjectId, sectionId);
+    if (historyRange) {
+      console.log('[getSectionContent] 历史教材页码范围 (SUBJECT_MAPPINGS):', historyRange);
+      if (pdfDataForExtract?.pages && pdfDataForExtract.pages.length > 0) {
+        const content = extractSectionContent(pdfDataForExtract, historyRange.startPage, historyRange.endPage);
+        console.log('[getSectionContent] extractSectionContent(pages) 返回长度:', content.length);
+        if (content.length > 100) return content;
+      } else {
+        const content = extractSectionContent({ full_text: fullText }, historyRange.startPage, historyRange.endPage);
         console.log('[getSectionContent] extractSectionContent(full_text) 返回长度:', content.length);
         if (content.length > 100) return content;
       }
@@ -678,7 +693,7 @@ function TextbookPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

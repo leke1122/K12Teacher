@@ -68,6 +68,24 @@ const CHINESE_B1_ORDERED_CLASSICAL: string[] = [
 ];
 
 // ============================================================
+// 历史教材 - 统编版中外历史纲要（上）
+// 教材：普通高中教科书·历史·必修·中外历史纲要（上）
+// 注：页码需要根据实际PDF文件调整
+// ============================================================
+const HISTORY_B1_SECTIONS: Record<string, PageRange2> = {
+  // 第一单元 从中华文明起源到秦汉统一
+  '第1课': { startPage: 1, endPage: 8 },
+  '第2课': { startPage: 9, endPage: 16 },
+  '第3课': { startPage: 17, endPage: 24 },
+  '第4课': { startPage: 25, endPage: 32 },
+  // 第二单元 三国至隋唐
+  '第5课': { startPage: 33, endPage: 40 },
+  '第6课': { startPage: 41, endPage: 48 },
+  '第7课': { startPage: 49, endPage: 56 },
+  '第8课': { startPage: 57, endPage: 64 },
+};
+
+// ============================================================
 // 章节ID标准化（处理各种格式的章节ID）
 // ============================================================
 
@@ -96,6 +114,14 @@ export function normalizeSectionId(sectionId: string, chapterId?: string): strin
 
   const cleaned = sectionId.trim();
   console.log('[normalizeSectionId] 输入:', cleaned, 'chapterId:', chapterId);
+
+  // 清理重复的"第X课_第X课 标题"格式（提取第一个课号）
+  const dedupMatch = cleaned.match(/^第(\d+)课_/);
+  if (dedupMatch) {
+    const result = `第${dedupMatch[1]}课`; // 只保留 "第X课"
+    console.log('[normalizeSectionId] 去除重复课号:', cleaned, '→', result);
+    return result;
+  }
 
   // 如果已经是 X.Y.Z 或 X.Y 格式，直接返回
   if (/^\d+\.\d+(\.\d+)?$/.test(cleaned)) {
@@ -180,6 +206,12 @@ export const SUBJECT_MAPPINGS: Record<string, SubjectMapping> = {
     bookName: '普通高中教科书·语文（必修上册）',
     sections: CHINESE_B1_CLASSICAL,
     orderedSections: CHINESE_B1_ORDERED_CLASSICAL,
+  },
+  // 历史 - 统编版中外历史纲要（上）
+  history_b1: {
+    bookName: '普通高中教科书·历史·必修·中外历史纲要（上）',
+    sections: HISTORY_B1_SECTIONS,
+    orderedSections: Object.keys(HISTORY_B1_SECTIONS),
   },
   // 更多学科和教材可在此添加：
   // physics_b1: { bookName: '...', sections: {...}, orderedSections: [...] },
