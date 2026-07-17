@@ -43,10 +43,27 @@ async function queryWithRetry<T>(
   return { data: null, error: lastError, attempts: retries + 1 };
 }
 
+/**
+ * 获取历史教材数据（统一入口）
+ * 优先从 Supabase textbook_cache 读取，回退到本地 serverStorage
+ */
 export async function getHistoryTextbook(): Promise<HistoryTextbookSource | null> {
-  // 1. 优先从 Supabase 读取（带重试 + RLS 兜底策略）
+  const isSupa = isSupabaseConfigured;
   const client = supabaseClient;
-  if (isSupabaseConfigured && client) {
+  
+  console.log('[historyData.server] === 开始获取历史教材 ===');
+  console.log('[historyData.server] Supabase 配置状态:', {
+    isConfigured: isSupa,
+    hasUrl: !!(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    hasKey: !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    clientExists: !!client,
+  });
+
+  // 1. 优先从 Supabase 读取（带重试 + RLS 兜底策略）
+  if (isSupa && client) {
+    // 诊断性查询：先检查表结构和数据情况
+    console.log('[historyData.server] 正在查询 Supabase textbook_cache 表...');
+    
     // 方法A：精确按 user_id + subject_id 查询
     const { data: supabaseData, error: supabaseError, attempts } = await queryWithRetry(
       async () => {
@@ -187,31 +204,70 @@ export async function getHistoryTextbookTextByPages(
   }
 
   // 尝试匹配章节（支持单元ID或课ID）
+  // 支持两种格式：1) 旧格式 {chapterIndex, chapterTitle, sections} 2) 新格式 {id, title, children}
   if (chapters) {
-    // 尝试匹配单元
-    const matched = chapters.find((c: unknown) => {
+    // 尝试匹配单元或课（优先精确匹配）
+    let matched: Record<string, unknown> | null = null;
+    let matchType: 'unit' | 'lesson' | null = null;
+    
+    // 第一步：遍历所有单元
+    for (const c of chapters) {
       const chapter = c as Record<string, unknown>;
-      return (
-        String(chapter.chapterIndex) === chapterId ||
-        chapter.chapterTitle === chapterId ||
-        String(chapter.chapterTitle).includes(chapterId)
-      );
-    });
-
-    if (matched) {
-      const chapter = matched as Record<string, unknown>;
-      const start = Number((chapter.pages as Record<string, unknown>)?.start ?? 0);
-      const end = Number((chapter.pages as Record<string, unknown>)?.end ?? 9999);
-      const chapterPages = pages.filter((p) => {
-        const num = Number(p.pageNumber);
-        return num >= start && num <= end;
-      });
-      if (chapterPages.length > 0) {
-        return chapterPages.map((p) => p.content).join('\n\n');
+      const chapterIdStr = String(chapterId).toLowerCase();
+      
+      // 检查是否是单元匹配
+      const idMatch = String(chapter.id || '').toLowerCase() === chapterIdStr;
+      const titleMatch = String(chapter.title || '').includes(String(chapterId));
+      const indexMatch = String(chapter.chapterIndex || '').toLowerCase() === chapterIdStr;
+      
+      if (idMatch || titleMatch || indexMatch) {
+        matched = chapter;
+        matchType = 'unit';
+        break;
+      }
+      
+      // 检查是否是课时匹配（在 children 中查找）
+      const children = chapter.children as Record<string, unknown>[] | undefined;
+      if (children && Array.isArray(children)) {
+        const section = children.find((s) => {
+          const sId = String(s.id || '').toLowerCase();
+          const sTitle = String(s.title || '').includes(String(chapterId));
+          const sIndex = String(s.sectionIndex || '').toLowerCase() === chapterIdStr;
+          return sId === chapterIdStr || sTitle || sIndex;
+        });
+        
+        if (section) {
+          matched = section as Record<string, unknown>;
+          matchType = 'lesson';
+          break;
+        }
       }
     }
 
-    // 尝试匹配课（在sections中查找）
+    if (matched && matchType) {
+      let start = 0;
+      let end = 9999;
+      
+      if (matchType === 'unit') {
+        // 单元：使用 startPage/endPage
+        start = Number((matched as Record<string, unknown>).startPage ?? 0);
+        end = Number((matched as Record<string, unknown>).endPage ?? 9999);
+      } else {
+        // 课时：直接用 startPage/endPage
+        start = Number((matched as Record<string, unknown>).startPage ?? 0);
+        end = Number((matched as Record<string, unknown>).endPage ?? 9999);
+      }
+      
+      const matchedPages = pages.filter((p) => {
+        const num = Number(p.pageNumber);
+        return num >= start && num <= end;
+      });
+      if (matchedPages.length > 0) {
+        return matchedPages.map((p) => p.content).join('\n\n');
+      }
+    }
+
+    // 旧格式兼容：尝试匹配 sections
     for (const chapter of chapters) {
       const chapterRecord = chapter as Record<string, unknown>;
       const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
@@ -219,9 +275,9 @@ export async function getHistoryTextbookTextByPages(
         const section = sections.find((s) => {
           return (
             s.sectionIndex === chapterId ||
-            String(s.sectionIndex).includes(chapterId) ||
+            String(s.sectionIndex).includes(String(chapterId)) ||
             s.sectionTitle === chapterId ||
-            String(s.sectionTitle).includes(chapterId)
+            String(s.sectionTitle).includes(String(chapterId))
           );
         });
 
@@ -262,12 +318,37 @@ export async function getHistoryLessonContent(lessonId: string): Promise<string 
   const chapters = textbook.chapters;
   if (!chapters) return null;
 
-  // 标准化lessonId（去掉"第"和"课"字，提取数字）
+  const lessonIdStr = String(lessonId).toLowerCase();
   const normalizedId = lessonId.replace(/第/g, '').replace(/课/g, '').trim();
 
-  // 在所有章节的sections中查找
+  // 支持两种格式：1) 旧格式 {chapterIndex, chapterTitle, sections} 2) 新格式 {id, title, children}
+  // 在所有章节中查找课时
   for (const chapter of chapters) {
     const chapterRecord = chapter as Record<string, unknown>;
+    
+    // 新格式：在 children 中查找课时
+    const children = chapterRecord.children as Record<string, unknown>[] | undefined;
+    if (children && Array.isArray(children)) {
+      const section = children.find((s) => {
+        const sId = String(s.id || '').toLowerCase();
+        const sTitle = String(s.title || '').toLowerCase();
+        return sId === lessonIdStr || sTitle.includes(lessonIdStr);
+      });
+      
+      if (section) {
+        const start = Number(section.startPage ?? 0);
+        const end = Number(section.endPage ?? 9999);
+        const filteredPages = pages.filter((p) => {
+          const num = Number(p.pageNumber);
+          return num >= start && num <= end;
+        });
+        if (filteredPages.length > 0) {
+          return filteredPages.map((p) => p.content).join('\n\n');
+        }
+      }
+    }
+    
+    // 旧格式：在 sections 中查找
     const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
     if (sections) {
       const section = sections.find((s) => {
@@ -303,14 +384,29 @@ export async function getHistoryLessonTitle(lessonId: string): Promise<string | 
   if (!textbook?.chapters) return null;
 
   const chapters = textbook.chapters;
+  const lessonIdStr = String(lessonId).toLowerCase();
 
-  // 标准化lessonId
-  const normalizedId = lessonId.replace(/第/g, '').replace(/课/g, '').trim();
-
+  // 支持两种格式：1) 旧格式 {chapterIndex, chapterTitle, sections} 2) 新格式 {id, title, children}
   for (const chapter of chapters) {
     const chapterRecord = chapter as Record<string, unknown>;
+    
+    // 新格式：在 children 中查找课时
+    const children = chapterRecord.children as Record<string, unknown>[] | undefined;
+    if (children && Array.isArray(children)) {
+      const section = children.find((s) => {
+        const sId = String(s.id || '').toLowerCase();
+        const sTitle = String(s.title || '').toLowerCase();
+        return sId === lessonIdStr || sTitle.includes(lessonIdStr);
+      });
+      if (section) {
+        return section.title as string || null;
+      }
+    }
+    
+    // 旧格式：在 sections 中查找
     const sections = chapterRecord.sections as Record<string, unknown>[] | undefined;
     if (sections) {
+      const normalizedId = lessonId.replace(/第/g, '').replace(/课/g, '').trim();
       const section = sections.find((s) => {
         return (
           s.sectionIndex === lessonId ||
@@ -319,7 +415,6 @@ export async function getHistoryLessonTitle(lessonId: string): Promise<string | 
           String(s.sectionTitle).includes(lessonId)
         );
       });
-
       if (section) {
         return (section as Record<string, unknown>).sectionTitle as string || null;
       }
