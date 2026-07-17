@@ -36,14 +36,14 @@ async function fetchTextbooksFromSupabase(subjectId: string): Promise<Textbook[]
     
     if (data.success && !!data.textbooks && data.textbooks.length > 0) {
       const textbooks = data.textbooks
-        .filter((t: any) => !!t.textbook_id)
-        .map((t: { textbook_id: string; textbook_name: string; total_pages: number; uploaded_at: string; chapters?: unknown[] }) => ({
-        id: t.textbook_id,
-        name: t.textbook_name,
+        .filter((t: any) => !!t.id)
+        .map((t: { id: string; name: string; totalPages?: number; uploadedAt?: string; chapters?: unknown[]; textbook_id?: string; textbook_name?: string; total_pages?: number; uploaded_at?: string }) => ({
+        id: t.id || t.textbook_id,
+        name: t.name || t.textbook_name,
         grade: '高一',
-        fileName: t.textbook_id + '.pdf',
-        totalPages: t.total_pages || 0,
-        uploadedAt: t.uploaded_at,
+        fileName: (t.id || t.textbook_id) + '.pdf',
+        totalPages: t.totalPages || t.total_pages || 0,
+        uploadedAt: t.uploadedAt || t.uploaded_at,
         isActive: false,
         chaptersCount: t.chapters?.length || 0,
       }));
