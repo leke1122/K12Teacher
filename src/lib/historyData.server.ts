@@ -221,6 +221,7 @@ export async function getHistoryTextbookTextByPages(
       const indexMatch = String(chapter.chapterIndex || '').toLowerCase() === chapterIdStr;
       
       if (idMatch || titleMatch || indexMatch) {
+        console.log('[historyData] 匹配到单元:', chapter.id, chapter.title);
         matched = chapter;
         matchType = 'unit';
         break;
@@ -229,6 +230,15 @@ export async function getHistoryTextbookTextByPages(
       // 检查是否是课时匹配（在 children 中查找）
       const children = chapter.children as Record<string, unknown>[] | undefined;
       if (children && Array.isArray(children)) {
+        children.forEach((s) => {
+          const sId = String(s.id || '').toLowerCase();
+          const sTitle = String(s.title || '').toLowerCase();
+          const isMatch = sId === chapterIdStr || sTitle.includes(chapterIdStr);
+          if (isMatch) {
+            console.log('[historyData] 匹配到课时:', s.id, s.title, '传入:', chapterId);
+          }
+        });
+        
         const section = children.find((s) => {
           const sId = String(s.id || '').toLowerCase();
           const sTitle = String(s.title || '').includes(String(chapterId));
