@@ -7,7 +7,7 @@ import {
   getEventsByYearRange,
   type TimelineEvent,
 } from '@/lib/historyTimelineData';
-import { findDocxImportByUnitId, findDocxImportByUnitTitle } from '@/lib/supabase';
+import { findDocxImportByUnitId, findDocxImportByUnitTitle, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { DocxParseResult } from '@/lib/docxParser';
 
 export async function GET(request: NextRequest) {
@@ -28,15 +28,32 @@ export async function GET(request: NextRequest) {
   // 1. 优先尝试 docx 导入数据
   if (!source || source === 'docx') {
     try {
-      let docxImport: Awaited<ReturnType<typeof findDocxImportByUnitId>> = null;
+      let docxImport: any = null;
 
-      // 1a. 精确匹配 unitId
-      if (unitId) {
-        docxImport = await findDocxImportByUnitId(unitId);
-        console.log('[timeline-data] findDocxImportByUnitId result:', docxImport ? 'found' : 'null', 'unitId:', unitId);
+      // 1a. 直接查询，不依赖user_id过滤
+      if (unitId && isSupabaseConfigured && supabase) {
+        const { data: directData } = await supabase
+          .from('docx_imports')
+          .select('*')
+          .eq('unit_id', unitId)
+          .limit(1);
+        
+        if (directData && directData.length > 0) {
+          docxImport = directData[0];
+          console.log('[timeline-data] 直接查询找到记录:', docxImport.id, 'unit_id:', docxImport.unit_id);
+        }
       }
 
-      // 1b. 按标题模糊匹配
+      // 1b. 精确匹配 unitId (备用)
+      if (!docxImport && unitId) {
+        const found = await findDocxImportByUnitId(unitId);
+        if (found) {
+          docxImport = found;
+          console.log('[timeline-data] findDocxImportByUnitId result:', 'found', 'unitId:', unitId);
+        }
+      }
+
+      // 1c. 按标题模糊匹配
       const titleTerms = [unit, unitId, '第一单元', '中国古代史'].filter(Boolean) as string[];
       if (!docxImport) {
         for (const term of titleTerms) {
