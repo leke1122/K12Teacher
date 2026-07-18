@@ -750,8 +750,9 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 构建导入记录
+      // 构建导入记录（需要包含id字段）
       const importRecord = {
+        id: `${USER_ID}-${unitId}`,
         user_id: USER_ID,
         file_name: `${unitData.unitTitle}.json`,
         unit_id: unitId,
@@ -775,7 +776,9 @@ export async function POST(request: NextRequest) {
       // 插入新记录
       const { data, error } = await supabase
         .from('docx_imports')
-        .insert(importRecord)
+        .upsert(importRecord, {
+          onConflict: 'id',
+        })
         .select()
         .single();
 

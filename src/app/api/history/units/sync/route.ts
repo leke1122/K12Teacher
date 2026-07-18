@@ -251,8 +251,9 @@ export async function GET() {
         .eq('user_id', USER_ID)
         .eq('unit_id', unitData.id);
 
-      // 构建导入记录
+      // 构建导入记录（需要包含id字段）
       const importRecord = {
+        id: `${USER_ID}-${unitData.id}`,
         user_id: USER_ID,
         file_name: `${unitData.unitTitle}.json`,
         unit_id: unitData.id,
@@ -269,7 +270,9 @@ export async function GET() {
       // 插入新记录
       const { data, error } = await supabase
         .from('docx_imports')
-        .insert(importRecord)
+        .upsert(importRecord, {
+          onConflict: 'id',
+        })
         .select()
         .single();
 
