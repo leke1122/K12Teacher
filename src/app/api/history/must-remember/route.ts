@@ -4,39 +4,32 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const unitId = searchParams.get('unitId');
-  const category = searchParams.get('category');
-  const difficulty = searchParams.get('difficulty');
+
+  if (!unitId) {
+    return NextResponse.json({
+      success: false,
+      error: '缺少unitId参数',
+    });
+  }
 
   try {
-    // 从Supabase查询
+    // 先从Supabase查询
     if (isSupabaseConfigured && supabase) {
-      let query = supabase
+      const { data: docxImport } = await supabase
         .from('docx_imports')
         .select('*')
-        .eq('unit_id', unitId || '')
-        .limit(1);
-
-      const { data: docxImport } = await query.single();
+        .eq('unit_id', unitId)
+        .limit(1)
+        .single();
 
       if (docxImport?.data) {
         const data = docxImport.data as any;
-        let cards = data.cards || [];
-
-        // 按分类筛选
-        if (category) {
-          cards = cards.filter((c: any) => c.category === category);
-        }
-
-        // 按难度筛选
-        if (difficulty) {
-          cards = cards.filter((c: any) => c.difficulty === difficulty);
-        }
-
+        const tables = data.mustRememberTables || [];
         return NextResponse.json({
           success: true,
           data: {
-            cards,
-            total: cards.length,
+            tables,
+            total: tables.length,
             unitTitle: data.unitTitle,
             source: 'docx',
           },
@@ -46,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: false,
-      error: '未找到卡牌数据',
+      error: '未找到必背表数据',
     });
   } catch (err) {
     return NextResponse.json({
