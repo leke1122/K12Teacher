@@ -207,19 +207,14 @@ function normalizeQuestions(input: unknown): AnalysisQuestion[] {
   return input
     .map((item, idx) => {
       const record = item as Record<string, unknown>;
-      const typeRaw = String(record.type || 'event');
+      const typeRaw = String(record.type || '简答');
       const type = normalizeQuestionType(typeRaw);
       return {
         id: Number(record.id) || idx + 1,
         type,
         question: String(record.question || ''),
-        expectedKeywords: Array.isArray(record.expectedKeywords)
-          ? (record.expectedKeywords as string[])
-          : [],
-        modelAnswer: String(record.modelAnswer || ''),
-        hints: Array.isArray(record.hints)
-          ? (record.hints as string[])
-          : [],
+        correctAnswer: String(record.modelAnswer || record.expectedKeywords?.join('、') || ''),
+        analysis: Array.isArray(record.hints) ? record.hints.join('；') : String(record.hints || ''),
       } as AnalysisQuestion;
     })
     .filter((q) => q.question.trim().length > 0);
