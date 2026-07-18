@@ -1,8 +1,19 @@
 // 高中历史学习平台 - 类型定义
 // 支持多教材（纲要上/下、选必1-3）和多单元扩展
 
-// ============ 教材相关 ============
+// ============ 事件分类配置 ============
+export const EVENT_CATEGORY_CONFIG = {
+  政治: { color: '#2563eb', label: '政治' },
+  经济: { color: '#16a34a', label: '经济' },
+  文化: { color: '#9333ea', label: '文化' },
+  战争: { color: '#dc2626', label: '战争' },
+  科技: { color: '#0891b2', label: '科技' },
+  社会: { color: '#64748b', label: '社会' },
+} as const;
 
+export type EventCategory = keyof typeof EVENT_CATEGORY_CONFIG;
+
+// ============ 教材相关 ============
 export type BookStatus = 'released' | 'planned';
 
 export interface HistoryBook {
@@ -19,36 +30,24 @@ export interface HistoryBook {
   order: number;
 }
 
-// ============ 事件分类配置 ============
-export const EVENT_CATEGORY_CONFIG = {
-  政治: { color: '#2563eb', label: '政治' },
-  经济: { color: '#16a34a', label: '经济' },
-  文化: { color: '#9333ea', label: '文化' },
-  战争: { color: '#dc2626', label: '战争' },
-  科技: { color: '#0891b2', label: '科技' },
-  社会: { color: '#64748b', label: '社会' },
-} as const;
+// ============ 课标四维度 ============
+export type CurriculumDimension = 
+  | '制度变化与创新' 
+  | '民族交融' 
+  | '区域开发' 
+  | '思想文化';
 
-export type EventCategory = keyof typeof EVENT_CATEGORY_CONFIG;
+export const CURRICULUM_DIMENSIONS: CurriculumDimension[] = [
+  '制度变化与创新',
+  '民族交融',
+  '区域开发',
+  '思想文化'
+];
 
-// 历史事件类型别名（兼容旧代码）
-export type HistoryEvent = TimelineEvent;
-
-// ============ 材料分析相关（保留旧功能）============
-export interface AnalysisSource {
-  id: string;
-  title: string;
-  material: string;
-  question: string;
-  difficulty: '简单' | '中等' | '困难';
-  knowledgePoints: string[];
-  hint?: string;
-  answer?: string;
-  analysis?: string;
-}
+// ============ 考频分级 ============
+export type ExamFrequency = '★★★' | '★★☆' | '★☆☆';
 
 // ============ 单元相关 ============
-
 export type UnitStatus = 'released' | 'planned';
 
 export interface LiaoningSummary {
@@ -56,32 +55,6 @@ export interface LiaoningSummary {
   totalScore: number;
   bigQuestions: number;
   highFrequencyTopics: string[];
-}
-
-// ============ 材料分析相关（保留旧功能）============
-export type AnalysisQuestionType = '选择' | '填空' | '简答' | '论述';
-
-export interface AnalysisQuestion {
-  id: string;
-  type: AnalysisQuestionType;
-  question: string;
-  options?: string[];
-  correctAnswer: string | number;
-  analysis?: string;
-}
-
-export interface AnalysisFeedback {
-  score: number;
-  keywordsMatched: string[];
-  keywordsMissed: string[];
-  suggestions: string[];
-}
-
-export interface AnalysisAttempt {
-  questionId: string;
-  userAnswer: string;
-  feedback: AnalysisFeedback;
-  timestamp: number;
 }
 
 export interface HistoryUnit {
@@ -102,27 +75,7 @@ export interface HistoryUnit {
   nextUnitId?: string;
 }
 
-// ============ 课标四维度 ============
-
-export type CurriculumDimension = 
-  | '制度变化与创新' 
-  | '民族交融' 
-  | '区域开发' 
-  | '思想文化';
-
-export const CURRICULUM_DIMENSIONS: CurriculumDimension[] = [
-  '制度变化与创新',
-  '民族交融',
-  '区域开发',
-  '思想文化'
-];
-
-// ============ 考频分级 ============
-
-export type ExamFrequency = '★★★' | '★★☆' | '★☆☆';
-
 // ============ 时间轴事件（升级）============
-
 export interface LiaoningExamRef {
   year: number;
   paperSet: '辽宁' | '辽吉黑' | '黑吉辽蒙';
@@ -138,7 +91,6 @@ export interface TimelineEvent {
   dynasty: string;
   category: EventCategory;
   summary: string;
-  // 以下字段全部可选，兼容旧数据
   importance?: 1 | 2 | 3 | 4 | 5;
   impact?: string;
   impactPositive?: string;
@@ -155,8 +107,10 @@ export interface TimelineEvent {
   liaoningNote?: string;
 }
 
-// ============ 历史卡牌（升级）============
+// 历史事件类型别名（兼容旧代码）
+export type HistoryEvent = TimelineEvent;
 
+// ============ 历史卡牌（升级）============
 export type CardType = 'event' | 'person' | 'system' | 'treaty' | 'concept' | 'culture';
 export type CardMastery = 'new' | 'learning' | 'familiar' | 'mastered';
 
@@ -186,7 +140,6 @@ export interface HistoryCardItem {
 }
 
 // ============ 因果链（升级）============
-
 export type CausalStage = 'remote-cause' | 'proximate-cause' | 'event' | 'direct-impact' | 'deep-impact';
 export type ImpactType = 'positive' | 'negative' | 'mixed';
 export type ChainType = 'event' | 'system-evolution' | 'decline';
@@ -213,7 +166,6 @@ export interface CausalChain {
 }
 
 // ============ 对比表 ============
-
 export type ComparisonType = 'system' | 'person' | 'event' | 'period';
 export type UserStatus = 'new' | 'learned' | 'mastered';
 
@@ -241,7 +193,6 @@ export interface ComparisonTable {
 }
 
 // ============ 易混辨析 ============
-
 export type ConfusionStatus = 'new' | 'mastered' | 'still-confused';
 
 export interface ConfusionPair {
@@ -250,7 +201,7 @@ export interface ConfusionPair {
   curriculumDimension: CurriculumDimension;
   termA: string;
   termB: string;
-  termB2?: string; // 可选的第三个易混词
+  termB2?: string;
   distinction: string;
   commonTrap: string;
   relatedExams?: string[];
@@ -258,10 +209,9 @@ export interface ConfusionPair {
 }
 
 // ============ 辽宁真题 ============
-
 export type PaperSet = '辽宁' | '辽吉黑' | '黑吉辽蒙';
 export type QuestionType = '选择' | '论述' | '材料';
-export type MaterialType = '墓志' | '诏令' | '方志' | '诗词' | '数据表';
+export type MaterialType = '墓志' | '诏令' | '方志' | '诗词' | '数据表' | '综合';
 
 export interface LiaoningExam {
   id: string;
@@ -283,7 +233,6 @@ export interface LiaoningExam {
 }
 
 // ============ 阶段特征口诀 ============
-
 export type MnemonicMastery = 'new' | 'read' | 'memorized';
 
 export interface MnemonicFormula {
@@ -298,7 +247,6 @@ export interface MnemonicFormula {
 }
 
 // ============ 论述大题 ============
-
 export type SampleLevel = '基础' | '合格' | '优秀';
 
 export interface ScoringDimension {
@@ -327,7 +275,6 @@ export interface EssayQuestion {
 }
 
 // ============ 制度演变 ============
-
 export type SystemType = '选官制度' | '地方行政' | '赋税制度' | '中央官制';
 
 export interface EvolutionNode {
@@ -347,7 +294,6 @@ export interface EvolutionChain {
 }
 
 // ============ 单元衔接 ============
-
 export interface ChronologicalBridge {
   fromPeriod: string;
   toPeriod: string;
@@ -362,15 +308,15 @@ export interface ThematicBridge {
 }
 
 export interface EvolutionBridge {
-  systemType: SystemType;
+  systemType: string;
   fromState: string;
   toState: string;
-  evolutionNote: string;
+  note?: string;
 }
 
 export interface ComparisonBridge {
   topic: string;
-  comparisonId: string;
+  href?: string;
 }
 
 export interface ExamMigration {
@@ -388,107 +334,60 @@ export interface UnitTransition {
   examMigration: ExamMigration;
 }
 
-// ============ 学习路径 ============
+// ============ 材料分析（兼容旧功能）============
+export type AnalysisQuestionType = '选择' | '填空' | '简答' | '论述' | 'event' | 'view' | 'argument' | 'conclusion';
 
-export interface LearningRound {
-  id: 'round-1' | 'round-2' | 'round-3' | 'round-4';
-  name: string;
-  goal: string;
-  duration: string;
-  steps: LearningStep[];
-  output: string;
+export interface AnalysisQuestion {
+  id: string | number;
+  type: AnalysisQuestionType;
+  question: string;
+  options?: string[];
+  correctAnswer: string | number;
+  expectedKeywords?: string[];
+  modelAnswer?: string;
+  hints?: string[];
+  analysis?: string;
 }
 
-export interface LearningStep {
+export interface AnalysisFeedback {
+  score: number;
+  keywordsMatched: string[];
+  keywordsMissed: string[];
+  suggestions: string[];
+  isCorrect?: boolean;
+  guidance?: string;
+}
+
+export interface AnalysisAttempt {
   id: string;
-  roundId: string;
-  order: number;
+  sourceId: string;
+  userId: string;
+  questionId: string | number;
+  answers: string[];
+  correct?: boolean;
+  score?: number;
+  feedbacks?: string[];
+  attempts: number;
+  completedAt: string;
+}
+
+export interface AnalysisSource {
+  id: string;
   title: string;
-  route: string;
-  tool: string;
-  action: string;
-  estimatedMinutes: number;
-  prerequisite?: string;
-  crossUnitPrerequisite?: string;
-  completed: boolean;
-}
-
-// ============ 单元总览 ============
-
-export interface UnitOverviewPeriod {
-  period: string;
-  coreTheme: string;
-  keyConcepts: string[];
-}
-
-export interface UnitOverview {
-  id: string;
-  unitId: string;
-  unitName: string;
-  periods: UnitOverviewPeriod[];
-  liaoningSummary?: LiaoningSummary;
-}
-
-// ============ 学习闭环 ============
-
-export interface LearningLoopInput {
-  steps: string[];
-  route: string[];
-}
-
-export interface LearningLoopDigestion {
-  steps: string[];
-  route: string[];
-}
-
-export interface LearningLoopOutput {
-  steps: string[];
-  route: string[];
-}
-
-export interface LearningLoopFeedback {
-  steps: string[];
-  route: string[];
-}
-
-export interface LearningLoopReinforcement {
-  steps: string[];
-  route: string[];
-}
-
-export interface CompletionCriteria {
-  requiredSteps: string[];
-  minAccuracy?: number;
-  minEssayScore?: number;
-}
-
-export interface LearningLoop {
-  unitId: string;
-  input: LearningLoopInput;
-  digestion: LearningLoopDigestion;
-  output: LearningLoopOutput;
-  feedback: LearningLoopFeedback;
-  reinforcement: LearningLoopReinforcement;
-  completionCriteria: CompletionCriteria;
-}
-
-// ============ 跨单元复习计划 ============
-
-export interface CrossUnitReviewStep {
-  action: string;
-  route: string;
-}
-
-export interface CrossUnitReviewPlan {
-  id: string;
-  name: string;
-  involvedUnitIds: string[];
-  systemType?: SystemType;
-  reviewSteps: CrossUnitReviewStep[];
+  chapterId?: string;
+  material: string;
+  source?: string;
+  question: string;
+  questions?: AnalysisQuestion[];
+  difficulty: '简单' | '中等' | '困难';
+  knowledgePoints: string[];
+  hint?: string;
+  answer?: string;
+  analysis?: string;
+  year?: string;
 }
 
 // ============ 命题趋势 ============
-
 export interface ExamTrend {
   unitId: string;
   summary: string;
@@ -497,7 +396,6 @@ export interface ExamTrend {
 }
 
 // ============ 辽宁本土考点 ============
-
 export interface LiaoningLocalKnowledge {
   id: string;
   name: string;
