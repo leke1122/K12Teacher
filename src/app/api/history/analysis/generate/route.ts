@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       : `analysis_source_${chapterId}_${difficulty}_${Date.now()}`;
 
     const source = await generateAnalysisSource(chapterId, sectionId, difficulty, sourceText);
-    if (!source || !source.questions?.length) {
+    if (!source || !source.question) {
       return NextResponse.json(
         { success: false, message: '生成材料分析题失败，请重试' },
         { status: 500 },
