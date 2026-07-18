@@ -243,7 +243,7 @@ export const confusionPairs: ConfusionPair[] = [
   {
     id: 'u3-conf-6',
     unitId: 'u3',
-    curriculumDimension: '经济与贸易',
+    curriculumDimension: '思想文化',
     termA: '交子是世界上最早纸币',
     termB: '交子首先出现在元朝',
     distinction: '交子最早出现在北宋四川地区（1023年设立），是世界上最早的纸币。元朝推广纸币（钞法），但不是最早出现。',
@@ -254,7 +254,7 @@ export const confusionPairs: ConfusionPair[] = [
   {
     id: 'u3-conf-7',
     unitId: 'u3',
-    curriculumDimension: '经济与贸易',
+    curriculumDimension: '思想文化',
     termA: '宋代商业繁荣',
     termB: '宋代出现资本主义萌芽',
     distinction: '宋代商品经济确实高度繁荣，但资本主义萌芽是在明清时期才出现的。资本主义萌芽需要商品经济发展到一定程度，以及雇佣关系的出现，宋代还不具备这些条件。',
