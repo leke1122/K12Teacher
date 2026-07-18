@@ -230,6 +230,8 @@ export interface LiaoningExam {
   answer: string;
   analysis: string;
   materialType?: MaterialType;
+  isLiaoningLocal?: boolean;
+  liaoningNote?: string;
 }
 
 // ============ 阶段特征口诀 ============
