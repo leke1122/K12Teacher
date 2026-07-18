@@ -215,7 +215,7 @@ export default function ConfusionsPage() {
                         <span className="text-slate-400">≠</span>
                         <span className="text-red-700">{pair.termB}</span>
                       </div>
-                      {'termB2' in pair && pair.termB2 && (
+                      {pair.termB2 && (
                         <div className="flex items-center justify-center gap-2 text-sm text-slate-500 mt-1">
                           <span className="text-slate-400">≠</span>
                           <span className="text-red-700">{pair.termB2}</span>

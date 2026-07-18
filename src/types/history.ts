@@ -224,6 +224,7 @@ export interface ConfusionPair {
   curriculumDimension: CurriculumDimension;
   termA: string;
   termB: string;
+  termB2?: string; // 可选的第三个易混词
   distinction: string;
   commonTrap: string;
   relatedExams?: string[];
