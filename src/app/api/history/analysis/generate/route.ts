@@ -84,11 +84,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const latest = items.sort((a, b) => {
-      const ta = a.year ? new Date(a.year).getTime() : 0;
-      const tb = b.year ? new Date(b.year).getTime() : 0;
-      return tb - ta;
-    })[0];
+    // items 可能来自缓存，不需要按 year 排序，直接取第一个
+    const latest = items[0];
 
     return NextResponse.json<GenerateAnalysisResponse>({
       success: true,
