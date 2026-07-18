@@ -209,11 +209,13 @@ function normalizeQuestions(input: unknown): AnalysisQuestion[] {
       const record = item as Record<string, unknown>;
       const typeRaw = String(record.type || '简答');
       const type = normalizeQuestionType(typeRaw);
+      const expectedKeywords = record.expectedKeywords;
+      const keywordsStr = Array.isArray(expectedKeywords) ? expectedKeywords.join('、') : '';
       return {
         id: String(record.id || idx + 1),
         type,
         question: String(record.question || ''),
-        correctAnswer: String(record.modelAnswer || record.expectedKeywords?.join('、') || ''),
+        correctAnswer: String(record.modelAnswer || keywordsStr || ''),
         analysis: Array.isArray(record.hints) ? record.hints.join('；') : String(record.hints || ''),
       } as AnalysisQuestion;
     })
