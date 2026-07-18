@@ -545,39 +545,18 @@ function Unit1TimelinePage() {
             className="space-y-3"
           >
             <TabsList>
-              <TabsTrigger value="mustKnow" className="gap-1">
-                <Star className="h-4 w-4" />
-                必背清单
+              <TabsTrigger value="timeline" className="gap-1">
+                <CalendarDays className="h-4 w-4" />
+                垂直时间轴
               </TabsTrigger>
               <TabsTrigger value="guided" className="gap-1">
                 <Brain className="h-4 w-4" />
                 引导学习
               </TabsTrigger>
-              <TabsTrigger value="timeline" className="gap-1">
-                <CalendarDays className="h-4 w-4" />
-                垂直时间轴
-              </TabsTrigger>
-              <TabsTrigger value="graph" className="gap-1">
-                <GitFork className="h-4 w-4" />
-                因果图谱
-              </TabsTrigger>
-              <TabsTrigger value="concepts" className="gap-1">
-                <BookOpen className="h-4 w-4" />
-                概念词典
-              </TabsTrigger>
             </TabsList>
 
-            {/* 必背知识清单 */}
-            <TabsContent value="mustKnow">
-              <Card>
-                <CardContent className="p-4">
-                  <HistoryMustKnowList unitId="unit1" unitTitle={knowledgeData.unitTitle} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 引导式学习 */}
-            <TabsContent value="guided">
+            {/* 垂直时间轴 - 核心视图 */}
+            <TabsContent value="timeline">
               <Card>
                 <CardContent className="p-4">
                   <HistoryGuidedLearning unitId={chapterId} unitTitle={knowledgeData.unitTitle} />
@@ -747,79 +726,6 @@ function Unit1TimelinePage() {
                       })}
                     </div>
                   </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* 因果图谱 */}
-            <TabsContent value="graph">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span>因果链知识图谱</span>
-                    <Badge variant="outline">{knowledgeData.causalLinks.length} 条因果关系</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <CausalGraphLegend />
-                  <div className="h-[600px] border rounded-lg overflow-hidden">
-                  <CausalGraph
-                    events={knowledgeData.timelineEvents as TimelineEvent[]}
-                    causalLinks={knowledgeData.causalLinks as CausalLink[]}
-                    onEventClick={handleGraphEventClick}
-                    highlightEventId={highlightEventId}
-                  />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    点击节点查看详情，点击边查看因果逻辑
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 概念词典 */}
-            <TabsContent value="concepts">
-              {knowledgeData.concepts.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <BookOpen className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                  <p className="text-muted-foreground">该单元暂无概念数据</p>
-                </Card>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {knowledgeData.concepts.map((concept) => {
-                    const colors: Record<string, string> = {
-                      政治: 'border-amber-300',
-                      经济: 'border-emerald-300',
-                      思想: 'border-violet-300',
-                      文化: 'border-pink-300',
-                      军事: 'border-red-300',
-                      社会: 'border-slate-300',
-                    };
-                    const color = colors[concept.category] || colors.社会;
-
-                    return (
-                      <Card key={concept.id} className={`border-l-4 ${color}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <h3 className="text-base font-bold text-slate-800">
-                              {concept.name}
-                            </h3>
-                            <Badge variant="secondary" className="text-xs">
-                              {concept.category}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {concept.definition}
-                          </p>
-                          {concept.keyPeople && concept.keyPeople.length > 0 && (
-                            <p className="text-xs text-slate-500 mt-2">
-                              关键人物：{concept.keyPeople.join('、')}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
                 </div>
               )}
             </TabsContent>

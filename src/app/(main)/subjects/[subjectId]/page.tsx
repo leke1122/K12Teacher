@@ -205,36 +205,81 @@ export default function SubjectPage() {
         {isHistory && (
           <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/60">
             <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2">
-              <span className="text-amber-500">📜</span> 历史
+              <span className="text-amber-500">📜</span> 历史学习
             </h2>
             {/* 学习路径说明 */}
             <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 mb-4 text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">💡 推荐学习路径</p>
-              <p className="text-amber-700 dark:text-amber-300 text-xs leading-relaxed">
-                <strong>1. 按课学习：</strong>点击下方课节名称 → 完成课本还原、知识点精讲等7个模块<br/>
-                <strong>2. 全局复习：</strong>使用时间轴、历史卡牌、因果链、综合练习进行跨单元复习
-              </p>
+              <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">💡 学习路径</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-amber-700 whitespace-nowrap">📚 按课学习：</span>
+                  <span className="text-amber-700">点击下方课节 → 课本还原+7个学习模块</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-purple-700 whitespace-nowrap">🔥 全局复习：</span>
+                  <span className="text-purple-700">时间轴·因果链·卡牌·AI助教·练习</span>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {historyFeatures.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-amber-300 dark:hover:border-amber-600 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-center"
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform`}
-                      style={{ backgroundColor: `var(--${item.color}-50, #fef3c7)` }}>
-                      <Icon className={`h-5 w-5 text-${item.color}-500`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{item.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{item.desc}</p>
-                    </div>
-                  </button>
-                );
-              })}
+            
+            {/* 两大学习模式 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 按课学习 */}
+              <div className="p-4 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/50 dark:to-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white text-sm">
+                    📚
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-indigo-700 dark:text-indigo-300">按课学习</h3>
+                    <p className="text-xs text-indigo-500">教材章节内容精讲</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+                  点击下方课节名称，进入完整学习页面，包含：课本还原、知识点精讲、引导学习、AI问答、练习巩固、高考链接
+                </p>
+                <Button 
+                  size="sm" 
+                  className="w-full bg-indigo-500 hover:bg-indigo-600"
+                  onClick={() => {
+                    const el = document.getElementById('chapters-section');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  选择课节开始学习 ↓
+                </Button>
+              </div>
+              
+              {/* 全局复习 */}
+              <div className="p-4 rounded-xl border-2 border-amber-200 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/50 dark:to-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white text-sm">
+                    🔥
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-amber-700 dark:text-amber-300">全局复习</h3>
+                    <p className="text-xs text-amber-500">跨单元综合复习</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {historyFeatures.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={() => router.push(item.href)}
+                        className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 hover:border-amber-300 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all cursor-pointer text-left"
+                      >
+                        <Icon className={`h-4 w-4 text-${item.color}-500 flex-shrink-0`} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{item.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{item.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -366,7 +411,7 @@ export default function SubjectPage() {
         ) : (
           isHistory ? (
             // 历史学科使用简化列表
-            <Card className="rounded-xl shadow-sm border-0 overflow-hidden">
+            <Card id="chapters-section" className="rounded-xl shadow-sm border-0 overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
