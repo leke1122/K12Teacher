@@ -56,6 +56,12 @@ export default function SubjectPage() {
       router.push('/subjects/chinese');
       return;
     }
+    
+    // 历史使用独立的历史首页
+    if (subjectId === 'history') {
+      router.push('/subjects/history');
+      return;
+    }
   }, [subjectId, setCurrentSubject, router]);
 
   const subject = SUBJECTS.find((s) => s.id === subjectId);
