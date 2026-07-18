@@ -449,7 +449,7 @@ function PracticePageContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
         {/* 顶部导航 */}
-        <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
+        <div className="sticky top-16 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4 mb-2">
               <div className="flex items-center gap-2">

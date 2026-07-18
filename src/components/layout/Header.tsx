@@ -20,16 +20,16 @@ const PAGE_NAMES: Record<string, { name: string; icon: string }> = {
 
 // 学科路径映射（优先级高于 SUBJECTS 常量）
 const SUBJECT_PATHS: Record<string, { id: string; name: string; icon: string }> = {
-  '/learn/math': { id: 'math', name: '数学', icon: '📐' },
+  '/learn/math': { id: 'math', name: '数学学习中心', icon: '📐' },
   '/learn/math/geogebra': { id: 'math', name: 'GeoGebra', icon: '📐' },
   '/learn/math/geogebra/model': { id: 'math', name: 'GeoGebra', icon: '📐' },
-  '/learn/physics': { id: 'physics', name: '物理', icon: '⚛️' },
-  '/learn/chemistry': { id: 'chemistry', name: '化学', icon: '🧪' },
-  '/learn/english': { id: 'english', name: '英语', icon: '🔤' },
-  '/learn/chinese': { id: 'chinese', name: '语文', icon: '📖' },
-  '/learn/biology': { id: 'biology', name: '生物', icon: '🧬' },
-  '/learn/geography': { id: 'geography', name: '地理', icon: '🌍' },
-  '/learn/history': { id: 'history', name: '历史', icon: '🏛️' },
+  '/learn/physics': { id: 'physics', name: '物理学习中心', icon: '⚛️' },
+  '/learn/chemistry': { id: 'chemistry', name: '化学学习中心', icon: '🧪' },
+  '/learn/english': { id: 'english', name: '英语学习中心', icon: '🔤' },
+  '/learn/chinese': { id: 'chinese', name: '语文学习中心', icon: '📖' },
+  '/learn/biology': { id: 'biology', name: '生物学习中心', icon: '🧬' },
+  '/learn/geography': { id: 'geography', name: '地理学习中心', icon: '🌍' },
+  '/learn/history': { id: 'history', name: '历史学习中心', icon: '🏛️' },
 };
 
 function getPageInfo(pathname: string, currentSubject: string | null) {

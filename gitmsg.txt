@@ -1,0 +1,1 @@
+fix: capture supabaseClient before closure to avoid TypeScript null narrowing issue

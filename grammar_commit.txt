@@ -1,0 +1,10 @@
+feat(english): 新增完整英语语法学习模块
+
+- 新增43个语法知识点（8个阶段），覆盖高考全部考点
+- 创建 GrammarDetail 组件：展示公式、考点、搭配、例句、易错点
+- 创建 GrammarTutor 组件：AI引导式语法讲解（7步流程）
+- 创建 GrammarPractice 组件：填空/改错/翻译智能出题
+- 新增高考考点速查页面（按权重排序）
+- 新增5个API路由：load/import/practice/generate/error-analysis/words
+- 在学科入口页面为英语学科增加"语法学习"入口按钮
+- 支持例句单词一键加入单词本

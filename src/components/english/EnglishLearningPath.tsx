@@ -17,9 +17,10 @@ import {
   Lock,
 } from 'lucide-react';
 import type { StepKey, StepStatus, EnglishProgress } from '@/lib/englishProgress';
+import type { UseEnglishProgressReturn } from '@/hooks/useEnglishProgress';
 
 interface EnglishLearningPathProps {
-  progress: EnglishProgress | null;
+  progress: EnglishProgress | UseEnglishProgressReturn | null;
   onStepClick: (step: StepKey) => void;
 }
 
@@ -45,20 +46,23 @@ function StepStatusIcon({ status }: { status: StepStatus }) {
 }
 
 export function EnglishLearningPath({ progress, onStepClick }: EnglishLearningPathProps) {
+  // 处理两种类型：UseEnglishProgressReturn 或 EnglishProgress
+  const actualProgress = (progress as any)?.progress || progress;
+  
   const statuses = useMemo(() => {
-    if (!progress) {
+    if (!actualProgress || typeof actualProgress !== 'object' || !('steps' in actualProgress)) {
       return STEP_KEYS.reduce<Record<StepKey, StepStatus>>((acc, key) => {
         acc[key] = 'not_started';
         return acc;
       }, {} as Record<StepKey, StepStatus>);
     }
     return STEP_KEYS.reduce<Record<StepKey, StepStatus>>((acc, key) => {
-      acc[key] = progress.steps[key]?.status || 'not_started';
+      acc[key] = actualProgress.steps?.[key]?.status || 'not_started';
       return acc;
     }, {} as Record<StepKey, StepStatus>);
-  }, [progress]);
+  }, [actualProgress]);
 
-  const currentStepIndex = progress?.currentStepIndex ?? 0;
+  const currentStepIndex = (actualProgress as any)?.currentStepIndex ?? (progress as any)?.currentStepIndex ?? 0;
 
   return (
     <Card>

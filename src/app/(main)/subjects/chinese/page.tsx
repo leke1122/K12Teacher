@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Sparkles, Loader2, BookOpen, ChevronRight, ChevronDown,
   BookText, GraduationCap, PenTool, Play, RotateCcw, ScrollText,
-  Eye, Search, Brain, MessageCircle, CheckCircle2, FileText, Languages
+  Eye, Search, Brain, MessageCircle, CheckCircle2, FileText, Languages,
+  Volume2
 } from 'lucide-react';
 import { useTextbooks, saveTextbookChaptersData } from '@/hooks/useTextbooks';
 import { TextbookManager } from '@/components/pdf/TextbookManager';
@@ -82,6 +84,13 @@ export default function ChineseSubjectPage() {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState('');
   const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [poemsExpanded, setPoemsExpanded] = useState(false);
+
+  // 古诗文状态
+  const [poems, setPoems] = useState<{id: string; title: string; author: string; category?: string; book_name?: string}[]>([]);
+  const [poemsLoading, setPoemsLoading] = useState(false);
+  const [poemFilter, setPoemFilter] = useState<'all' | '文言文' | '诗词曲'>('all');
+  const [poemSearch, setPoemSearch] = useState('');
 
   const {
     textbooks,
@@ -100,6 +109,35 @@ export default function ChineseSubjectPage() {
   const getChapterStatus = (chapterId: string) => {
     return getChapterReadingStatus(chapterId);
   };
+
+  // 加载古诗文
+  const loadPoems = async () => {
+    setPoemsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (poemFilter !== 'all') params.set('category', poemFilter);
+      const res = await fetch(`/api/chinese/classical-poems?${params.toString()}`);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setPoems(json.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPoemsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPoems();
+  }, [poemFilter]);
+
+  // 古诗文过滤
+  const filteredPoems = useMemo(() => {
+    if (!poemSearch.trim()) return poems;
+    const q = poemSearch.trim();
+    return poems.filter((p) => p.title.includes(q) || p.author.includes(q));
+  }, [poems, poemSearch]);
 
   // AI提取章节
   const handleExtractChapters = async () => {
@@ -166,7 +204,7 @@ export default function ChineseSubjectPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
       {/* 顶部状态栏 */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -311,6 +349,107 @@ export default function ChineseSubjectPage() {
             </div>
           </div>
         )}
+
+        {/* 古诗文72篇 */}
+        <Card className="rounded-xl shadow-sm border border-amber-200 dark:border-amber-800/50 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+          <CardContent className="p-0">
+            <button
+              onClick={() => {
+                setPoemsExpanded(!poemsExpanded);
+                if (!poemsExpanded && poems.length === 0) loadPoems();
+              }}
+              className="w-full flex items-center justify-between p-4 hover:bg-amber-100/30 dark:hover:bg-amber-900/20 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📜</span>
+                <div className="text-left">
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-400">古诗文72篇</span>
+                  <span className="text-xs text-amber-600/70 dark:text-amber-500/50 ml-2">原文、拼音、翻译、考点问答</span>
+                </div>
+              </div>
+              {poemsExpanded ? (
+                <ChevronDown className="h-4 w-4 text-amber-500" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-amber-500" />
+              )}
+            </button>
+
+            {poemsExpanded && (
+              <div className="px-4 pb-4 border-t border-amber-200 dark:border-amber-800/50">
+                {/* 搜索和筛选 */}
+                <div className="flex flex-wrap items-center gap-3 pt-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">分类：</span>
+                    {(['all', '文言文', '诗词曲'] as const).map((item) => (
+                      <Button
+                        key={item}
+                        size="sm"
+                        variant={poemFilter === item ? 'default' : 'outline'}
+                        className="h-7 text-xs"
+                        onClick={() => setPoemFilter(item)}
+                      >
+                        {item === 'all' ? '全部' : item}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <Search className="h-4 w-4 text-slate-400" />
+                    <Input
+                      value={poemSearch}
+                      onChange={(e) => setPoemSearch(e.target.value)}
+                      placeholder="搜索标题或作者"
+                      className="h-8 w-48 text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* 古诗文列表 */}
+                {poemsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-96 overflow-y-auto">
+                    {filteredPoems.map((poem) => (
+                      <div
+                        key={poem.id}
+                        className="p-3 rounded-lg border border-amber-100 dark:border-amber-800/50 bg-white dark:bg-slate-800/50 hover:border-amber-300 dark:hover:border-amber-600 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug">
+                            {poem.title}
+                          </h4>
+                          <Badge variant={poem.category === '诗词曲' ? 'secondary' : 'outline'} className="text-xs whitespace-nowrap">
+                            {poem.category || '古诗文'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">
+                          {poem.author} {poem.book_name ? `· ${poem.book_name}` : ''}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-1.5 text-xs h-7"
+                          onClick={() => router.push(`/learn/chinese/${poem.id}`)}
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          开始学习
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!poemsLoading && filteredPoems.length === 0 && poems.length === 0 && (
+                  <div className="text-center py-8">
+                    <ScrollText className="h-8 w-8 text-amber-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-500">暂无古诗文数据</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 辅助工具（可折叠） */}
         {activeTextbook && chapters.length > 0 && (

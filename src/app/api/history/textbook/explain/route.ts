@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHistoryTextbookTextByPages, getHistoryLessonTitle } from '@/lib/historyData.server';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 // 历史课本还原请求类型
 interface ExplainRequest {
@@ -35,12 +36,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '缺少章节ID' }, { status: 400 });
     }
 
+    // 诊断信息
+    console.log('[API history/textbook/explain] 开始处理:', {
+      chapterId,
+      startPage,
+      endPage,
+      supabaseConfigured: isSupabaseConfigured,
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    });
+
     // 优先从统一数据源获取教材内容
     const text = await getHistoryTextbookTextByPages(chapterId, startPage, endPage);
 
     if (!text) {
+      // 返回更详细的错误信息，帮助诊断问题
+      const errorDetail = isSupabaseConfigured
+        ? 'Supabase已配置但未找到历史教材数据。请检查：1) 是否已上传历史教材 2) textbook_cache表中是否有subject_id=history的数据'
+        : 'Supabase未配置（环境变量缺失）。数据无法持久化到云端。';
+      
       return NextResponse.json(
-        { success: false, message: '未找到教材内容，请先上传历史教材' },
+        { 
+          success: false, 
+          message: '未找到教材内容，请先上传历史教材',
+          details: {
+            supabaseConfigured: isSupabaseConfigured,
+            hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+            errorDetail,
+            suggestion: '请检查教材上传是否成功，或访问 /api/debug/textbook-diagnosis 进行诊断'
+          }
+        },
         { status: 404 }
       );
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,13 +57,8 @@ function TextbookPageContent() {
     subtitle: '',
   };
 
-  useEffect(() => {
-    updateStepProgress('history', chapterId, 'textbook', 'in_progress');
-    loadContent();
-  }, [chapterId, settingsLoaded]);
-
-  const loadContent = async () => {
-    if (!settingsLoaded) return; // 还没准备好，不加载
+  const loadContent = useCallback(async () => {
+    if (!settingsLoaded) return;
     setLoading(true);
     setError(null);
     try {
@@ -84,7 +79,12 @@ function TextbookPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chapterId, settings?.deepseekKey, settingsLoaded]);
+
+  useEffect(() => {
+    updateStepProgress('history', chapterId, 'textbook', 'in_progress');
+    loadContent();
+  }, [chapterId, settingsLoaded, loadContent]);
 
   const handleRefresh = async () => {
     setExplaining(true);

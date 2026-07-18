@@ -9,6 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 // 验证配置
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('[Supabase] 环境变量未配置，将使用本地存储');
+  console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '已设置' : '未设置');
+  console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? '已设置' : '未设置');
 }
 
 // 创建客户端（配置不完整时返回 null）
@@ -233,23 +235,55 @@ export interface TextbookCacheItem {
 }
 
 /**
- * 获取教材列表
+ * 获取教材列表（带重试）
  */
 export async function getTextbooks(subjectId?: string) {
-  if (!supabase) return null;
-  let query = supabase
-    .from('textbook_cache')
-    .select('*')
-    .eq('user_id', USER_ID)
-    .order('uploaded_at', { ascending: false });
-
-  if (subjectId) {
-    query = query.eq('subject_id', subjectId);
+  if (!supabase) {
+    console.warn('[Supabase] getTextbooks: supabase 客户端为 null');
+    return null;
   }
+  
+  let retryCount = 0;
+  const maxRetries = 2;
+  
+  while (retryCount <= maxRetries) {
+    try {
+      let query = supabase
+        .from('textbook_cache')
+        .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at, total_pages')
+        .eq('user_id', USER_ID)
+        .order('uploaded_at', { ascending: false });
 
-  const { data, error } = await query;
-  if (error) return null;
-  return data;
+      if (subjectId) {
+        query = query.eq('subject_id', subjectId);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.warn(`[Supabase] getTextbooks 查询失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+        return null;
+      }
+      
+      console.log(`[Supabase] getTextbooks 查询成功，返回 ${data?.length || 0} 条记录`);
+      return data;
+    } catch (err) {
+      console.error('[Supabase] getTextbooks 异常:', err);
+      if (retryCount < maxRetries) {
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        return null;
+      }
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -269,19 +303,52 @@ export async function getTextbook(textbookId: string) {
 
 /**
  * 按学科获取最新教材（用于前端没有传 textbookId 的情况）
+ * 带重试机制
  */
 export async function getTextbookBySubject(subjectId: string) {
-  if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('textbook_cache')
-    .select('*')
-    .eq('user_id', USER_ID)
-    .eq('subject_id', subjectId)
-    .order('uploaded_at', { ascending: false })
-    .limit(1)
-    .single();
-  if (error) return null;
-  return data;
+  if (!supabase) {
+    console.warn('[Supabase] getTextbookBySubject: supabase 客户端为 null');
+    return null;
+  }
+  
+  let retryCount = 0;
+  const maxRetries = 2;
+  
+  while (retryCount <= maxRetries) {
+    try {
+      const { data, error } = await supabase
+        .from('textbook_cache')
+        .select('textbook_id, textbook_name, full_text, pages, chapters, user_id, subject_id, uploaded_at, total_pages')
+        .eq('user_id', USER_ID)
+        .eq('subject_id', subjectId)
+        .order('uploaded_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.warn(`[Supabase] getTextbookBySubject 查询失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+        return null;
+      }
+      
+      console.log(`[Supabase] getTextbookBySubject(${subjectId}) 查询成功:`, data?.textbook_id);
+      return data;
+    } catch (err) {
+      console.error('[Supabase] getTextbookBySubject 异常:', err);
+      if (retryCount < maxRetries) {
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        return null;
+      }
+    }
+  }
+  
+  return null;
 }
 
 /**

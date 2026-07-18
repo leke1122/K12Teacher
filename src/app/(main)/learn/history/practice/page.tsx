@@ -22,14 +22,47 @@ interface Question {
 }
 
 const QUESTIONS: Question[] = [
-  { id: 'q1', type: 'choice', category: '政治', difficulty: 'easy', question: '中国历史上第一个奴隶制王朝是？', options: ['夏朝', '商朝', '周朝', '秦朝'], correctAnswer: 0, explanation: '夏朝是中国历史上第一个奴隶制王朝。' },
-  { id: 'q2', type: 'choice', category: '政治', difficulty: 'medium', question: '西周分封制的主要目的是？', options: ['发展经济', '巩固统治', '传播文化', '对外扩张'], correctAnswer: 1, explanation: '分封制的主要目的是巩固周天子的统治。' },
-  { id: 'q3', type: 'choice', category: '政治', difficulty: 'medium', question: '春秋战国时期，诸侯争霸的实质是？', options: ['争夺土地和人口', '传播先进文化', '消灭奴隶制度', '统一文字'], correctAnswer: 0, explanation: '诸侯争霸的实质是争夺土地和人口。' },
-  { id: 'q4', type: 'choice', category: '思想', difficulty: 'hard', question: '百家争鸣中，主张"兼爱""非攻"的是？', options: ['儒家', '道家', '墨家', '法家'], correctAnswer: 2, explanation: '墨家主张"兼爱"和"非攻"。' },
-  { id: 'q5', type: 'choice', category: '政治', difficulty: 'medium', question: '商鞅变法的主要内容不包括？', options: ['废井田', '奖励军功', '推行分封制', '建立县制'], correctAnswer: 2, explanation: '商鞅变法废除了分封制，推行郡县制。' },
-  { id: 'q6', type: 'choice', category: '文化', difficulty: 'easy', question: '汉字形体演变的正确顺序是？', options: ['甲骨文→金文→小篆→隶书→楷书', '金文→甲骨文→小篆→隶书→楷书', '甲骨文→小篆→金文→隶书→楷书', '金文→小篆→甲骨文→隶书→楷书'], correctAnswer: 0, explanation: '汉字演变顺序为：甲骨文→金文→小篆→隶书→楷书。' },
-  { id: 'q7', type: 'choice', category: '政治', difficulty: 'hard', question: '秦朝统一六国后在地方实行什么制度？', options: ['分封制', '郡县制', '科举制', '行省制'], correctAnswer: 1, explanation: '秦朝在地方实行郡县制。' },
-  { id: 'q8', type: 'choice', category: '思想', difficulty: 'medium', question: '"罢黜百家，独尊儒术"是谁提出的？', options: ['秦始皇', '汉武帝', '汉高祖', '董仲舒'], correctAnswer: 3, explanation: '董仲舒建议汉武帝实行"罢黜百家，独尊儒术"。' },
+  // 中华文明起源
+  { id: 'q1', type: 'choice', category: '文化', difficulty: 'easy', question: '中国境内已知最早的人类是？', options: ['北京人', '元谋人', '山顶洞人', '河姆渡人'], correctAnswer: 1, explanation: '元谋人距今约170万年，是中国境内已知最早的人类。' },
+  { id: 'q2', type: 'choice', category: '文化', difficulty: 'medium', question: '以彩陶文化著称的新石器时代文化是？', options: ['龙山文化', '仰韶文化', '河姆渡文化', '良渚文化'], correctAnswer: 1, explanation: '仰韶文化以彩绘陶器著称，主要分布于黄河中游地区。' },
+  { id: 'q3', type: 'choice', category: '文化', difficulty: 'medium', question: '种植水稻的文化遗存是？', options: ['仰韶文化', '龙山文化', '河姆渡文化', '红山文化'], correctAnswer: 2, explanation: '河姆渡文化位于长江下游，是种植水稻的文化代表。' },
+
+  // 早期国家制度
+  { id: 'q4', type: 'choice', category: '政治', difficulty: 'easy', question: '西周分封制的主要目的是？', options: ['发展经济', '巩固统治', '传播文化', '对外扩张'], correctAnswer: 1, explanation: '分封制的主要目的是"封建亲戚，以藩屏周"，巩固周天子的统治。' },
+  { id: 'q5', type: 'choice', category: '政治', difficulty: 'easy', question: '宗法制的核心是？', options: ['分封制', '嫡长子继承制', '礼乐制', '井田制'], correctAnswer: 1, explanation: '宗法制以嫡长子继承制为核心，解决贵族权力和财产继承问题。' },
+  { id: 'q6', type: 'choice', category: '政治', difficulty: 'medium', question: '西周礼乐制度的作用是？', options: ['发展经济', '维护等级秩序', '对外战争', '文化传播'], correctAnswer: 1, explanation: '礼乐制度是维护宗法制和分封制的工具，用礼区分等级，用乐协调秩序。' },
+  { id: 'q7', type: 'choice', category: '经济', difficulty: 'medium', question: '井田制的本质是？', options: ['土地私有制', '土地国有制', '土地租赁制', '集体耕作制'], correctAnswer: 1, explanation: '井田制是奴隶主土地国有制，土地属于周王所有，不得随意买卖。' },
+
+  // 春秋战国
+  { id: 'q8', type: 'choice', category: '政治', difficulty: 'medium', question: '春秋战国时期最本质的特征是？', options: ['统一多民族国家形成', '奴隶制向封建制转变', '中央集权确立', '儒学成为正统'], correctAnswer: 1, explanation: '春秋战国是大变革时期，最本质的特征是从奴隶社会向封建社会的转变。' },
+  { id: 'q9', type: 'choice', category: '经济', difficulty: 'easy', question: '推动春秋战国社会变革的根本原因是？', options: ['分封制崩溃', '铁器牛耕使用', '百家争鸣', '诸侯争霸'], correctAnswer: 1, explanation: '铁器牛耕的使用提高了生产力，是推动社会变革的根本原因。' },
+  { id: 'q10', type: 'choice', category: '经济', difficulty: 'easy', question: '小农经济的本质属性是？', options: ['商品经济', '家庭经营', '规模经营', '官府经营'], correctAnswer: 1, explanation: '小农经济最本质的属性是家庭经营，经营规模较小。' },
+  { id: 'q11', type: 'choice', category: '政治', difficulty: 'medium', question: '商鞅变法中承认土地私有的措施是？', options: ['重农抑商', '奖励军功', '废井田开阡陌', '推行县制'], correctAnswer: 2, explanation: '"废井田，开阡陌"从法律上确立了封建土地私有制。' },
+  { id: 'q12', type: 'choice', category: '政治', difficulty: 'hard', question: '商鞅变法成功的根本原因是？', options: ['秦孝公支持', '商鞅个人才能', '顺应历史潮流', '措施行之有效'], correctAnswer: 2, explanation: '根本原因是变法顺应了从奴隶社会向封建社会转变的历史潮流。' },
+
+  // 百家争鸣
+  { id: 'q13', type: 'choice', category: '思想', difficulty: 'hard', question: '百家争鸣中，主张"兼爱""非攻"的是？', options: ['儒家', '道家', '墨家', '法家'], correctAnswer: 2, explanation: '墨家主张"兼爱"（无差别的爱所有人）和"非攻"（反对战争）。' },
+  { id: 'q14', type: 'choice', category: '思想', difficulty: 'easy', question: '孔子"仁"的核心含义是？', options: ['克己复礼', '爱人', '为政以德', '有教无类'], correctAnswer: 1, explanation: '"仁"的核心含义是"爱人"，是孔子思想的核心。' },
+  { id: 'q15', type: 'choice', category: '思想', difficulty: 'medium', question: '百家争鸣的历史意义是？', options: ['统一文字', '奠定中国传统文化基础', '建立郡县制', '确立儒学正统'], correctAnswer: 1, explanation: '百家争鸣奠定了中国传统文化体系的基础，是中国历史上第一次思想解放运动。' },
+  { id: 'q16', type: 'choice', category: '思想', difficulty: 'medium', question: '法家思想的集大成者是？', options: ['商鞅', '韩非子', '申不害', '慎到'], correctAnswer: 1, explanation: '韩非子将法家思想系统化，提出"法、术、势"结合的理论。' },
+
+  // 秦朝
+  { id: 'q17', type: 'choice', category: '政治', difficulty: 'easy', question: '秦朝统一六国是在哪一年？', options: ['公元前230年', '公元前221年', '公元前206年', '公元前202年'], correctAnswer: 1, explanation: '公元前221年，秦王嬴政灭六国，建立秦朝。' },
+  { id: 'q18', type: 'choice', category: '政治', difficulty: 'medium', question: '秦朝在地方实行的制度是？', options: ['分封制', '郡县制', '郡国并行制', '行省制'], correctAnswer: 1, explanation: '秦朝废除分封制，全面推行郡县制。' },
+  { id: 'q19', type: 'choice', category: '政治', difficulty: 'medium', question: '郡县制与分封制最本质的区别是？', options: ['划分标准不同', '官吏任用方式不同', '历史作用不同', '与中央关系不同'], correctAnswer: 1, explanation: '最本质区别是官吏任用方式：分封制下诸侯世袭，郡县制下官吏由皇帝任免。' },
+  { id: 'q20', type: 'choice', category: '政治', difficulty: 'easy', question: '专制主义中央集权制度的核心是？', options: ['地方分权', '丞相专权', '皇权至上', '贵族政治'], correctAnswer: 2, explanation: '专制主义中央集权制度的核心是皇权至上。' },
+  { id: 'q21', type: 'choice', category: '政治', difficulty: 'medium', question: '三公中负责监察百官的是？', options: ['丞相', '太尉', '御史大夫', '九卿'], correctAnswer: 2, explanation: '御史大夫是副丞相，负责监察百官和下达诏令。' },
+
+  // 两汉
+  { id: 'q22', type: 'choice', category: '思想', difficulty: 'medium', question: '汉初实行"无为而治"的主要原因是？', options: ['道家思想占统治地位', '汉初民生凋敝', '皇帝崇尚黄老', '儒家思想不被接受'], correctAnswer: 1, explanation: '汉初实行"无为而治"是因为楚汉战争后民生凋敝、百废待兴，需要休养生息。' },
+  { id: 'q23', type: 'choice', category: '政治', difficulty: 'medium', question: '汉武帝削弱诸侯王势力的主要措施是？', options: ['削藩策', '推恩令', '刺史制度', '察举制'], correctAnswer: 1, explanation: '推恩令是汉武帝推行的重要措施，巧妙地削弱了诸侯国的实力。' },
+  { id: 'q24', type: 'choice', category: '思想', difficulty: 'easy', question: '"罢黜百家，独尊儒术"是谁建议汉武帝实行的？', options: ['汉高祖', '董仲舒', '司马迁', '张骞'], correctAnswer: 1, explanation: '董仲舒向汉武帝建议"罢黜百家，独尊儒术"。' },
+  { id: 'q25', type: 'choice', category: '经济', difficulty: 'medium', question: '汉武帝时期，将铸币权收归中央的货币是？', options: ['半两钱', '五铢钱', '开元通宝', '交子'], correctAnswer: 1, explanation: '汉武帝统一发行五铢钱，将铸币权收归中央。' },
+  { id: 'q26', type: 'choice', category: '文化', difficulty: 'easy', question: '《史记》的作者是？', options: ['司马光', '司马迁', '班固', '陈寿'], correctAnswer: 1, explanation: '司马迁的《史记》是我国第一部纪传体通史。' },
+  { id: 'q27', type: 'choice', category: '文化', difficulty: 'easy', question: '发明世界上最早地震仪的科学家是？', options: ['张仲景', '华佗', '张衡', '蔡伦'], correctAnswer: 2, explanation: '张衡发明的候风地动仪是世界上最早的地震仪。' },
+  { id: 'q28', type: 'choice', category: '经济', difficulty: 'medium', question: '东汉庄园经济的特点是？', options: ['国家经营', '自给自足', '商品交换', '小农经营'], correctAnswer: 1, explanation: '庄园经济是豪强地主经营土地的方式，内部自给自足，形成独立经济实体。' },
+  { id: 'q29', type: 'choice', category: '政治', difficulty: 'medium', question: '"光武中兴"发生在哪个朝代？', options: ['西汉', '东汉', '西晋', '隋朝'], correctAnswer: 1, explanation: '"光武中兴"是东汉刘秀（汉光武帝）建立东汉后的恢复时期。' },
+  { id: 'q30', type: 'choice', category: '文化', difficulty: 'medium', question: '被誉为"医圣"的是？', options: ['华佗', '张仲景', '扁鹊', '李时珍'], correctAnswer: 1, explanation: '张仲景的《伤寒杂病论》奠定中医临床学基础，被尊为"医圣"。' },
 ];
 
 const CAT_COLORS: Record<string, string> = {

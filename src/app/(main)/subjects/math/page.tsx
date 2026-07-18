@@ -107,7 +107,7 @@ export default function MathPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
       {/* 顶部状态栏 */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function MathPage() {
         {/* 数学学习功能入口 */}
         <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/60">
           <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
-            <span className="text-indigo-500">📐</span> 数学学习中心
+            <span className="text-indigo-500">📐</span> 数学
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* 拍照纠错 */}
@@ -204,6 +204,20 @@ export default function MathPage() {
               <div>
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">可视化</p>
                 <p className="text-xs text-slate-400 mt-0.5">概念探索</p>
+              </div>
+            </button>
+
+            {/* 函数智能学习 */}
+            <button
+              onClick={() => router.push('/learn/math/function')}
+              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-center"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-blue-100 dark:bg-blue-900 group-hover:scale-110 transition-transform">
+                🧠
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">函数智能学习</p>
+                <p className="text-xs text-slate-400 mt-0.5">知识图谱</p>
               </div>
             </button>
           </div>

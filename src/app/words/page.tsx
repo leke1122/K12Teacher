@@ -1086,7 +1086,7 @@ export default function WordsPage() {
       </div>
       
       {/* 主内容 */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto pt-[72px]">
         <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
           {/* 统计仪表盘 */}
           <StatsDashboard 

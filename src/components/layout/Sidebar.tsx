@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, ListChecks, BarChart3, Link2, BookMarked, GraduationCap, Home, Ruler, BookOpen } from "lucide-react";
+import { Settings, ListChecks, BarChart3, Link2, BookMarked, Home, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS, useSubjectStore } from "@/stores/subjectStore";
 
@@ -88,24 +88,6 @@ export function Sidebar() {
             >
               <Link2 className="h-5 w-5 mr-3" />
               串联学习
-            </Button>
-          </Link>
-          <Link href="/learn/english" className="block">
-            <Button
-              variant={pathname.startsWith("/learn/english") ? "secondary" : "ghost"}
-              className="w-full justify-start py-3 px-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-            >
-              <GraduationCap className="h-5 w-5 mr-3" />
-              英语学习中心
-            </Button>
-          </Link>
-          <Link href="/learn/chinese" className="block">
-            <Button
-              variant={pathname.startsWith("/learn/chinese") ? "secondary" : "ghost"}
-              className="w-full justify-start py-3 px-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-            >
-              <BookOpen className="h-5 w-5 mr-3" />
-              语文学习中心
             </Button>
           </Link>
           <Link href="/learn/math/geogebra" className="block">

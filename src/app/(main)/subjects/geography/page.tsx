@@ -126,7 +126,7 @@ export default function GeographyHomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-slate-50 to-teal-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950/30">
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -243,7 +243,7 @@ export default function GeographyHomePage() {
                   onClick={() => router.push('/learn/geography')}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  进入地理学习中心
+                  进入地理
                   <ChevronRight className="h-3.5 w-3.5 ml-auto" />
                 </Button>
               </CardContent>
