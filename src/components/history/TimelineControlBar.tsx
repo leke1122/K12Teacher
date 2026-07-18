@@ -75,15 +75,21 @@ export function TimelineControlBar({
 
   // 定位当前
   const handleLocateCurrent = () => {
+    // 找到最接近当前年份的事件
     const currentYear = new Date().getFullYear();
-    const sortedEvents = [...events].sort((a, b) => a.year - b.year);
-    const nearestEvent = sortedEvents.reduce((prev, curr) =>
-      Math.abs(curr.year - currentYear) < Math.abs(prev.year - currentYear)
-        ? curr
-        : prev
-    );
-    if (nearestEvent) {
-      onYearSelect(nearestEvent.year);
+    const parseYear = (y: string): number => {
+      // 处理 "约前200万年前" 或 "前221年" 格式
+      if (y.includes('前')) {
+        const match = y.match(/前(\d+)/);
+        return match ? -parseInt(match[1]) : 0;
+      }
+      const num = parseInt(y);
+      return isNaN(num) ? 0 : num;
+    };
+    
+    const sortedEvents = [...events].sort((a, b) => parseYear(a.year) - parseYear(b.year));
+    if (sortedEvents.length > 0) {
+      onYearSelect(sortedEvents[0].year);
     }
   };
 
