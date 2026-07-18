@@ -462,7 +462,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'B',
     analysis: '本题考察宋代科技成就。',
-    materialType: '科技',
+    materialType: undefined,
   },
 ];
 
