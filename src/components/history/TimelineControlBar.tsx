@@ -89,7 +89,7 @@ export function TimelineControlBar({
     
     const sortedEvents = [...events].sort((a, b) => parseYear(a.year) - parseYear(b.year));
     if (sortedEvents.length > 0) {
-      onYearSelect(sortedEvents[0].year);
+      onYearSelect(parseYear(sortedEvents[0].year));
     }
   };
 
