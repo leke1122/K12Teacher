@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerData, setServerData, listServerKeys } from '@/lib/serverStorage';
-import type { AnalysisSource, AnalysisQuestion, AnalysisQuestionType } from '@/types/history';
+import type { AnalysisSource } from '@/types/history';
 
 export interface GenerateAnalysisResponse {
   success: boolean;

@@ -58,6 +58,18 @@ export interface LiaoningSummary {
   highFrequencyTopics: string[];
 }
 
+// ============ 材料分析相关（保留旧功能）============
+export type AnalysisQuestionType = '选择' | '填空' | '简答' | '论述';
+
+export interface AnalysisQuestion {
+  id: string;
+  type: AnalysisQuestionType;
+  question: string;
+  options?: string[];
+  correctAnswer: string | number;
+  analysis?: string;
+}
+
 export interface HistoryUnit {
   id: string;
   bookId: string;
