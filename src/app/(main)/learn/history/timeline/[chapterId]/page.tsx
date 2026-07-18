@@ -33,7 +33,8 @@ import Drawer from '@/components/history/Drawer';
 import { DocxImportButton } from '@/components/history/DocxImportButton';
 import { HistoryMustKnowList } from '@/components/history/HistoryMustKnowList';
 import { HistoryGuidedLearning } from '@/components/history/HistoryGuidedLearning';
-import type { TimelineEvent, CausalLink, Concept } from '@/data/history/unit1_data';
+import type { TimelineEvent } from '@/types/history';
+import type { CausalLink, Concept } from '@/data/history/unit1_data';
 import { timelineEvents as builtinTimelineEvents, concepts as builtinConcepts, causalLinks as builtinCausalLinks } from '@/data/history/unit1_data';
 
 interface ExamFocus {
@@ -693,7 +694,7 @@ function Unit1TimelinePage() {
                                     </div>
                                     <h3 className="text-base font-bold text-slate-800">
                                       {item.title}
-                                      {item.importance >= 4 && (
+                                      {item.importance && item.importance >= 4 && (
                                         <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
                                           重要考点
                                         </span>
@@ -745,7 +746,7 @@ function Unit1TimelinePage() {
               <Badge variant="outline">{selectedEvent.year}</Badge>
               <Badge variant="outline">{selectedEvent.dynasty}</Badge>
               <Badge>{selectedEvent.category}</Badge>
-              {selectedEvent.importance >= 4 && (
+              {selectedEvent.importance && selectedEvent.importance >= 4 && (
                 <Badge className="bg-amber-100 text-amber-700">核心考点</Badge>
               )}
             </div>

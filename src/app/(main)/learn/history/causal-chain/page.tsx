@@ -487,7 +487,7 @@ function CausalChainPageInner() {
                   <Badge variant="outline">{selectedEvent.year}</Badge>
                   <Badge variant="outline">{selectedEvent.dynasty}</Badge>
                   <Badge>{selectedEvent.category}</Badge>
-                  {selectedEvent.importance >= 4 && <Badge className="bg-amber-100 text-amber-700">核心考点</Badge>}
+                  {selectedEvent.importance && selectedEvent.importance >= 4 && <Badge className="bg-amber-100 text-amber-700">核心考点</Badge>}
                 </div>
 
                 <div className="space-y-3">
