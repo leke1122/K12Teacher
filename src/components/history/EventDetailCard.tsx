@@ -49,7 +49,7 @@ export function EventDetailCard({
   // 根据分类获取样式
   const categoryConfig = event.category
     ? EVENT_CATEGORY_CONFIG[event.category]
-    : EVENT_CATEGORY_CONFIG.politics;
+    : EVENT_CATEGORY_CONFIG['政治'];
 
   // 获取重要程度标签
   const importanceLabels = { 1: '一般', 2: '重要', 3: '最重要' };
