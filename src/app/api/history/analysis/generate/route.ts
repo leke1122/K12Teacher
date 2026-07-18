@@ -210,7 +210,7 @@ function normalizeQuestions(input: unknown): AnalysisQuestion[] {
       const typeRaw = String(record.type || '简答');
       const type = normalizeQuestionType(typeRaw);
       return {
-        id: Number(record.id) || idx + 1,
+        id: String(record.id || idx + 1),
         type,
         question: String(record.question || ''),
         correctAnswer: String(record.modelAnswer || record.expectedKeywords?.join('、') || ''),
