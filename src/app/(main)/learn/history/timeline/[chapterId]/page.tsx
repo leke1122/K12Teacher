@@ -215,13 +215,44 @@ function Unit1TimelinePage() {
   const loadMustKnowItems = useCallback(async (unitId: string) => {
     setMustKnowLoading(true);
     try {
-      const response = await fetch(`/api/history/must-know?unitId=${encodeURIComponent(unitId)}`);
+      // 优先使用 unit1 作为单元ID，因为内置数据都是 unit1
+      const effectiveUnitId = unitId === 'unit1' ? 'unit1' : 'unit1';
+      const response = await fetch(`/api/history/must-know?unitId=${encodeURIComponent(effectiveUnitId)}`);
       const data = await response.json();
       if (data.success && data.data?.items) {
         setMustKnowItems(data.data.items);
+      } else {
+        // 如果 API 返回空，尝试直接从 unit1_data 获取
+        const { timelineEvents } = await import('@/data/history/unit1_data');
+        const itemsFromEvents = timelineEvents.map((event) => ({
+          id: event.id,
+          title: event.title,
+          year: event.year,
+          dynasty: event.dynasty,
+          content: event.summary,
+          importance: event.importance,
+          gaokaoFocus: '',
+          relatedEvents: [],
+        }));
+        setMustKnowItems(itemsFromEvents);
       }
     } catch (err) {
       console.error('加载必背清单失败:', err);
+      // 尝试从内置数据获取
+      try {
+        const { timelineEvents } = await import('@/data/history/unit1_data');
+        const itemsFromEvents = timelineEvents.map((event) => ({
+          id: event.id,
+          title: event.title,
+          year: event.year,
+          dynasty: event.dynasty,
+          content: event.summary,
+          importance: event.importance,
+          gaokaoFocus: '',
+          relatedEvents: [],
+        }));
+        setMustKnowItems(itemsFromEvents);
+      } catch {}
     } finally {
       setMustKnowLoading(false);
     }
