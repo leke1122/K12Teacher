@@ -9,6 +9,7 @@ export const EVENT_CATEGORY_CONFIG = {
   战争: { color: '#dc2626', label: '战争' },
   科技: { color: '#0891b2', label: '科技' },
   社会: { color: '#64748b', label: '社会' },
+  思想: { color: '#ec4899', label: '思想' },
 } as const;
 
 export type EventCategory = keyof typeof EVENT_CATEGORY_CONFIG;
