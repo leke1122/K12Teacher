@@ -18,7 +18,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'C',
     analysis: '良渚藤编反映史前时期手工业发展水平，体现了劳动技能与艺术审美的结合。',
-    materialType: '文物',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2021-2',
@@ -35,7 +35,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'B',
     analysis: '东汉世家大族通过家谱维护家族利益，追求政治利益。',
-    materialType: '文献',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2022-1',
@@ -52,7 +52,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '春秋时期太祝职能反映民本思想的发展。',
-    materialType: '官制',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2022-2',
@@ -138,7 +138,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'D',
     analysis: '仰韶文化是中国新石器时代重要文化遗存。',
-    materialType: '考古',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2024-18',
@@ -154,7 +154,7 @@ export const liaoningExams: LiaoningExam[] = [
     question: '阅读材料，回答问题...',
     answer: '（答案略）',
     analysis: '本题通过中外对比考察秦始皇统一的历史意义，属于★★★大题级考点。',
-    materialType: '碑刻',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2025-1',
@@ -171,7 +171,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'C',
     analysis: '墨家"非攻"思想体现其和平主义主张。',
-    materialType: '诸子',
+    materialType: undefined,
   },
   {
     id: 'ln-u1-2025-2',
@@ -188,7 +188,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '汉代悬泉置简牍反映汉朝边疆行政管理的严密性。',
-    materialType: '简牍',
+    materialType: undefined,
   },
 
   // ============ 第二单元 10 题 ============
@@ -207,7 +207,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '本题考察唐代科举制度的细节问题。',
-    materialType: '制度',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2022-3',
@@ -224,7 +224,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'C',
     analysis: '唐代手工业和商业的发展反映了经济繁荣。',
-    materialType: '考古',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2022-20',
@@ -240,7 +240,7 @@ export const liaoningExams: LiaoningExam[] = [
     question: '论述九品中正制到科举制的演变...',
     answer: '（答案略）',
     analysis: '本题考察选官制度的演变，属于★★★大题级考点。辽宁卷偏爱"史学文献切口"。',
-    materialType: '制度',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2023-3',
@@ -257,7 +257,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '本题考察唐代文化成就。',
-    materialType: '文献',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2023-19',
@@ -273,7 +273,7 @@ export const liaoningExams: LiaoningExam[] = [
     question: '阅读材料，分析《旧唐书》与《新唐书》的史料价值...',
     answer: '（答案略）',
     analysis: '本题考察史料实证素养，需要分析不同史书的史料价值。',
-    materialType: '史籍',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2024-2',
@@ -307,7 +307,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '本题考察唐代科举制的问题。',
-    materialType: '制度',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2025-4',
@@ -324,7 +324,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'C',
     analysis: '本题考察江南开发的原因。',
-    materialType: '经济',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2025-5',
@@ -341,7 +341,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'B',
     analysis: '隋朝统一是中国历史上重要事件。',
-    materialType: '政治',
+    materialType: undefined,
   },
   {
     id: 'ln-u2-2025-6',
@@ -358,7 +358,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '本题考察唐代文化名人。',
-    materialType: '文学',
+    materialType: undefined,
   },
 
   // ============ 第三单元 6 题 ============
@@ -377,7 +377,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'D',
     analysis: '海陵王改革旨在加强君主专制。',
-    materialType: '制度',
+    materialType: undefined,
   },
   {
     id: 'ln-u3-2022-5',
@@ -411,7 +411,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'C',
     analysis: '本题考察宋金时期的商业贸易。',
-    materialType: '贸易',
+    materialType: undefined,
   },
   {
     id: 'ln-u3-2024-4',
@@ -445,7 +445,7 @@ export const liaoningExams: LiaoningExam[] = [
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
     analysis: '本题考察元代城市经济。',
-    materialType: '经济',
+    materialType: undefined,
   },
   {
     id: 'ln-u3-2025-4',
