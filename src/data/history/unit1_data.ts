@@ -4,6 +4,9 @@
  * 基于新版自学提纲整理
  */
 
+// 导入共享类型定义
+import type { TimelineEvent, EventCategory } from '@/types/history';
+
 // 知识结构总览
 export const knowledgeStructure = [
   { period: '旧石器—新石器', theme: '中华文明的起源', concepts: '旧石器时代、新石器时代文化遗存' },
@@ -27,19 +30,7 @@ export const dynastyPeriods = [
   { id: 'han_east', name: '东汉', startYear: '25年', endYear: '220年', color: '#8B0000' },
 ];
 
-// 时间轴事件
-export interface TimelineEvent {
-  id: string;
-  year: string;
-  title: string;
-  dynasty: string;
-  category: '政治' | '经济' | '思想' | '文化' | '军事' | '社会';
-  summary: string;
-  impact?: string;
-  importance: 1 | 2 | 3 | 4 | 5;
-  keyPeople?: string[];
-}
-
+// 时间轴事件（使用共享类型）
 export const timelineEvents: TimelineEvent[] = [
   // ====== 一、中华文明的起源 ======
   {

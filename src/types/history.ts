@@ -19,6 +19,34 @@ export interface HistoryBook {
   order: number;
 }
 
+// ============ 事件分类配置 ============
+export const EVENT_CATEGORY_CONFIG = {
+  政治: { color: '#2563eb', label: '政治' },
+  经济: { color: '#16a34a', label: '经济' },
+  文化: { color: '#9333ea', label: '文化' },
+  战争: { color: '#dc2626', label: '战争' },
+  科技: { color: '#0891b2', label: '科技' },
+  社会: { color: '#64748b', label: '社会' },
+} as const;
+
+export type EventCategory = keyof typeof EVENT_CATEGORY_CONFIG;
+
+// 历史事件类型别名（兼容旧代码）
+export type HistoryEvent = TimelineEvent;
+
+// ============ 材料分析相关（保留旧功能）============
+export interface AnalysisSource {
+  id: string;
+  title: string;
+  material: string;
+  question: string;
+  difficulty: '简单' | '中等' | '困难';
+  knowledgePoints: string[];
+  hint?: string;
+  answer?: string;
+  analysis?: string;
+}
+
 // ============ 单元相关 ============
 
 export type UnitStatus = 'released' | 'planned';
@@ -82,15 +110,18 @@ export interface TimelineEvent {
   title: string;
   year: string;
   dynasty: string;
-  category: '政治' | '经济' | '文化' | '战争' | '科技' | '社会';
-  curriculumDimension: CurriculumDimension;
+  category: EventCategory;
   summary: string;
+  // 以下字段全部可选，兼容旧数据
+  importance?: 1 | 2 | 3 | 4 | 5;
+  impact?: string;
   impactPositive?: string;
   impactNegative?: string;
   keyPeople?: string[];
-  examFrequency: ExamFrequency;
-  unitId: string;
+  examFrequency?: ExamFrequency;
+  unitId?: string;
   lessonId?: string;
+  curriculumDimension?: CurriculumDimension;
   relatedExams?: LiaoningExamRef[];
   relatedComparisons?: string[];
   relatedConfusions?: string[];
