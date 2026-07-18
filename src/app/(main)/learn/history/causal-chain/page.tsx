@@ -27,8 +27,8 @@ import {
   timelineEvents as builtinTimelineEvents,
   concepts as builtinConcepts,
   causalLinks as builtinCausalLinks,
-  type TimelineEvent,
 } from '@/data/history/unit1_data';
+import type { TimelineEvent } from '@/types/history';
 import type { CausalChain } from '@/app/api/history/causal-chain/route';
 import { useTextbooks } from '@/hooks/useTextbooks';
 
