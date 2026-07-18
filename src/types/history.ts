@@ -70,6 +70,20 @@ export interface AnalysisQuestion {
   analysis?: string;
 }
 
+export interface AnalysisFeedback {
+  score: number;
+  keywordsMatched: string[];
+  keywordsMissed: string[];
+  suggestions: string[];
+}
+
+export interface AnalysisAttempt {
+  questionId: string;
+  userAnswer: string;
+  feedback: AnalysisFeedback;
+  timestamp: number;
+}
+
 export interface HistoryUnit {
   id: string;
   bookId: string;
