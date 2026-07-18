@@ -186,7 +186,7 @@ function AnalysisPageContent() {
                             </Badge>
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            共 {item.questions.length} 题
+                            点击开始训练
                           </p>
                         </div>
                         <Button
