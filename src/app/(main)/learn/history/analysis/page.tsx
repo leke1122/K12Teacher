@@ -186,7 +186,7 @@ function AnalysisPageContent() {
                             </Badge>
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            章节：{item.chapterId} · 共 {item.questions.length} 题
+                            共 {item.questions.length} 题
                           </p>
                         </div>
                         <Button
