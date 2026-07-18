@@ -12,7 +12,8 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
-import type { TimelineEvent, CausalLink } from '@/data/history/unit1_data';
+import type { TimelineEvent } from '@/types/history';
+import type { CausalLink } from '@/data/history/unit1_data';
 import { BookOpen } from 'lucide-react';
 
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
