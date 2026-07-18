@@ -33,35 +33,44 @@ export async function GET(request: NextRequest) {
       // 1a. 精确匹配 unitId
       if (unitId) {
         docxImport = await findDocxImportByUnitId(unitId);
+        console.log('[timeline-data] findDocxImportByUnitId result:', docxImport ? 'found' : 'null', 'unitId:', unitId);
       }
 
       // 1b. 按标题模糊匹配
       const titleTerms = [unit, unitId, '第一单元', '中国古代史'].filter(Boolean) as string[];
       if (!docxImport) {
         for (const term of titleTerms) {
-          docxImport = await findDocxImportByUnitTitle(term);
-          if (docxImport?.data) break;
+          const found = await findDocxImportByUnitTitle(term);
+          if (found?.data) {
+            docxImport = found;
+            console.log('[timeline-data] findDocxImportByUnitTitle found:', term);
+            break;
+          }
         }
       }
 
       if (docxImport?.data) {
-        const docxData = docxImport.data as DocxParseResult;
-        if (docxData.timelineEvents?.length) {
-          events = docxData.timelineEvents.map(e => ({
-            id: e.id,
+        const docxData = docxImport.data as any;
+        console.log('[timeline-data] docxData keys:', Object.keys(docxData));
+        // 兼容两种数据格式：events 或 timelineEvents
+        const sourceEvents = docxData.events || docxData.timelineEvents || [];
+        console.log('[timeline-data] sourceEvents count:', sourceEvents.length);
+        if (sourceEvents.length) {
+          events = sourceEvents.map((e: any) => ({
+            id: e.id || `event-${Math.random().toString(36).substr(2, 9)}`,
             year: parseYear(e.year),
-            title: e.title,
-            dynasty: e.dynasty,
-            figures: e.keyPeople,
-            causes: '',
-            effects: '',
-            summary: e.summary,
-            location: '',
-            difficulty: e.importance >= 4 ? '高频' as const : '中频' as const,
-            book: '上册' as const,
-            unit: docxData.unitTitle,
-            significance: e.impact,
-            importance: e.importance,
+            title: e.title || e.name || '',
+            dynasty: e.dynasty || e.category || '',
+            figures: e.figures || e.keyPeople || [],
+            causes: e.causes || '',
+            effects: e.effects || '',
+            summary: e.summary || e.description || e.definition || '',
+            location: e.location || '',
+            difficulty: (e.importance >= 4 ? '高频' : '中频') as '高频' | '中频',
+            book: '上册',
+            unit: docxData.unitTitle || unitId,
+            significance: e.significance || e.impact || e.effects || '',
+            importance: e.importance || 3,
           }));
           dataSource = 'docx';
           docxMeta = {

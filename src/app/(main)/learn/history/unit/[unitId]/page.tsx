@@ -23,10 +23,21 @@ interface ConceptItem {
 }
 
 interface TimelineEvent {
-  year: string;
+  id?: string;
+  year: number | string;
+  yearEnd?: number | string;
   title: string;
-  category: string;
-  importance: number;
+  category?: string;
+  dynasty?: string;
+  summary?: string;
+  effects?: string;
+  causes?: string;
+  significance?: string;
+  location?: string;
+  figures?: string[];
+  examPoints?: string[];
+  difficulty?: string;
+  importance?: number;
 }
 
 interface CausalLink {
@@ -292,38 +303,74 @@ export default function UnitLearningPage() {
                     <Clock className="h-4 w-4 text-amber-500" />
                     时间轴 - {unit.name}
                   </CardTitle>
+                  <p className="text-sm text-muted-foreground">共 {events.length} 个历史事件</p>
                 </CardHeader>
                 <CardContent>
                   {events.length > 0 ? (
                     <div className="space-y-3">
-                      {events.map((event, idx) => (
+                      {events.map((event, idx) => {
+                        const imp = event.importance || 3;
+                        const displayYear = typeof event.year === 'number' 
+                          ? (event.year < 0 ? `前${Math.abs(event.year)}年` : `${event.year}年`)
+                          : event.year;
+                        return (
                         <div key={idx} className="flex gap-3">
                           <div className="flex flex-col items-center">
                             <div className={`w-3 h-3 rounded-full ${
-                              event.importance >= 5 ? 'bg-red-500' :
-                              event.importance >= 4 ? 'bg-amber-500' : 'bg-blue-500'
+                              imp >= 5 ? 'bg-red-500' :
+                              imp >= 4 ? 'bg-amber-500' : 'bg-blue-500'
                             }`} />
-                            {idx < events.length - 1 && <div className="w-0.5 h-full bg-slate-200" />}
+                            {idx < events.length - 1 && <div className="w-0.5 h-full bg-slate-200 min-h-[60px]" />}
                           </div>
-                          <div className={`flex-1 p-3 rounded-lg ${
-                            event.importance >= 5 ? 'bg-red-50 border border-red-200' :
-                            event.importance >= 4 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50'
+                          <div className={`flex-1 p-4 rounded-lg ${
+                            imp >= 5 ? 'bg-red-50 border border-red-200' :
+                            imp >= 4 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50'
                           }`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-xs">{event.year}</Badge>
-                              <Badge className={`text-xs ${
-                                event.category === '政治' ? 'bg-blue-100 text-blue-700' :
-                                event.category === '经济' ? 'bg-green-100 text-green-700' :
-                                event.category === '文化' ? 'bg-purple-100 text-purple-700' :
-                                'bg-slate-100 text-slate-700'
-                              }`}>
-                                {event.category}
-                              </Badge>
+                            <div className="flex items-center flex-wrap gap-2 mb-2">
+                              <Badge variant="outline" className="font-mono">{displayYear}</Badge>
+                              {event.dynasty && (
+                                <Badge className="bg-orange-100 text-orange-700 border-orange-300">{event.dynasty}</Badge>
+                              )}
+                              {event.category && (
+                                <Badge className={`text-xs ${
+                                  event.category === '政治' ? 'bg-blue-100 text-blue-700' :
+                                  event.category === '经济' ? 'bg-green-100 text-green-700' :
+                                  event.category === '文化' ? 'bg-purple-100 text-purple-700' :
+                                  event.category === '民族' ? 'bg-rose-100 text-rose-700' :
+                                  'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {event.category}
+                                </Badge>
+                              )}
+                              {event.difficulty && (
+                                <Badge variant="outline" className="text-xs text-red-600">
+                                  {event.difficulty}
+                                </Badge>
+                              )}
+                              {imp >= 4 && (
+                                <div className="flex">
+                                  {Array.from({ length: Math.min(imp, 5) }).map((_, i) => (
+                                    <span key={i} className="text-red-500 text-xs">★</span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            <p className="text-sm font-medium">{event.title}</p>
+                            <p className="font-semibold text-slate-800 mb-1">{event.title}</p>
+                            {event.summary && (
+                              <p className="text-sm text-slate-600 line-clamp-2 mb-1">{event.summary}</p>
+                            )}
+                            {event.effects && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                <span className="font-medium">影响：</span>{event.effects}
+                              </p>
+                            )}
+                            {event.location && (
+                              <p className="text-xs text-slate-400 mt-1">地点：{event.location}</p>
+                            )}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-8">暂无时间轴数据</p>
