@@ -38,7 +38,7 @@ export default function LearningPathPage() {
   const [showAllRounds, setShowAllRounds] = useState(false);
 
   const unit = getUnitById(currentUnit);
-  const unitSteps = learningSteps.filter(s => s.unitId === currentUnit);
+  // unitSteps 在当前实现中不需要按单元过滤，学习步骤是全局适用的
 
   const toggleStep = (stepId: string) => {
     const newCompleted = new Set(completedSteps);
