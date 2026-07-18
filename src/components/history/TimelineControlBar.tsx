@@ -186,7 +186,6 @@ export function TimelineControlBar({
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <span>{config.icon}</span>
                     <span>{config.label}</span>
                     {isSelected && <Check className="h-3 w-3 ml-auto" />}
                   </button>
