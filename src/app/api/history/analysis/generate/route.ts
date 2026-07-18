@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerData, setServerData, listServerKeys } from '@/lib/serverStorage';
-import type { AnalysisSource } from '@/types/history';
+import type { AnalysisSource, AnalysisQuestion, AnalysisQuestionType } from '@/types/history';
 
 export interface GenerateAnalysisResponse {
   success: boolean;
@@ -189,15 +189,16 @@ ${contextHint}
     throw new Error('材料分析题问题为空');
   }
 
+  // 合并questions为一个问题字符串以符合AnalysisSource格式
+  const questionText = questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+  
   return {
     id: `analysis_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     title: parsed.title || '历史材料分析',
-    chapterId,
     difficulty: (parsed.difficulty || difficulty) as '简单' | '中等' | '困难',
     material: parsed.material || '',
-    source: parsed.source || '',
-    questions,
-    year: new Date().toISOString().slice(0, 10),
+    question: questionText,
+    knowledgePoints: questions.map(q => q.type),
   };
 }
 
@@ -224,11 +225,11 @@ function normalizeQuestions(input: unknown): AnalysisQuestion[] {
     .filter((q) => q.question.trim().length > 0);
 }
 
-function normalizeQuestionType(value: string): AnalysisQuestionType {
+function normalizeQuestionType(value: string): '选择' | '填空' | '简答' | '论述' {
   const v = value.toLowerCase();
-  if (v === 'event') return 'event';
-  if (v === 'view') return 'view';
-  if (v === 'argument') return 'argument';
-  if (v === 'conclusion') return 'conclusion';
-  return 'event';
+  if (v === '选择' || v === 'choice') return '选择';
+  if (v === '填空' || v === 'fill') return '填空';
+  if (v === '简答' || v === 'short') return '简答';
+  if (v === '论述' || v === 'essay') return '论述';
+  return '简答';
 }
