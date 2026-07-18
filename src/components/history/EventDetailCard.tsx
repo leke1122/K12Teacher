@@ -113,7 +113,7 @@ export function EventDetailCard({
                   color: categoryConfig.color,
                 }}
               >
-                {categoryConfig.icon} {categoryConfig.label}
+                {categoryConfig.label}
               </Badge>
             )}
             {event.importance && (
