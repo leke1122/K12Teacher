@@ -98,59 +98,84 @@ export function HistoryMaterialAnalysis({ chapterId, sectionId }: HistoryMateria
           {loading ? (
             <div className="flex items-center justify-center py-8 gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="text-sm text-muted-foreground">正在加载...</span>
+              <span className="text-sm text-muted-foreground">加载中...</span>
             </div>
-          ) : source ? (
+          ) : !source ? (
+            <div className="text-center py-8 space-y-3">
+              <BookOpen className="h-10 w-10 mx-auto text-slate-300" />
+              <p className="text-sm text-muted-foreground">暂无史料分析内容</p>
+              <Button onClick={handleGenerate} disabled={generating} size="sm" className="gap-1">
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    AI 生成史料分析
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
             <div className="space-y-3">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                 <p className="text-xs font-medium text-emerald-700 mb-1">材料</p>
                 <p className="text-sm text-slate-700 leading-relaxed">{source.material}</p>
-                <p className="text-xs text-muted-foreground mt-2">—— {source.source}</p>
               </div>
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
                 <TabsList className="h-auto gap-1">
-                  {source.questions?.map((q, i) => (
-                    <TabsTrigger key={q.id} value={`q${q.id}`} className="text-xs gap-1">
-                      第{q.id}题 · {q.type === 'event' ? '事件识别' : q.type === 'view' ? '观点提炼' : q.type === 'argument' ? '论证分析' : '结论提炼'}
+                  <TabsTrigger value="material" className="text-xs gap-1">
+                    📜 材料
+                  </TabsTrigger>
+                  <TabsTrigger value="question" className="text-xs gap-1">
+                    ❓ 问题
+                  </TabsTrigger>
+                  {source.answer && (
+                    <TabsTrigger value="answer" className="text-xs gap-1">
+                      ✅ 答案
                     </TabsTrigger>
-                  ))}
+                  )}
                 </TabsList>
 
-                {source.questions?.map((q) => (
-                  <TabsContent key={q.id} value={`q${q.id}`} className="space-y-2">
-                    <div className="rounded-lg border p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {q.type === 'event' ? '事件识别' : q.type === 'view' ? '观点提炼' : q.type === 'argument' ? '论证分析' : '结论提炼'}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">期望关键词：{q.expectedKeywords?.join('、')}</Badge>
-                      </div>
-                      <p className="text-sm font-medium text-slate-700">{q.question}</p>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-xs font-medium text-slate-500 mb-1">参考答案</p>
-                        <p className="text-sm text-slate-700">{q.modelAnswer}</p>
-                      </div>
-                      {q.hints?.length > 0 && (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                          <p className="text-xs font-medium text-amber-700 mb-1">学习提示</p>
-                          {q.hints.map((hint, i) => (
-                            <p key={i} className="text-xs text-amber-600">{i + 1}. {hint}</p>
-                          ))}
+                <TabsContent value="material">
+                  <Card>
+                    <CardContent className="p-3 text-sm">
+                      <p className="leading-relaxed">{source.material}</p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="question">
+                  <Card>
+                    <CardContent className="p-3 text-sm space-y-2">
+                      <p className="leading-relaxed whitespace-pre-wrap">{source.question}</p>
+                      {source.knowledgePoints && source.knowledgePoints.length > 0 && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground mb-1">相关知识点：</p>
+                          <div className="flex flex-wrap gap-1">
+                            {source.knowledgePoints.map((kp, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">{kp}</Badge>
+                            ))}
+                          </div>
                         </div>
                       )}
-                    </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {source.answer && (
+                  <TabsContent value="answer">
+                    <Card>
+                      <CardContent className="p-3 text-sm">
+                        <pre className="whitespace-pre-wrap font-sans leading-relaxed">{source.answer}</pre>
+                      </CardContent>
+                    </Card>
                   </TabsContent>
-                ))}
+                )}
               </Tabs>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <BookOpen className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground mb-2">暂无史料分析内容</p>
-              <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
-                {generating ? '生成中...' : '生成史料分析'}
-              </Button>
             </div>
           )}
         </CardContent>
