@@ -1,39 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import {
-  BookOpen, Sparkles, Loader2, ArrowRight, Lock,
+  BookOpen, ArrowRight, Lock,
   Clock, Layers, Link2, GitCompare, Brain, FileText, MapPin,
   GitFork, BookMarked, Target, Zap, TrendingUp, FileQuestion,
-  BarChart3, Calculator, Brain as BrainIcon
+  BarChart3, Brain as BrainIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { historyBooks } from '@/data/history/books';
-import { releasedUnits, getUnitById } from '@/data/history/units';
+import { releasedUnits } from '@/data/history/units';
+import { Suspense } from 'react';
 
-// 新版历史首页组件
-export default function HistorySubjectPage() {
+function HistorySubjectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeBookId, setActiveBookId] = useState('outline-upper');
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [activeBookId, setActiveBookId] = useState(() => {
     const bookParam = searchParams.get('book');
-    if (bookParam) {
-      setActiveBookId(bookParam);
-    }
-  }, [searchParams]);
+    return bookParam || 'outline-upper';
+  });
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const currentBook = historyBooks.find(b => b.id === activeBookId);
   const bookUnits = releasedUnits.filter(u => u.bookId === activeBookId);
 
-  // 功能模块定义
   const textbookFeatures = [
     { icon: BookOpen, name: '教材还原学习', desc: '上传PDF教材，AI智能还原课本内容', href: '/learn/history/textbook', color: 'blue' },
   ];
@@ -45,7 +39,7 @@ export default function HistorySubjectPage() {
     { icon: Brain, name: '知识点学习', desc: '精读细节掌握考点', href: '/learn/history/knowledge/u1', color: 'pink' },
     { icon: GitCompare, name: '对比表', desc: '18个必背对比表', href: '/learn/history/compare', color: 'orange' },
     { icon: Layers, name: '历史卡牌', desc: '间隔重复记忆', href: '/learn/history/cards', color: 'cyan' },
-    { icon: Sparkles, name: '阶段口诀', desc: '特征口诀背诵', href: '/learn/history/formulas', color: 'violet' },
+    { icon: SparklesIcon, name: '阶段口诀', desc: '特征口诀背诵', href: '/learn/history/formulas', color: 'violet' },
   ];
 
   const reviewFeatures = [
@@ -69,7 +63,6 @@ export default function HistorySubjectPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
-        {/* 顶部标题 */}
         <div className="text-center py-4">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             📜 历史学习中心
@@ -77,10 +70,9 @@ export default function HistorySubjectPage() {
           <p className="text-muted-foreground">辽宁省高考历史 · 中外历史纲要上册</p>
         </div>
 
-        {/* 教材切换器 */}
         <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-blue-600" />
                 <span className="font-semibold">📖 教材切换</span>
@@ -117,9 +109,7 @@ export default function HistorySubjectPage() {
           </CardContent>
         </Card>
 
-        {/* 四大功能区 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* 教材还原 */}
           <FeatureSection
             title="📕 教材还原学习"
             subtitle="PDF教材智能学习"
@@ -128,10 +118,7 @@ export default function HistorySubjectPage() {
             features={textbookFeatures}
             expanded={expandedSection === 'textbook'}
             onToggle={() => setExpandedSection(expandedSection === 'textbook' ? null : 'textbook')}
-            isNew={false}
           />
-
-          {/* 按课学习 */}
           <FeatureSection
             title="📚 按课学习"
             subtitle="单元细粒度精读"
@@ -141,10 +128,7 @@ export default function HistorySubjectPage() {
             expanded={expandedSection === 'lesson'}
             onToggle={() => setExpandedSection(expandedSection === 'lesson' ? null : 'lesson')}
             units={bookUnits}
-            isNew={true}
           />
-
-          {/* 全局复习 */}
           <FeatureSection
             title="🔥 全局复习"
             subtitle="跨单元综合复习"
@@ -153,10 +137,7 @@ export default function HistorySubjectPage() {
             features={reviewFeatures}
             expanded={expandedSection === 'review'}
             onToggle={() => setExpandedSection(expandedSection === 'review' ? null : 'review')}
-            isNew={false}
           />
-
-          {/* 辽宁高考专版 */}
           <FeatureSection
             title="🎯 辽宁高考专版"
             subtitle="针对性备考训练"
@@ -165,11 +146,9 @@ export default function HistorySubjectPage() {
             features={examFeatures}
             expanded={expandedSection === 'exam'}
             onToggle={() => setExpandedSection(expandedSection === 'exam' ? null : 'exam')}
-            isNew={true}
           />
         </div>
 
-        {/* 学习路径入口 */}
         <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -192,7 +171,6 @@ export default function HistorySubjectPage() {
           </CardContent>
         </Card>
 
-        {/* 底部统计 */}
         <div className="flex justify-center gap-6 text-sm text-muted-foreground">
           <span>📊 第一二三单元已发布</span>
           <span>📝 18个对比表</span>
@@ -205,6 +183,17 @@ export default function HistorySubjectPage() {
   );
 }
 
+function SparklesIcon(props: any) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m12 3-1.912 5.66 5.66-5.66 1.912 5.66-5.66L12 3z"/>
+      <path d="M19 13.913 16.34 16.34l-2.66 2.574-2.574-2.66L16.34 16.34z"/>
+      <path d="M5 13.913 2 16.34l2.66 2.574 2.574-2.66L5 16.34z"/>
+      <path d="m12 21-1.912 5.66 5.66-5.66 1.912 5.66-5.66L12 21z"/>
+    </svg>
+  );
+}
+
 interface FeatureSectionProps {
   title: string;
   subtitle: string;
@@ -214,10 +203,9 @@ interface FeatureSectionProps {
   expanded: boolean;
   onToggle: () => void;
   units?: any[];
-  isNew?: boolean;
 }
 
-function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded, onToggle, units, isNew }: FeatureSectionProps) {
+function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded, onToggle, units }: FeatureSectionProps) {
   const colorMap: Record<string, string> = {
     blue: 'border-blue-200 bg-blue-50',
     indigo: 'border-indigo-200 bg-indigo-50',
@@ -245,10 +233,7 @@ function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                {title}
-                {isNew && <Badge className="bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs">NEW</Badge>}
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">{title}</CardTitle>
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             </div>
           </div>
@@ -261,7 +246,6 @@ function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded
       <CardContent>
         {expanded ? (
           <div className="space-y-3">
-            {/* 单元列表 */}
             {units && units.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">选择单元：</p>
@@ -274,7 +258,6 @@ function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded
                 </div>
               </div>
             )}
-            {/* 功能列表 */}
             <div className="grid grid-cols-2 gap-2">
               {features.map((feature) => {
                 const FeatureIcon = feature.icon;
@@ -318,5 +301,13 @@ function FeatureSection({ title, subtitle, icon: Icon, color, features, expanded
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export default function HistorySubjectPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">加载中...</div>}>
+      <HistorySubjectContent />
+    </Suspense>
   );
 }
