@@ -567,7 +567,7 @@ export const comparisonTables: ComparisonTable[] = [
     unitId: 'u3',
     bookId: 'outline-upper',
     type: 'system',
-    curriculumDimension: '经济与贸易',
+    curriculumDimension: '思想文化',
     examFrequency: '★★☆',
     leftEntity: {
       name: '北宋交子',
