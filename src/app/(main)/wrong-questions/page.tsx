@@ -305,9 +305,11 @@ function WrongQuestionsContent() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
-      <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
-        {/* 搜索框 */}
-        <div className="relative">
+      {/* 固定页头：筛选区域 */}
+      <div className="sticky top-16 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="container mx-auto px-4 py-3 space-y-3">
+          {/* 搜索框 */}
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={search}
@@ -317,96 +319,121 @@ function WrongQuestionsContent() {
             />
           </div>
 
-          {/* 学科筛选 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-500 flex items-center gap-1"><Filter className="h-3 w-3" />学科:</span>
-            <button
-              onClick={() => setSubjectFilter('all')}
-              className={cn(
-                'px-2 py-0.5 rounded-lg text-xs border transition-colors',
-                subjectFilter === 'all'
-                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400'
-                  : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300'
-              )}
-            >
-              全部
-            </button>
-            {Object.entries(subjectStats).map(([subj]) => {
-              const info = SUBJECT_MAP[subj];
-              if (!info) return null;
-              return (
-                <button
-                  key={subj}
-                  onClick={() => setSubjectFilter(subjectFilter === subj ? 'all' : subj)}
-                  className={cn(
-                    'px-2 py-0.5 rounded-lg text-xs border transition-colors',
-                    subjectFilter === subj
-                      ? `${info.bg} ${info.color} border-current`
-                      : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300'
-                  )}
-                >
-                  {info.name} ({subjectStats[subj]})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* 学习类型筛选 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-500 flex items-center gap-1"><Sparkles className="h-3 w-3" />类型:</span>
-            <button
-              onClick={() => setActivityTypeFilter('all')}
-              className={cn(
-                'px-2 py-0.5 rounded-lg text-xs border transition-colors',
-                activityTypeFilter === 'all'
-                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400'
-                  : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300'
-              )}
-            >
-              全部
-            </button>
-            {Object.entries(ACTIVITY_TYPE_MAP).map(([type, cfg]) => {
-              const count = wrongQuestions.filter(wq => inferActivityType(wq) === type).length;
-              if (count === 0) return null;
-              return (
-                <button
-                  key={type}
-                  onClick={() => setActivityTypeFilter(activityTypeFilter === type ? 'all' : type)}
-                  className={cn(
-                    'px-2 py-0.5 rounded-lg text-xs border transition-colors',
-                    activityTypeFilter === type
-                      ? `${cfg.bg} ${cfg.color} border-current`
-                      : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300'
-                  )}
-                >
-                  {cfg.label} ({count})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* 掌握状态筛选 */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
+          {/* 筛选区域：学科 + 类型 + 掌握状态 */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* 掌握状态筛选 */}
+            <div className="flex gap-1 mr-2">
               {[
                 { key: 'all', label: '全部' },
                 { key: 'unmastered', label: '未掌握' },
                 { key: 'mastered', label: '已掌握' },
               ].map(f => (
-                <Button
+                <button
                   key={f.key}
-                  size="sm"
-                  variant={filter === f.key ? 'default' : 'outline'}
                   onClick={() => setFilter(f.key as typeof filter)}
-                  className="rounded-lg text-xs"
+                  className={cn(
+                    'px-2 py-1 rounded-lg border transition-colors',
+                    filter === f.key
+                      ? 'bg-indigo-500 text-white border-indigo-500'
+                      : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                  )}
                 >
                   {f.label}
-                </Button>
+                </button>
               ))}
             </div>
-            <Badge variant="outline" className="text-sm">{filtered.length}题</Badge>
+
+            <span className="text-slate-300">|</span>
+
+            {/* 学科筛选 */}
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-slate-400 flex items-center gap-1 mr-1">
+                <Filter className="h-3 w-3" />
+              </span>
+              <button
+                onClick={() => setSubjectFilter('all')}
+                className={cn(
+                  'px-2 py-1 rounded-lg border transition-colors',
+                  subjectFilter === 'all'
+                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400'
+                    : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                )}
+              >
+                全部
+              </button>
+              {Object.entries(subjectStats).map(([subj]) => {
+                const info = SUBJECT_MAP[subj];
+                if (!info) return null;
+                return (
+                  <button
+                    key={subj}
+                    onClick={() => setSubjectFilter(subjectFilter === subj ? 'all' : subj)}
+                    className={cn(
+                      'px-2 py-1 rounded-lg border transition-colors',
+                      subjectFilter === subj
+                        ? `${info.bg} ${info.color} border-current`
+                        : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    )}
+                  >
+                    {info.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <span className="text-slate-300">|</span>
+
+            {/* 类型筛选 */}
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-slate-400 flex items-center gap-1 mr-1">
+                <Sparkles className="h-3 w-3" />
+              </span>
+              <button
+                onClick={() => setActivityTypeFilter('all')}
+                className={cn(
+                  'px-2 py-1 rounded-lg border transition-colors',
+                  activityTypeFilter === 'all'
+                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400'
+                    : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                )}
+              >
+                全部
+              </button>
+              {Object.entries(ACTIVITY_TYPE_MAP).map(([type, cfg]) => {
+                const count = wrongQuestions.filter(wq => inferActivityType(wq) === type).length;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setActivityTypeFilter(activityTypeFilter === type ? 'all' : type)}
+                    className={cn(
+                      'px-2 py-1 rounded-lg border transition-colors',
+                      activityTypeFilter === type
+                        ? `${cfg.bg} ${cfg.color} border-current`
+                        : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    )}
+                  >
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
+          {/* 结果统计 */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">共 {filtered.length} 道错题</span>
+            {weakPoints.length > 0 && (
+              <span className="text-amber-600 dark:text-amber-400">
+                {weakPoints.length} 个薄弱项
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 内容区域 */}
+      <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
         {/* 薄弱项统计 */}
         {weakPoints.length > 0 && (
           <Card className="border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
