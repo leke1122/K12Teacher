@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  ArrowLeft, BookOpen, CheckCircle, XCircle, 
-  ChevronDown, ChevronUp, Lightbulb, AlertCircle,
+  ChevronUp, BookOpen, CheckCircle, XCircle, 
+  Lightbulb, AlertCircle,
   Loader2, Sparkles, RotateCcw, Home
 } from 'lucide-react';
 import { ChapterSectionSelector } from '@/components/math/ChapterSectionSelector';
@@ -143,26 +143,9 @@ export default function MathPracticePage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-      {/* 顶部导航 */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/subjects/math')}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              返回
-            </Button>
-            <h1 className="font-bold text-lg">数学章节练习</h1>
-          </div>
-          {selectedSection && questions.length > 0 && (
-            <Button variant="outline" size="sm" onClick={resetPractice}>
-              <RotateCcw className="h-4 w-4 mr-1" />
-              重新练习
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* 去掉内部页头，内容直接显示在主导航栏下方 */}
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
+      <div className="max-w-4xl mx-auto p-4 space-y-4">
         {!selectedSection ? (
           /* 章节选择器 */
           <ChapterSectionSelector onSelect={handleSectionSelect} />
