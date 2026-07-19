@@ -752,6 +752,28 @@ export default function WordsPage() {
   const [isMastering, setIsMastering] = useState(false);
   const [practiceLoading, setPracticeLoading] = useState(false);
   const learningRecordRef = useRef<string | null>(null);
+  
+  // 保存学习进度到 localStorage
+  const saveProgress = (wordId: string, frequencyLevel: string) => {
+    localStorage.setItem('word_learning_progress', JSON.stringify({
+      wordId,
+      frequency: frequencyLevel,
+      lastTime: new Date().toISOString()
+    }));
+  };
+  
+  // 获取上次学习进度
+  const getLastProgress = (): { wordId: string; frequency: string } | null => {
+    const saved = localStorage.getItem('word_learning_progress');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
   // 加载已掌握单词列表
   const fetchMasteredWords = useCallback(async () => {
@@ -848,10 +870,26 @@ export default function WordsPage() {
       const res = await fetch(`/api/words/list?${params}`);
       const data = await res.json();
       if (data.success) {
-        setWords(data.words || []);
+        const wordList = data.words || [];
+        setWords(wordList);
         // 只更新 total（未学习数），保留其他本地 stats
         setStats(prev => ({ ...prev, total: data.stats.total }));
-        setCurrentIndex(0);
+        
+        // 断点续学：查找上次学习的单词位置
+        const lastProgress = getLastProgress();
+        if (lastProgress && lastProgress.frequency === frequency && wordList.length > 0) {
+          // 查找上次学习的单词在列表中的位置
+          const savedIndex = wordList.findIndex(w => w.id === lastProgress.wordId || w.word === lastProgress.wordId);
+          if (savedIndex !== -1) {
+            setCurrentIndex(savedIndex);
+            console.log('[Words] 恢复学习进度：', lastProgress.wordId, '位置:', savedIndex);
+          } else {
+            setCurrentIndex(0);
+          }
+        } else {
+          // 新学习或切换了频率级别，从头开始
+          setCurrentIndex(0);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch words:', err);
@@ -948,6 +986,11 @@ export default function WordsPage() {
         newIndex = newWordsList.length - 1;
       }
       setCurrentIndex(newIndex);
+      
+      // 保存学习进度到 localStorage
+      if (newWordsList.length > 0 && newWordsList[newIndex]) {
+        saveProgress(newWordsList[newIndex].id, frequency);
+      }
 
       // 后台刷新一次统计数据，以服务端为准
       await refreshStats();
@@ -959,15 +1002,36 @@ export default function WordsPage() {
   };
   
   const handleSkip = () => {
-    if (words.length > 0) setCurrentIndex((prev) => (prev + 1) % words.length);
+    if (words.length > 0) {
+      const newIndex = (currentIndex + 1) % words.length;
+      setCurrentIndex(newIndex);
+      // 保存进度
+      if (words[newIndex]) {
+        saveProgress(words[newIndex].id, frequency);
+      }
+    }
   };
   
   const handleRandom = () => {
-    if (words.length > 0) setCurrentIndex(Math.floor(Math.random() * words.length));
+    if (words.length > 0) {
+      const newIndex = Math.floor(Math.random() * words.length);
+      setCurrentIndex(newIndex);
+      // 保存进度
+      if (words[newIndex]) {
+        saveProgress(words[newIndex].id, frequency);
+      }
+    }
   };
   
   const handlePrev = () => {
-    if (words.length > 0) setCurrentIndex((prev) => (prev - 1 + words.length) % words.length);
+    if (words.length > 0) {
+      const newIndex = (currentIndex - 1 + words.length) % words.length;
+      setCurrentIndex(newIndex);
+      // 保存进度
+      if (words[newIndex]) {
+        saveProgress(words[newIndex].id, frequency);
+      }
+    }
   };
   
   const startPractice = async () => {
@@ -1060,7 +1124,14 @@ export default function WordsPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <Select value={frequency} onValueChange={(v: typeof frequency) => { setFrequency(v); setCurrentIndex(0); }}>
+            <Select value={frequency} onValueChange={(v: typeof frequency) => { 
+              // 切换频率前先保存当前进度
+              if (currentWord && words.length > 0) {
+                saveProgress(currentWord.id, frequency);
+              }
+              setFrequency(v); 
+              setCurrentIndex(0); 
+            }}>
               <SelectTrigger className="w-32 h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -1180,7 +1251,13 @@ export default function WordsPage() {
                   <Button variant="outline" size="icon" onClick={handleRandom} className="rounded-full h-10 w-10">
                     <Shuffle className="h-5 w-5" />
                   </Button>
-                  <Button variant="default" size="icon" onClick={() => setCurrentIndex((prev) => (prev + 1) % words.length)} className="rounded-full h-12 w-12 bg-indigo-500 hover:bg-indigo-600">
+                  <Button variant="default" size="icon" onClick={() => {
+                    const newIndex = (currentIndex + 1) % words.length;
+                    setCurrentIndex(newIndex);
+                    if (words[newIndex]) {
+                      saveProgress(words[newIndex].id, frequency);
+                    }
+                  }} className="rounded-full h-12 w-12 bg-indigo-500 hover:bg-indigo-600">
                     <ChevronRight className="h-6 w-6" />
                   </Button>
                 </div>
