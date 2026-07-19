@@ -39,6 +39,7 @@ export default function FunctionPracticePage() {
   const userId = 'personal-user';
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeLabel, setSelectedNodeLabel] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -54,13 +55,28 @@ export default function FunctionPracticePage() {
     hard: functionGraphNodes.filter(n => n.difficulty === 3),
   };
 
-  const handleNodeSelect = async (nodeId: string) => {
-    setSelectedNodeId(nodeId);
+  // 重置到知识点选择状态
+  const resetToNodeSelection = () => {
+    setSelectedNodeId(null);
+    setSelectedNodeLabel('');
     setQuestions([]);
     setUserAnswers({});
     setShowResult(false);
     setPracticeComplete(false);
     setCurrentIndex(0);
+    setResult(null);
+  };
+
+  const handleNodeSelect = async (nodeId: string) => {
+    const node = functionGraphNodes.find(n => n.id === nodeId);
+    setSelectedNodeId(nodeId);
+    setSelectedNodeLabel(node?.label || '');
+    setQuestions([]);
+    setUserAnswers({});
+    setShowResult(false);
+    setPracticeComplete(false);
+    setCurrentIndex(0);
+    setResult(null);
 
     // 加载练习题
     setLoading(true);
@@ -76,7 +92,7 @@ export default function FunctionPracticePage() {
         }),
       });
       const data = await res.json();
-      if (data.success && data.questions) {
+      if (data.success && data.questions && data.questions.length > 0) {
         setQuestions(data.questions);
       } else {
         // 使用内置题库
@@ -278,11 +294,12 @@ export default function FunctionPracticePage() {
                 </h2>
                 <p className="text-muted-foreground mb-4">{result!.nodeLabel} 得分：{result!.score}分</p>
                 <div className="flex gap-2 justify-center">
-                  <Button variant="outline" onClick={() => { setShowResult(false); setSelectedNodeId(null); }}>
-                    选择其他知识点
+                  <Button variant="outline" onClick={resetToNodeSelection}>
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    返回知识点选择
                   </Button>
                   {result!.score < 80 && (
-                    <Button onClick={() => { setShowResult(false); handleNodeSelect(selectedNodeId!); }}>
+                    <Button onClick={() => handleNodeSelect(selectedNodeId!)}>
                       <RefreshCw className="h-4 w-4 mr-1" />
                       再练一次
                     </Button>
