@@ -305,22 +305,10 @@ function WrongQuestionsContent() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
-      {/* 顶部 */}
-      <div className="sticky top-16 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="container mx-auto px-4 py-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="gap-1">
-                  <ArrowLeft className="h-4 w-4" />返回
-                </Button>
-              </Link>
-              <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">错题集</h1>
-            </div>
-            <Badge variant="outline" className="text-sm">{filtered.length}题</Badge>
-          </div>
-
-          {/* 搜索 */}
+      <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
+        {/* 搜索和筛选区域 */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-md p-4 space-y-3">
+          {/* 搜索框 */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -400,27 +388,28 @@ function WrongQuestionsContent() {
           </div>
 
           {/* 掌握状态筛选 */}
-          <div className="flex gap-2">
-            {[
-              { key: 'all', label: '全部' },
-              { key: 'unmastered', label: '未掌握' },
-              { key: 'mastered', label: '已掌握' },
-            ].map(f => (
-              <Button
-                key={f.key}
-                size="sm"
-                variant={filter === f.key ? 'default' : 'outline'}
-                onClick={() => setFilter(f.key as typeof filter)}
-                className="rounded-lg text-xs"
-              >
-                {f.label}
-              </Button>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {[
+                { key: 'all', label: '全部' },
+                { key: 'unmastered', label: '未掌握' },
+                { key: 'mastered', label: '已掌握' },
+              ].map(f => (
+                <Button
+                  key={f.key}
+                  size="sm"
+                  variant={filter === f.key ? 'default' : 'outline'}
+                  onClick={() => setFilter(f.key as typeof filter)}
+                  className="rounded-lg text-xs"
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+            <Badge variant="outline" className="text-sm">{filtered.length}题</Badge>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
         {/* 薄弱项统计 */}
         {weakPoints.length > 0 && (
           <Card className="border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
