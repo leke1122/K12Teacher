@@ -195,6 +195,20 @@ export default function MathPage() {
                 <p className="text-xs text-slate-400 mt-0.5">知识图谱</p>
               </div>
             </button>
+
+            {/* 二级结论 */}
+            <button
+              onClick={() => router.push('/learn/math/conclusions')}
+              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-center"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-emerald-100 dark:bg-emerald-900 group-hover:scale-110 transition-transform">
+                🎯
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">二级结论</p>
+                <p className="text-xs text-slate-400 mt-0.5">高考高频考点</p>
+              </div>
+            </button>
           </div>
         </div>
 
