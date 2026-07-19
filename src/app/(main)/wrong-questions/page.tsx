@@ -572,7 +572,61 @@ function WrongQuestionsContent() {
                 {/* 选项（详情展示所有选项） */}
                 <OptionListDetail wq={selected} />
 
-                {/* 答案对比（无选项时降级显示） */}
+                {/* 错误选项 vs 正确答案对比 */}
+                {(() => {
+                  const opts = parseOptions(selected.options);
+                  const userLetter = (selected.userAnswer || '').toUpperCase().trim();
+                  const correctLetter = (selected.correctAnswer || '').toUpperCase().trim();
+                  const wrong = isWrong(selected);
+                  
+                  if (!wrong || opts.length === 0) return null;
+                  
+                  const userOption = opts.find(o => o.letter === userLetter);
+                  const correctOption = opts.find(o => o.letter === correctLetter);
+                  
+                  if (!userOption || !correctOption) return null;
+                  
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">答案对比</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-xl border-2 border-red-200 dark:border-red-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                              {userOption.letter}
+                            </span>
+                            <span className="text-xs font-medium text-red-600 dark:text-red-400">你的答案</span>
+                          </div>
+                          <p className="text-sm text-red-700 dark:text-red-300">{userOption.content}</p>
+                        </div>
+                        <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-xl border-2 border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 rounded-full bg-green-500 text-white text-xs font-bold">
+                              {correctOption.letter}
+                            </span>
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">正确答案</span>
+                          </div>
+                          <p className="text-sm text-green-700 dark:text-green-300">{correctOption.content}</p>
+                        </div>
+                      </div>
+                      {/* 对比讲解 */}
+                      {selected.wrongReason && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">🔍 错因分析</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300">{selected.wrongReason}</p>
+                        </div>
+                      )}
+                      {selected.stepAnalysis && (
+                        <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                          <p className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">📝 正确思路</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300">{selected.stepAnalysis}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 答案解析（无选项时显示） */}
                 {parseOptions(selected.options).length === 0 && (
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
