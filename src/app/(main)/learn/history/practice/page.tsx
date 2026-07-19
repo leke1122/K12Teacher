@@ -160,7 +160,7 @@ export default function HistoryPractice() {
         weakPoint: '',
         stepAnalysis: '',
         solutionSteps: '',
-        difficulty: question.difficulty,
+        difficulty: (question.difficulty === 'easy' ? 'simple' : question.difficulty) as 'simple' | 'medium' | 'hard',
         createdAt: new Date().toISOString(),
         isMastered: false,
       };
