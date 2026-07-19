@@ -42,6 +42,9 @@ interface TimelineEvent {
   examPoints?: string[];
   difficulty?: string;
   importance?: number;
+  gaokaoFocus?: string;
+  timeRange?: string;
+  relatedEvents?: string[];
 }
 
 interface CausalLink {
