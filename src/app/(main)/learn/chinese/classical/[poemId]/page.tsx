@@ -10,7 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, BookOpen, Sparkles, Loader2,
   Languages, FileText, RotateCcw, ChevronRight,
-  CheckCircle, XCircle, Volume2, Square
+  CheckCircle, XCircle, Volume2, Square,
+  Target, Brain, Award
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { fallbackGetPDF } from '@/lib/localFallback';
@@ -162,7 +163,7 @@ function ClassicalReadPageContent() {
   // 状态
   const [phase, setPhase] = useState<'loading' | 'learning'>('loading');
   const [originalText, setOriginalText] = useState('');
-  const [activeTab, setActiveTab] = useState<'read' | 'translate' | 'words'>('read');
+  const [activeTab, setActiveTab] = useState<'read' | 'translate' | 'words' | 'practice'>('read');
   const [wordFilter, setWordFilter] = useState<'全部' | '实词' | '虚词' | '句式' | '文化常识'>('全部');
   const [translations, setTranslations] = useState<TranslationSentence[]>([]);
   const [wordAnalysis, setWordAnalysis] = useState<ClassicalAnalysis | null>(null);
@@ -172,6 +173,20 @@ function ClassicalReadPageContent() {
   const [showTranslation, setShowTranslation] = useState(false);
   const [selectedWord, setSelectedWord] = useState<WordItem | null>(null);
   const [masteredWords, setMasteredWords] = useState<Set<string>>(new Set());
+
+  // 练习状态
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [practiceQuestions, setPracticeQuestions] = useState<{
+    word: string;
+    question: string;
+    options: string[];
+    correctAnswer: string;
+    explanation: string;
+  }[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
 
   // 加载课本内容
   useEffect(() => {
@@ -278,6 +293,96 @@ function ClassicalReadPageContent() {
     });
   };
 
+  // 生成练习题（根据已提取的字词生成选择题）
+  const generatePracticeQuestions = () => {
+    if (!wordAnalysis) return;
+
+    const questions: {
+      word: string;
+      question: string;
+      options: string[];
+      correctAnswer: string;
+      explanation: string;
+    }[] = [];
+
+    // 从实词生成题目
+    const allRealWords = wordAnalysis.realWords.filter(w => w.meaning && w.meaning.length > 1);
+    const allFunctionWords = wordAnalysis.functionWords.filter(w => w.meaning && w.meaning.length > 1);
+    const allCulturalKnowledge = wordAnalysis.culturalKnowledge.filter(w => w.meaning && w.meaning.length > 1);
+    
+    // 合并所有有注释的字词
+    const allMeaningfulWords = [
+      ...allRealWords.map(w => ({ ...w, category: '实词' })),
+      ...allFunctionWords.map(w => ({ ...w, category: '虚词' })),
+      ...allCulturalKnowledge.map(w => ({ ...w, category: '文化常识' })),
+    ].filter(w => w.meaning && w.meaning.length > 1);
+
+    // 打乱顺序并取前8个
+    const shuffled = allMeaningfulWords.sort(() => Math.random() - 0.5).slice(0, 8);
+
+    shuffled.forEach(wordItem => {
+      // 收集其他选项（从同一类别的词中选取）
+      const sameCategory = allMeaningfulWords.filter(w => 
+        w.category === wordItem.category && w.word !== wordItem.word
+      );
+      
+      // 随机选取2-3个干扰项
+      const distractors = sameCategory
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map(w => w.meaning);
+
+      // 如果干扰项不够，从其他类别补充
+      while (distractors.length < 3) {
+        const randomWord = allMeaningfulWords[Math.floor(Math.random() * allMeaningfulWords.length)];
+        if (!distractors.includes(randomWord.meaning) && randomWord.word !== wordItem.word) {
+          distractors.push(randomWord.meaning);
+        }
+      }
+
+      // 构建选项
+      const options = [wordItem.meaning, ...distractors.slice(0, 3)]
+        .filter((v, i, a) => a.indexOf(v) === i) // 去重
+        .sort(() => Math.random() - 0.5);
+
+      questions.push({
+        word: wordItem.word,
+        question: `"${wordItem.word}"在文中的意思是？`,
+        options: options.length >= 4 ? options.slice(0, 4) : [...options, '其他意思'],
+        correctAnswer: wordItem.meaning,
+        explanation: `${wordItem.category} "${wordItem.word}"：${wordItem.meaning}${wordItem.example ? `。例：${wordItem.example}` : ''}`,
+      });
+    });
+
+    setPracticeQuestions(questions);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setShowAnswer(false);
+    setPracticeScore({ correct: 0, total: questions.length });
+    setPracticeMode(true);
+    setActiveTab('practice');
+  };
+
+  // 处理答题
+  const handleAnswer = (answer: string) => {
+    if (showAnswer) return;
+    setSelectedAnswer(answer);
+    setShowAnswer(true);
+    
+    if (answer === practiceQuestions[currentQuestionIndex].correctAnswer) {
+      setPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+    }
+  };
+
+  // 下一题
+  const nextQuestion = () => {
+    if (currentQuestionIndex < practiceQuestions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setSelectedAnswer(null);
+      setShowAnswer(false);
+    }
+  };
+
   const allWords = wordAnalysis
     ? [
         ...wordAnalysis.realWords.map(w => ({ ...w, category: '实词' as WordCategory })),
@@ -360,6 +465,20 @@ function ClassicalReadPageContent() {
             {loadingWords ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             字词精析
           </Button>
+          <Button
+            variant={activeTab === 'practice' ? 'default' : 'outline'}
+            onClick={() => {
+              if (activeTab !== 'practice' || !practiceMode) {
+                generatePracticeQuestions();
+              }
+            }}
+            disabled={!wordAnalysis || wordAnalysis.realWords.length + wordAnalysis.functionWords.length < 4}
+            className="gap-2"
+            title="需要先提取字词"
+          >
+            <Target className="h-4 w-4" />
+            注释练习
+          </Button>
           <div className="flex-1" />
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span>已掌握：{masteredWords.size}/{allWords.length}</span>
@@ -368,9 +487,159 @@ function ClassicalReadPageContent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 左侧/上方：原文 + 翻译 */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* 左侧/上方：原文 + 翻译 或 练习 */}
+          <div className={cn(
+            'space-y-4',
+            activeTab === 'practice' ? 'lg:col-span-3' : 'lg:col-span-2'
+          )}>
+            {/* 练习模式全宽显示 */}
+            {activeTab === 'practice' && practiceQuestions.length > 0 && (
+              <Card className="border-0 shadow-xl overflow-hidden">
+                <div className="h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500" />
+                <CardHeader className="bg-gradient-to-r from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-amber-500" />
+                    <span>注释练习</span>
+                    <span className="text-xs text-slate-400 ml-auto">
+                      {currentQuestionIndex + 1} / {practiceQuestions.length}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* 进度条 */}
+                  <div className="space-y-2">
+                    <Progress value={(currentQuestionIndex / practiceQuestions.length) * 100} className="h-2" />
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>正确率：{Math.round((practiceScore.correct / Math.max(1, currentQuestionIndex + (showAnswer ? 1 : 0))) * 100)}%</span>
+                      <span>已答 {currentQuestionIndex + (showAnswer ? 1 : 0)} 题，答对 {practiceScore.correct} 题</span>
+                    </div>
+                  </div>
+
+                  {/* 当前题目 */}
+                  {practiceQuestions[currentQuestionIndex] && (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl p-6 border border-amber-200 dark:border-amber-800">
+                        <p className="text-xl font-bold text-slate-800 dark:text-slate-200 text-center mb-2">
+                          {practiceQuestions[currentQuestionIndex].question}
+                        </p>
+                        <p className="text-sm text-slate-500 text-center">
+                          选自《{info.title}》
+                        </p>
+                      </div>
+
+                      {/* 选项 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {practiceQuestions[currentQuestionIndex].options.map((option, idx) => {
+                          const isSelected = selectedAnswer === option;
+                          const isCorrect = option === practiceQuestions[currentQuestionIndex].correctAnswer;
+                          const showResult = showAnswer;
+
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => !showAnswer && handleAnswer(option)}
+                              disabled={showAnswer}
+                              className={cn(
+                                'w-full p-4 rounded-xl border-2 text-left transition-all',
+                                'hover:scale-[1.02] active:scale-[0.98]',
+                                !showResult && 'hover:border-amber-400 hover:bg-amber-50/50',
+                                showResult && isCorrect && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30',
+                                showResult && isSelected && !isCorrect && 'border-red-500 bg-red-50 dark:bg-red-950/30',
+                                showResult && !isSelected && !isCorrect && 'border-slate-200 dark:border-slate-700 opacity-60',
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                                  showResult && isCorrect && 'bg-emerald-500 text-white',
+                                  showResult && isSelected && !isCorrect && 'bg-red-500 text-white',
+                                  !showResult && 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+                                )}>
+                                  {showResult && isCorrect && <CheckCircle className="h-5 w-5" />}
+                                  {showResult && isSelected && !isCorrect && <XCircle className="h-5 w-5" />}
+                                  {!showResult && String.fromCharCode(65 + idx)}
+                                </span>
+                                <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  {option}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 解析 */}
+                      {showAnswer && (
+                        <div className={cn(
+                          'rounded-xl p-4 border',
+                          selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer
+                            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'
+                        )}>
+                          <div className="flex items-start gap-3">
+                            {selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer ? (
+                              <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-slate-800 dark:text-slate-200 mb-1">
+                                {selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer
+                                  ? '回答正确！'
+                                  : '回答错误'}
+                              </p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
+                                💡 {practiceQuestions[currentQuestionIndex].explanation}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 下一题/完成按钮 */}
+                      <div className="flex gap-3">
+                        {showAnswer && currentQuestionIndex < practiceQuestions.length - 1 && (
+                          <Button onClick={nextQuestion} className="flex-1 gap-2">
+                            下一题
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {showAnswer && currentQuestionIndex === practiceQuestions.length - 1 && (
+                          <Button
+                            onClick={() => {
+                              setPracticeMode(false);
+                              setActiveTab('words');
+                            }}
+                            className="flex-1 gap-2"
+                          >
+                            <Award className="h-4 w-4" />
+                            完成练习 · 得分 {practiceScore.correct}/{practiceQuestions.length}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 练习入口（当有字词但未开始练习时） */}
+            {activeTab === 'practice' && practiceQuestions.length === 0 && wordAnalysis && (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="p-8 text-center">
+                  <Brain className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                  <p className="text-slate-600 dark:text-slate-400 mb-2">检测到 {allWords.length} 个字词</p>
+                  <p className="text-sm text-slate-500 mb-4">点击下方按钮生成注释练习</p>
+                  <Button onClick={generatePracticeQuestions} className="gap-2">
+                    <Target className="h-4 w-4" />
+                    开始练习
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 原文卡片 */}
+            {activeTab !== 'practice' && (
             <Card className="border-0 shadow-xl overflow-hidden">
               <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
               <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10">
@@ -479,9 +748,156 @@ function ClassicalReadPageContent() {
                 </CardContent>
               </Card>
             )}
+
+            {/* 注释练习 */}
+            {activeTab === 'practice' && practiceQuestions.length > 0 && (
+              <Card className="border-0 shadow-xl overflow-hidden">
+                <div className="h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500" />
+                <CardHeader className="bg-gradient-to-r from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-amber-500" />
+                    <span>注释练习</span>
+                    <span className="text-xs text-slate-400 ml-auto">
+                      {currentQuestionIndex + 1} / {practiceQuestions.length}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* 进度条 */}
+                  <div className="space-y-2">
+                    <Progress value={(currentQuestionIndex / practiceQuestions.length) * 100} className="h-2" />
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>正确率：{Math.round((practiceScore.correct / Math.max(1, currentQuestionIndex + (showAnswer ? 1 : 0))) * 100)}%</span>
+                      <span>已答 {currentQuestionIndex + (showAnswer ? 1 : 0)} 题，答对 {practiceScore.correct} 题</span>
+                    </div>
+                  </div>
+
+                  {/* 当前题目 */}
+                  {practiceQuestions[currentQuestionIndex] && (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl p-6 border border-amber-200 dark:border-amber-800">
+                        <p className="text-xl font-bold text-slate-800 dark:text-slate-200 text-center mb-2">
+                          {practiceQuestions[currentQuestionIndex].question}
+                        </p>
+                        <p className="text-sm text-slate-500 text-center">
+                          选自《{info.title}》
+                        </p>
+                      </div>
+
+                      {/* 选项 */}
+                      <div className="grid grid-cols-1 gap-3">
+                        {practiceQuestions[currentQuestionIndex].options.map((option, idx) => {
+                          const isSelected = selectedAnswer === option;
+                          const isCorrect = option === practiceQuestions[currentQuestionIndex].correctAnswer;
+                          const showResult = showAnswer;
+
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => !showAnswer && handleAnswer(option)}
+                              disabled={showAnswer}
+                              className={cn(
+                                'w-full p-4 rounded-xl border-2 text-left transition-all',
+                                'hover:scale-[1.02] active:scale-[0.98]',
+                                !showResult && 'hover:border-amber-400 hover:bg-amber-50/50',
+                                showResult && isCorrect && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30',
+                                showResult && isSelected && !isCorrect && 'border-red-500 bg-red-50 dark:bg-red-950/30',
+                                showResult && !isSelected && !isCorrect && 'border-slate-200 dark:border-slate-700 opacity-60',
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                                  showResult && isCorrect && 'bg-emerald-500 text-white',
+                                  showResult && isSelected && !isCorrect && 'bg-red-500 text-white',
+                                  !showResult && 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+                                )}>
+                                  {showResult && isCorrect && <CheckCircle className="h-5 w-5" />}
+                                  {showResult && isSelected && !isCorrect && <XCircle className="h-5 w-5" />}
+                                  {!showResult && String.fromCharCode(65 + idx)}
+                                </span>
+                                <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  {option}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 解析 */}
+                      {showAnswer && (
+                        <div className={cn(
+                          'rounded-xl p-4 border',
+                          selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer
+                            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'
+                        )}>
+                          <div className="flex items-start gap-3">
+                            {selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer ? (
+                              <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-slate-800 dark:text-slate-200 mb-1">
+                                {selectedAnswer === practiceQuestions[currentQuestionIndex].correctAnswer
+                                  ? '回答正确！'
+                                  : '回答错误'}
+                              </p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
+                                💡 {practiceQuestions[currentQuestionIndex].explanation}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 下一题/完成按钮 */}
+                      <div className="flex gap-3">
+                        {showAnswer && currentQuestionIndex < practiceQuestions.length - 1 && (
+                          <Button onClick={nextQuestion} className="flex-1 gap-2">
+                            下一题
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {showAnswer && currentQuestionIndex === practiceQuestions.length - 1 && (
+                          <Button
+                            onClick={() => {
+                              setPracticeMode(false);
+                              setActiveTab('words');
+                            }}
+                            className="flex-1 gap-2"
+                          >
+                            <Award className="h-4 w-4" />
+                            完成练习 · 得分 {practiceScore.correct}/{practiceQuestions.length}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 练习入口（当有字词但未开始练习时） */}
+            {activeTab === 'practice' && practiceQuestions.length === 0 && wordAnalysis && (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="p-8 text-center">
+                  <Brain className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                  <p className="text-slate-600 dark:text-slate-400 mb-2">检测到 {allWords.length} 个字词</p>
+                  <p className="text-sm text-slate-500 mb-4">点击下方按钮生成注释练习</p>
+                  <Button onClick={generatePracticeQuestions} className="gap-2">
+                    <Target className="h-4 w-4" />
+                    开始练习
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* 右侧/下方：字词精析 */}
+          {/* 右侧/下方：字词精析（非练习模式时显示） */}
+          {activeTab !== 'practice' && (
           <div className="space-y-4">
             {activeTab === 'words' && wordAnalysis ? (
               <>
@@ -620,6 +1036,7 @@ function ClassicalReadPageContent() {
               </CardContent>
             </Card>
           </div>
+          )}
         </div>
       </div>
     </div>
