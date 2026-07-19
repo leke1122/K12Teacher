@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { releasedUnits } from '@/data/history/units';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 interface ConceptItem {
   id: string;
@@ -100,6 +101,7 @@ export default function UnitLearningPage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [causalLinks, setCausalLinks] = useState<CausalLink[]>([]);
   const [cards, setCards] = useState<CardItem[]>([]);
+  const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
   
   // 详情对话框状态
   const [detailDialog, setDetailDialog] = useState<{open: boolean; type: string; data: any}>({
@@ -369,8 +371,8 @@ export default function UnitLearningPage() {
                     <div className="space-y-3">
                       {events.map((event, idx) => {
                         const imp = event.importance || 3;
-                        // 使用预格式化的yearDisplay，如果没有则格式化
                         const displayYear = event.yearDisplay || (event.year !== undefined && event.year !== null ? String(event.year) : '');
+                        const isExpanded = expandedEventId === idx;
                         // 查找相关知识点
                         const relatedConcepts = concepts.filter(c => 
                           c.name.includes(event.title) || 
@@ -380,8 +382,10 @@ export default function UnitLearningPage() {
                         return (
                         <div 
                           key={idx} 
-                          className="flex gap-3 cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors"
-                          onClick={() => setDetailDialog({open: true, type: 'timeline', data: {event, relatedConcepts}})}
+                          className={cn(
+                            "flex gap-3 cursor-pointer p-2 rounded-lg transition-all",
+                            isExpanded ? "bg-amber-50 border-2 border-amber-300" : "hover:bg-slate-50"
+                          )}
                         >
                           <div className="flex flex-col items-center">
                             <div className={`w-3 h-3 rounded-full ${
@@ -390,39 +394,170 @@ export default function UnitLearningPage() {
                             }`} />
                             {idx < events.length - 1 && <div className="w-0.5 flex-1 bg-slate-200 min-h-[40px]" />}
                           </div>
-                          <div className={`flex-1 p-3 rounded-lg ${
-                            imp >= 5 ? 'bg-red-50 border border-red-200' :
-                            imp >= 4 ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-slate-200'
-                          }`}>
-                            <div className="flex items-center flex-wrap gap-2 mb-1">
-                              <Badge variant="outline" className="font-mono text-xs">{displayYear}</Badge>
-                              {event.dynasty && (
-                                <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs">{event.dynasty}</Badge>
-                              )}
-                              {event.category && (
-                                <Badge className={`text-xs ${
-                                  event.category === '政治' ? 'bg-blue-100 text-blue-700' :
-                                  event.category === '经济' ? 'bg-green-100 text-green-700' :
-                                  event.category === '文化' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-slate-100 text-slate-700'
-                                }`}>
-                                  {event.category}
-                                </Badge>
-                              )}
-                              {imp >= 4 && (
-                                <div className="flex">
-                                  {Array.from({ length: Math.min(imp, 5) }).map((_, i) => (
-                                    <span key={i} className="text-red-500 text-xs">★</span>
-                                  ))}
+                          <div className="flex-1">
+                            {/* 折叠状态：显示标题和简介 */}
+                            <div 
+                              className="flex items-start justify-between"
+                              onClick={() => setExpandedEventId(isExpanded ? null : idx)}
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center flex-wrap gap-2 mb-1">
+                                  <Badge className="font-mono text-xs bg-red-100 text-red-700 border-red-300">{displayYear}</Badge>
+                                  {event.dynasty && (
+                                    <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs">{event.dynasty}</Badge>
+                                  )}
+                                  {event.category && (
+                                    <Badge className={`text-xs ${
+                                      event.category === '政治' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                                      event.category === '经济' ? 'bg-green-100 text-green-700 border-green-300' :
+                                      event.category === '文化' ? 'bg-purple-100 text-purple-700 border-purple-300' :
+                                      'bg-slate-100 text-slate-700 border-slate-300'
+                                    }`}>
+                                      {event.category}
+                                    </Badge>
+                                  )}
+                                  {imp >= 4 && (
+                                    <div className="flex">
+                                      {Array.from({ length: Math.min(imp, 5) }).map((_, i) => (
+                                        <span key={i} className="text-red-500 text-xs">★</span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                                <p className="font-semibold text-slate-800 mb-1">{event.title}</p>
+                                {!isExpanded && event.summary && (
+                                  <p className="text-sm text-slate-600 line-clamp-2 mb-1">{event.summary}</p>
+                                )}
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-xs text-slate-500 ml-2 flex-shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedEventId(isExpanded ? null : idx);
+                                }}
+                              >
+                                {isExpanded ? '收起 ▲' : '展开 ▼'}
+                              </Button>
                             </div>
-                            <p className="font-semibold text-slate-800 mb-1">{event.title}</p>
-                            {event.summary && (
-                              <p className="text-sm text-slate-600 line-clamp-2 mb-1">{event.summary}</p>
+
+                            {/* 展开状态：显示完整内容 */}
+                            {isExpanded && (
+                              <div className="mt-3 space-y-3 pt-3 border-t border-amber-200">
+                                {/* 事件概述 */}
+                                {event.summary && (
+                                  <div>
+                                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{event.summary}</p>
+                                  </div>
+                                )}
+                                
+                                {/* 详细信息 */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  {event.effects && (
+                                    <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                                      <p className="text-xs font-medium text-green-700 mb-1">📖 历史影响</p>
+                                      <p className="text-xs text-slate-600">{event.effects}</p>
+                                    </div>
+                                  )}
+                                  {event.causes && (
+                                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                                      <p className="text-xs font-medium text-blue-700 mb-1">📖 历史原因</p>
+                                      <p className="text-xs text-slate-600">{event.causes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* 高考重点 */}
+                                {event.gaokaoFocus && (
+                                  <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
+                                    <p className="text-xs font-medium text-purple-700 mb-1">🎯 高考重点</p>
+                                    <p className="text-xs text-slate-600">{event.gaokaoFocus}</p>
+                                  </div>
+                                )}
+                                
+                                {/* 时间范围 */}
+                                {event.timeRange && (
+                                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <span>📅 时间范围：</span>
+                                    <span>{event.timeRange}</span>
+                                  </div>
+                                )}
+                                
+                                {/* 相关事件 */}
+                                {event.relatedEvents && event.relatedEvents.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <span className="text-xs font-medium text-slate-500">🔗 相关事件：</span>
+                                    {event.relatedEvents.map((re, ri) => (
+                                      <span key={ri} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{re}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* 相关知识点 */}
+                                {relatedConcepts.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <span className="text-xs font-medium text-slate-500">📚 相关知识点：</span>
+                                    {relatedConcepts.map((c, ci) => (
+                                      <button
+                                        key={ci}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDetailDialog({open: true, type: 'knowledge', data: c});
+                                        }}
+                                        className="px-2 py-0.5 rounded-full text-xs bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 hover:border-pink-300 transition-colors cursor-pointer"
+                                      >
+                                        {c.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* AI生成详解按钮 */}
+                                {!event.summary && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 text-purple-600 w-full"
+                                    disabled={generatingSummary}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!event) return;
+                                      setGeneratingSummary(true);
+                                      try {
+                                        const summary = await generateEventSummary(event, unitId);
+                                        if (summary) {
+                                          setEvents(prev => prev.map((ev, i) => 
+                                            i === idx ? { ...ev, summary } : ev
+                                          ));
+                                        }
+                                      } finally {
+                                        setGeneratingSummary(false);
+                                      }
+                                    }}
+                                  >
+                                    <Sparkles className="h-3 w-3" />
+                                    AI生成详解
+                                  </Button>
+                                )}
+                                
+                                {/* 查看完整详情按钮 */}
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="w-full gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailDialog({open: true, type: 'timeline', data: {event, relatedConcepts}});
+                                  }}
+                                >
+                                  查看完整详情
+                                </Button>
+                              </div>
                             )}
-                            {/* 显示相关知识点 - 可点击 */}
-                            {relatedConcepts.length > 0 && (
+                            
+                            {/* 折叠状态：显示相关知识点 */}
+                            {!isExpanded && relatedConcepts.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {relatedConcepts.map((c, ci) => (
                                   <button
@@ -437,11 +572,6 @@ export default function UnitLearningPage() {
                                   </button>
                                 ))}
                               </div>
-                            )}
-                            {event.effects && (
-                              <p className="text-xs text-slate-500 mt-1">
-                                <span className="font-medium">影响：</span>{event.effects.substring(0, 50)}...
-                              </p>
                             )}
                           </div>
                         </div>
