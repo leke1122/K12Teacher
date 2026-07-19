@@ -879,7 +879,7 @@ export default function WordsPage() {
         const lastProgress = getLastProgress();
         if (lastProgress && lastProgress.frequency === frequency && wordList.length > 0) {
           // 查找上次学习的单词在列表中的位置
-          const savedIndex = wordList.findIndex(w => w.id === lastProgress.wordId || w.word === lastProgress.wordId);
+          const savedIndex = wordList.findIndex((w: any) => w.id === lastProgress.wordId || w.word === lastProgress.wordId);
           if (savedIndex !== -1) {
             setCurrentIndex(savedIndex);
             console.log('[Words] 恢复学习进度：', lastProgress.wordId, '位置:', savedIndex);
