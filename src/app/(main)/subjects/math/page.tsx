@@ -195,20 +195,6 @@ export default function MathPage() {
                 <p className="text-xs text-slate-400 mt-0.5">知识图谱</p>
               </div>
             </button>
-
-            {/* 章节课后练习 */}
-            <button
-              onClick={() => router.push('/learn/math/practice')}
-              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30 hover:border-green-400 dark:hover:border-green-600 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-center"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-green-100 dark:bg-green-900 group-hover:scale-110 transition-transform">
-                📝
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">章节练习</p>
-                <p className="text-xs text-slate-400 mt-0.5">精准出题</p>
-              </div>
-            </button>
           </div>
         </div>
 

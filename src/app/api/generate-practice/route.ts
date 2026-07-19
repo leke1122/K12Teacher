@@ -13,6 +13,11 @@ import {
   buildTypeDescription,
   type QuestionType,
 } from '@/lib/questionUtils';
+import {
+  getSectionKnowledge,
+  validateQuestion,
+  type SectionKnowledge,
+} from '@/data/math/chapterKnowledgeIndex';
 
 /**
  * 生成章节练习题
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
     const typeList = generateQuestionTypeList(difficulty as 'simple' | 'medium' | 'hard', questionCount);
 
     // 构建学科特定的出题提示词
-    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
+    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, String(chapterId), sectionId);
 
     if (apiKey) {
       try {
@@ -110,13 +115,15 @@ function buildSubjectPrompt(
   currentStr: string,
   previousStr: string,
   forbiddenKnowledge: string[],
-  pdfContext: string
+  pdfContext: string,
+  chapterId?: string,
+  sectionId?: string
 ): { system: string; user: string } {
   const diffLabel = { simple: '简单', medium: '中等', hard: '困难' }[difficulty] || '中等';
 
   // 根据学科选择不同的提示词模板
   if (subjectId === 'math') {
-    return buildMathPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
+    return buildMathPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, chapterId, sectionId);
   }
   if (subjectId === 'physics') {
     return buildPhysicsPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
@@ -142,8 +149,15 @@ function buildMathPrompt(
   currentStr: string,
   previousStr: string,
   forbiddenKnowledge: string[],
-  pdfContext: string
+  pdfContext: string,
+  chapterId?: string,
+  sectionId?: string
 ): { system: string; user: string } {
+  const mathKnowledge = chapterId && sectionId ? getSectionKnowledge(chapterId, sectionId) : null;
+  const forbiddenPatternsWarning = mathKnowledge?.forbiddenPatterns 
+    ? `\n\n【禁止的题型模式（出题时绝对不能出现以下模式）】\n${mathKnowledge.forbiddenPatterns.map(p => `- ${p.reason}`).join('\n')}` : '';
+  const requiredPatternsWarning = mathKnowledge?.requiredPatterns
+    ? `\n\n【必须包含的题型特征（每道题必须有）】\n${mathKnowledge.requiredPatterns.map(p => `- ${p.reason}`).join('\n')}` : '';
   const systemPrompt = `你是一位资深高中数学教师，精通辽宁高考出题规律，擅长设计原创练习题。
 
 【核心原则】
@@ -151,6 +165,7 @@ function buildMathPrompt(
 2. 严格超纲控制：只允许使用“当前小节知识点”和“之前小节知识点”，禁止引入后续章节的任何概念、符号或解法
 3. 不重复：每次生成的题目必须不同，通过改变数值、表述、角度实现
 4. 严谨规范：使用标准数学符号和术语
+${forbiddenPatternsWarning}${requiredPatternsWarning}
 
 【允许使用的知识点】
 当前小节知识点：
