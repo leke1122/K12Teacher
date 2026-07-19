@@ -294,6 +294,17 @@ const ALL_SUBJECT_KNOWLEDGE: Record<string, Record<string, PracticeSectionKnowle
 };
 
 /**
+ * 标准化章节 ID
+ * 支持 "1" -> "1", "ch1" -> "1", "1.1" -> "1.1"
+ */
+function normalizeChapterId(chapterId: string): string {
+  if (chapterId.startsWith('ch')) {
+    return chapterId.substring(2);
+  }
+  return chapterId;
+}
+
+/**
  * 解析小节 ID，提取章节编号
  * 支持格式: "1.1", "1.1.1", "lesson_1_1", "unit_1", "lesson_1_1_1"
  */
@@ -333,6 +344,8 @@ export function getKnowledgeRange(
   chapterId: string,
   sectionId: string
 ): { currentKnowledge: PracticeSectionKnowledge[]; previousKnowledge: PracticeSectionKnowledge[] } {
+  // 标准化 chapterId：支持 "ch1" -> "1"
+  const normalizedChapterId = normalizeChapterId(chapterId);
   const subjectKnowledge = ALL_SUBJECT_KNOWLEDGE[subjectId] || {};
   
   // 收集所有小节（跨章节）
@@ -454,6 +467,8 @@ export function getForbiddenKnowledge(
   chapterId: string,
   sectionId: string
 ): string[] {
+  // 标准化 chapterId
+  const normalizedChapterId = normalizeChapterId(chapterId);
   const subjectKnowledge = ALL_SUBJECT_KNOWLEDGE[subjectId] || {};
   
   // 收集所有小节（跨章节）

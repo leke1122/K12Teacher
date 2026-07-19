@@ -79,6 +79,10 @@ function PracticePageContent() {
   const [handwritingWritingMode, setHandwritingWritingMode] = useState(false);
   // 数位板映射状态
   const learningRecordRef = useRef<string | null>(null);
+  // 反馈功能
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'wrong_topic' | 'wrong_answer' | 'other'>('wrong_topic');
 
   // 学习记录：进入时开始，离开时结束
   useEffect(() => {
@@ -297,6 +301,34 @@ function PracticePageContent() {
     });
   };
 
+  // 提交反馈
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) return;
+    
+    const feedback = {
+      type: feedbackType,
+      subjectId,
+      chapterId,
+      sectionId,
+      sectionTitle: sectionTitle || `第${chapterId}章`,
+      difficulty,
+      questionText: currentQuestion?.text || '',
+      correctAnswer: currentQuestion?.correctAnswer || '',
+      feedback: feedbackText,
+      timestamp: new Date().toISOString(),
+      url: typeof window !== 'undefined' ? window.location.href : '',
+    };
+    
+    // 保存到本地
+    const feedbacks = JSON.parse(localStorage.getItem('practice_feedbacks') || '[]');
+    feedbacks.push(feedback);
+    localStorage.setItem('practice_feedbacks', JSON.stringify(feedbacks));
+    
+    setShowFeedbackModal(false);
+    setFeedbackText('');
+    alert('反馈已提交，感谢您的反馈！');
+  };
+
   const handleRestart = () => {
     setPhase('select');
     setQuestions([]);
@@ -482,6 +514,15 @@ function PracticePageContent() {
                       <Badge variant="outline" className="text-xs">{currentQuestion.knowledgePoint}</Badge>
                     )}
                     <Badge variant="outline" className="text-xs ml-auto">第{currentIndex + 1}题</Badge>
+                    {/* 反馈按钮 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowFeedbackModal(true)}
+                      className="text-xs text-orange-500 hover:text-orange-600 ml-auto"
+                    >
+                      报告问题
+                    </Button>
                   </div>
                   <p className="text-base font-medium text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
                     <MathContent content={currentQuestion.text} />
@@ -805,6 +846,17 @@ function PracticePageContent() {
             </div>
           </div>
         </div>
+
+        {/* 反馈弹窗 */}
+        <FeedbackModal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          feedbackType={feedbackType}
+          setFeedbackType={setFeedbackType}
+          feedbackText={feedbackText}
+          setFeedbackText={setFeedbackText}
+          onSubmit={submitFeedback}
+        />
       </div>
     );
   }
@@ -825,7 +877,7 @@ function PracticePageContent() {
           </div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-2">章节练习</h1>
           <p className="text-slate-500">
-            {getSubjectName(subjectId)} · 第{chapterId}章 · 第{sectionId}节
+            {getSubjectName(subjectId)} · {sectionTitle || `第${chapterId}章`}{sectionTitle && sectionId !== 'all' ? ` · ${sectionId}` : ''}
           </p>
         </div>
 
@@ -916,5 +968,75 @@ export default function PracticePage() {
     }>
       <PracticePageContent />
     </Suspense>
+  );
+}
+
+// 反馈弹窗组件
+function FeedbackModal({
+  isOpen,
+  onClose,
+  feedbackType,
+  setFeedbackType,
+  feedbackText,
+  setFeedbackText,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  feedbackType: 'wrong_topic' | 'wrong_answer' | 'other';
+  setFeedbackType: (type: 'wrong_topic' | 'wrong_answer' | 'other') => void;
+  feedbackText: string;
+  setFeedbackText: (text: string) => void;
+  onSubmit: () => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">报告问题</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">问题类型</label>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'wrong_topic' as const, label: '题目超纲', desc: '题目标题与内容不符' },
+                { key: 'wrong_answer' as const, label: '答案错误', desc: '正确答案有误' },
+                { key: 'other' as const, label: '其他问题', desc: '其他问题反馈' },
+              ].map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setFeedbackType(opt.key)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-sm border transition-colors',
+                    feedbackType === opt.key
+                      ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">详细描述</label>
+            <textarea
+              value={feedbackText}
+              onChange={e => setFeedbackText(e.target.value)}
+              placeholder="请描述具体问题..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm resize-none h-24"
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>取消</Button>
+            <Button onClick={onSubmit} disabled={!feedbackText.trim()}>提交反馈</Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
