@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowLeft, Sparkles,
+  Sparkles,
   BookOpen, BookMarked, FileQuestion, Star
 } from 'lucide-react';
 import Link from 'next/link';
@@ -23,18 +23,10 @@ export default function PoliticsKnowledgePage() {
       {/* 固定页头 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-4 py-3">
-          {/* 顶部导航 */}
-          <div className="flex items-center gap-3 mb-3">
-            <Link href="/subjects/politics">
-              <Button variant="ghost" size="sm" className="gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">思想政治 · 知识点学习</h1>
-              <p className="text-xs text-slate-500">必背内容 · 引导式学习 · AI问答</p>
-            </div>
+          {/* 标题 */}
+          <div className="mb-3">
+            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">思想政治 · 知识点学习</h1>
+            <p className="text-xs text-slate-500">必背内容 · 引导式学习 · AI问答</p>
           </div>
 
           {/* 学习模式选择卡片 */}
