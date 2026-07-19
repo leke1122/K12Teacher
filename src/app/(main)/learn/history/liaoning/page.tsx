@@ -216,8 +216,8 @@ function ExamDetailDialog({ exam, onClose }: { exam: LiaoningExam; onClose: () =
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <CardHeader className="sticky top-0 bg-white border-b">
+      <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto bg-white dark:bg-slate-800" onClick={e => e.stopPropagation()}>
+        <CardHeader className="sticky top-0 bg-white dark:bg-slate-800 border-b">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-red-500" />
