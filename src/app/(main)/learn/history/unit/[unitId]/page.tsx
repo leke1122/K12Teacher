@@ -287,7 +287,7 @@ export default function UnitLearningPage() {
                     <Play className="h-10 w-10 mx-auto mb-3 text-green-600" />
                     <h3 className="font-bold text-lg text-green-800 mb-2">开始综合练习</h3>
                     <p className="text-sm text-green-600 mb-4">检验学习成果 · 高考真题</p>
-                    <Button className="bg-green-500 hover:bg-green-600" onClick={() => router.push(`/learn/history/${unitId}/practice`)}>
+                    <Button className="bg-green-500 hover:bg-green-600" onClick={() => router.push(`/learn/history/practice`)}>
                       进入练习
                     </Button>
                   </CardContent>

@@ -18,6 +18,56 @@ export interface CausalChain {
   deepEffects: CausalChainNode[];
 }
 
+// 内置因果链数据（用于 fallback）
+const BUILT_IN_CAUSAL_LINKS = [
+  { from: '商鞅变法', to: '秦国统一六国', description: '商鞅变法使秦国国富兵强，为统一奠定基础' },
+  { from: '铁器牛耕使用', to: '井田制瓦解', description: '生产力提高推动土地私有制确立' },
+  { from: '周王室衰微', to: '诸侯纷争', description: '分封制崩溃导致争霸战争' },
+  { from: '百家争鸣', to: '儒学成为正统', description: '思想解放为后世文化奠基' },
+  { from: '秦朝统一', to: '郡县制确立', description: '统一推动中央集权制度建立' },
+  { from: '汉武帝大一统', to: '儒学独尊', description: '"罢黜百家，独尊儒术"确立正统思想' },
+  { from: '小农经济形成', to: '封建制度巩固', description: '自给自足的经济模式稳定了封建统治' },
+  { from: '分封制', to: '宗法制', description: '分封制与宗法制互为表里' },
+];
+
+// GET: 获取因果链列表
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const unitId = searchParams.get('unitId') || 'unit1';
+
+  try {
+    let links: { from: string; to: string; description: string }[] = [];
+
+    // 尝试从 Supabase 获取
+    if (isSupabaseConfigured) {
+      const docxImport = await findDocxImportByUnitId(unitId);
+      if (docxImport?.data) {
+        const docxData = docxImport.data as any;
+        if (docxData.causalLinks?.length > 0) {
+          links = docxData.causalLinks.map((l: any) => ({
+            from: l.sourceId || l.from,
+            to: l.targetId || l.to,
+            description: l.logic || l.description || '',
+          }));
+        }
+      }
+    }
+
+    // Fallback: 使用内置数据
+    if (links.length === 0) {
+      links = BUILT_IN_CAUSAL_LINKS;
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { links },
+    });
+  } catch (error) {
+    console.error('[history/causal-chain GET] error:', error);
+    return NextResponse.json({ success: false, message: '获取因果链失败' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));

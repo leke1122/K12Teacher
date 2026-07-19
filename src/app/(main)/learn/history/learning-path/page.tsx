@@ -13,11 +13,11 @@ import Link from 'next/link';
 import { releasedUnits, getUnitById } from '@/data/history/units';
 
 const learningSteps = [
-  { id: 's1', round: 1, name: '知识结构总览', icon: BookOpen, time: '30分钟', route: '/learn/history/overview/u1' },
-  { id: 's2', round: 1, name: '时间轴', icon: Clock, time: '60分钟', route: '/learn/history/timeline/u1' },
+  { id: 's1', round: 1, name: '知识结构总览', icon: BookOpen, time: '30分钟', route: '/learn/history/overview' },
+  { id: 's2', round: 1, name: '时间轴', icon: Clock, time: '60分钟', route: '/learn/history/timeline' },
   { id: 's3', round: 1, name: '因果链', icon: GitBranch, time: '45分钟', route: '/learn/history/causal-chain' },
   { id: 's4', round: 1, name: '阶段口诀', icon: Brain, time: '30分钟', route: '/learn/history/formulas' },
-  { id: 's5', round: 2, name: '知识点学习', icon: BookOpen, time: '90分钟', route: '/learn/history/knowledge/u1' },
+  { id: 's5', round: 2, name: '知识点学习', icon: BookOpen, time: '90分钟', route: '/learn/history/knowledge' },
   { id: 's6', round: 2, name: '历史卡牌', icon: Brain, time: '每日20分钟', route: '/learn/history/cards' },
   { id: 's7', round: 2, name: '对比表', icon: Target, time: '60分钟', route: '/learn/history/compare' },
   { id: 's8', round: 2, name: '易混辨析', icon: Brain, time: '45分钟', route: '/learn/history/confusions' },
@@ -27,7 +27,7 @@ const learningSteps = [
   { id: 's12', round: 3, name: '易错本', icon: Brain, time: '30分钟', route: '/learn/history/confusions?filter=error' },
   { id: 's13', round: 4, name: '论述大题', icon: FileText, time: '90分钟', route: '/learn/history/essay' },
   { id: 's14', round: 4, name: '制度演变', icon: GitBranch, time: '45分钟', route: '/learn/history/evolution' },
-  { id: 's15', round: 4, name: '单元衔接', icon: ArrowRight, time: '30分钟', route: '/learn/history/transition/u1' },
+  { id: 's15', round: 4, name: '单元衔接', icon: ArrowRight, time: '30分钟', route: '/learn/history/transition' },
 ];
 
 const roundNames = ['通读建框架', '精背破细节', '应用对接题', '拔高拿大题'];
