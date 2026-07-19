@@ -29,62 +29,76 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category');
   const difficulty = searchParams.get('difficulty');
 
+  // Fallback 数据（始终可用）
+  let fallbackCards = BUILT_IN_CARDS;
+  if (category) {
+    fallbackCards = fallbackCards.filter((c) => c.category === category);
+  }
+  if (difficulty) {
+    fallbackCards = fallbackCards.filter((c) => c.difficulty === difficulty);
+  }
+
   try {
-    // 从Supabase查询
+    // 从Supabase查询（带超时保护）
     if (isSupabaseConfigured && supabase) {
-      let query = supabase
-        .from('docx_imports')
-        .select('*')
-        .eq('unit_id', unitId || '')
-        .limit(1);
+      try {
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 2000)
+        );
+        const queryPromise = supabase
+          .from('docx_imports')
+          .select('*')
+          .eq('unit_id', unitId || '')
+          .limit(1)
+          .single();
+        const { data: docxImport } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
-      const { data: docxImport } = await query.single();
+        if (docxImport?.data) {
+          const data = docxImport.data as any;
+          let cards = data.cards || [];
 
-      if (docxImport?.data) {
-        const data = docxImport.data as any;
-        let cards = data.cards || [];
+          if (category) {
+            cards = cards.filter((c: any) => c.category === category);
+          }
+          if (difficulty) {
+            cards = cards.filter((c: any) => c.difficulty === difficulty);
+          }
 
-        if (category) {
-          cards = cards.filter((c: any) => c.category === category);
+          return NextResponse.json({
+            success: true,
+            data: {
+              cards,
+              total: cards.length,
+              unitTitle: data.unitTitle,
+              source: 'docx',
+            },
+          });
         }
-        if (difficulty) {
-          cards = cards.filter((c: any) => c.difficulty === difficulty);
-        }
-
-        return NextResponse.json({
-          success: true,
-          data: {
-            cards,
-            total: cards.length,
-            unitTitle: data.unitTitle,
-            source: 'docx',
-          },
-        });
+      } catch (e: any) {
+        console.warn('[cards GET] Supabase 查询失败:', e.message);
       }
     }
 
     // Fallback：使用内置卡牌数据
-    let cards = BUILT_IN_CARDS;
-    if (category) {
-      cards = cards.filter((c) => c.category === category);
-    }
-    if (difficulty) {
-      cards = cards.filter((c) => c.difficulty === difficulty);
-    }
-
     return NextResponse.json({
       success: true,
       data: {
-        cards,
-        total: cards.length,
+        cards: fallbackCards,
+        total: fallbackCards.length,
         unitTitle: '历史学习卡牌',
         source: 'builtin',
       },
     });
   } catch (err) {
+    // 即使出错也返回 fallback
     return NextResponse.json({
-      success: false,
-      error: err instanceof Error ? err.message : '未知错误',
+      success: true,
+      data: {
+        cards: fallbackCards,
+        total: fallbackCards.length,
+        unitTitle: '历史学习卡牌',
+        source: 'builtin',
+      },
     });
   }
 }

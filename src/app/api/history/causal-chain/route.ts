@@ -38,18 +38,28 @@ export async function GET(request: NextRequest) {
   try {
     let links: { from: string; to: string; description: string }[] = [];
 
-    // 尝试从 Supabase 获取
+    // 尝试从 Supabase 获取（带超时保护）
     if (isSupabaseConfigured) {
-      const docxImport = await findDocxImportByUnitId(unitId);
-      if (docxImport?.data) {
-        const docxData = docxImport.data as any;
-        if (docxData.causalLinks?.length > 0) {
-          links = docxData.causalLinks.map((l: any) => ({
-            from: l.sourceId || l.from,
-            to: l.targetId || l.to,
-            description: l.logic || l.description || '',
-          }));
+      try {
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 2000)
+        );
+        const queryPromise = findDocxImportByUnitId(unitId);
+        const docxImport = await Promise.race([queryPromise, timeoutPromise]) as any;
+        
+        if (docxImport?.data) {
+          const docxData = docxImport.data as any;
+          if (docxData.causalLinks?.length > 0) {
+            links = docxData.causalLinks.map((l: any) => ({
+              from: l.sourceId || l.from,
+              to: l.targetId || l.to,
+              description: l.logic || l.description || '',
+            }));
+          }
         }
+      } catch (e: any) {
+        // Supabase 查询超时或失败，使用 fallback
+        console.warn('[causal-chain GET] Supabase 查询失败:', e.message);
       }
     }
 
@@ -64,7 +74,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[history/causal-chain GET] error:', error);
-    return NextResponse.json({ success: false, message: '获取因果链失败' }, { status: 500 });
+    // 即使出错也返回 fallback 数据
+    return NextResponse.json({
+      success: true,
+      data: { links: BUILT_IN_CAUSAL_LINKS },
+    });
   }
 }
 

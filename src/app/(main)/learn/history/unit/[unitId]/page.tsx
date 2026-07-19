@@ -151,9 +151,9 @@ export default function UnitLearningPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+    <div className="bg-slate-50 -m-6 p-6">
       {/* 顶部导航 - 固定在 Header 下方 */}
-      <div className="sticky top-16 z-10 bg-white border-b shadow-sm">
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm -mx-6 -mt-6 px-6 py-3 mb-4">
         <div className="max-w-6xl mx-auto p-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push('/subjects/history')}>
@@ -174,7 +174,7 @@ export default function UnitLearningPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-6xl mx-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-muted-foreground">加载中...</div>
