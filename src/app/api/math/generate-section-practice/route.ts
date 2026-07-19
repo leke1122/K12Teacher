@@ -4,6 +4,7 @@ import {
   getAllChapters, 
   getSectionsByChapter,
   validateTopic,
+  validateTopicLenient,
   type SectionKnowledge 
 } from '@/data/math/chapterKnowledgeIndex';
 
@@ -123,14 +124,24 @@ function parseQuestions(text: string, chapterId: string, sectionId: string): Pra
 
 // 生成练习题
 async function generatePractice(knowledge: SectionKnowledge, chapterId: string, sectionId: string, count: number = 5): Promise<{ questions: PracticeQuestion[]; warning?: string }> {
+  // 构建严格的系统提示
   const systemPrompt = `你是一位专业的高中数学教师。你需要根据给定的知识点生成练习题目。
 
-要求：
-1. 只出本小节范围内的题目
+【重要规则】
+1. 只能出本小节范围内的题目，禁止出现任何后续章节的知识点
 2. 题目难度适中，适合刚学完该小节的学生
 3. 每道题必须有详细的解析
 4. 题目必须原创，不能照抄教材或教辅资料
 5. 选择题和填空题混合
+
+【允许的知识点】
+${knowledge.allowedTopics.join('、')}
+
+【禁止出现的知识点（后续章节）】
+${knowledge.forbiddenTopics.join('、')}
+
+【前置知识点（可以使用）】
+${knowledge.prerequisiteTopics.length > 0 ? knowledge.prerequisiteTopics.join('、') : '无'}
 
 输出格式：
 每道题格式如下：
@@ -150,34 +161,38 @@ D. [选项D]
 
 小节名称：${knowledge.name}
 允许的知识点：${knowledge.allowedTopics.join('、')}
-禁止的知识点（严禁出现）：${knowledge.forbiddenTopics.join('、')}
+禁止的知识点（严禁出现任何以下内容）：${knowledge.forbiddenTopics.join('、')}
+前置知识点（可辅助使用）：${knowledge.prerequisiteTopics.join('、') || '无'}
 页数范围：${knowledge.pageRange}
 小节描述：${knowledge.description}
 
-关键词：${knowledge.keywords.join('、')}
-
-请生成选择题和填空题混合，确保所有题目都严格在该小节范围内。`;
+【关键要求】
+1. 所有题目必须严格只涉及"允许的知识点"
+2. 严禁出现"禁止的知识点"中的任何内容
+3. 例如：如果选择"3.1函数的概念"，则不能出现集合、子集、交集、并集、补集、单调性、奇偶性、导数、三角函数等后续章节的内容
+4. 只能出函数概念相关的题目，如：求定义域、求值域、函数三要素、函数表示法等`;
 
   try {
     const generatedText = await callDeepSeek(prompt, systemPrompt);
     const questions = parseQuestions(generatedText, chapterId, sectionId);
     
-    // 验证题目是否在允许范围内
+    // 严格验证每道题目
     const validQuestions: PracticeQuestion[] = [];
     const warnings: string[] = [];
     
     for (const q of questions) {
+      // 使用严格验证
       const validation = validateTopic(q.question, chapterId, sectionId);
       if (validation.valid) {
         validQuestions.push(q);
       } else {
-        warnings.push(`${q.question.substring(0, 20)}...: ${validation.reason}`);
+        warnings.push(`${q.question.substring(0, 30)}...: ${validation.reason}`);
       }
     }
     
     return {
       questions: validQuestions.length > 0 ? validQuestions : questions,
-      warning: warnings.length > 0 ? `以下题目已过滤：\n${warnings.join('\n')}` : undefined
+      warning: warnings.length > 0 ? `以下题目已过滤（涉及超纲内容）：\n${warnings.join('\n')}` : undefined
     };
   } catch (error) {
     throw error;

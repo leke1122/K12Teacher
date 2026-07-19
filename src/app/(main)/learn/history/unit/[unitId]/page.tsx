@@ -202,9 +202,9 @@ export default function UnitLearningPage() {
     <div className="bg-slate-50">
       {/* 顶部导航和Tab栏 - 整体固定 */}
       <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        {/* 单元标题栏 - 紧凑无间隙 */}
-        <div className="px-4 py-2 border-b border-slate-100">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
+        {/* 单元标题栏 + 学习功能Tab栏 - 合并在一行 */}
+        <div className="max-w-6xl mx-auto px-4 py-2">
+          <div className="flex items-center justify-between gap-4 mb-2">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" className="h-7" onClick={() => router.push('/subjects/history')}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> 返回
@@ -220,10 +220,8 @@ export default function UnitLearningPage() {
               )}
             </div>
           </div>
-        </div>
-        
-        {/* 学习功能Tab栏 */}
-        <div className="max-w-6xl mx-auto px-4 py-2">
+          
+          {/* 学习功能Tab栏 - 单行显示 */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-7 w-full bg-slate-100/50 h-auto">
               <TabsTrigger value="overview" className="text-xs py-1.5">
