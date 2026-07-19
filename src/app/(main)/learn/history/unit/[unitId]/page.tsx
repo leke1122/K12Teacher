@@ -329,9 +329,20 @@ export default function UnitLearningPage() {
                     <div className="space-y-3">
                       {events.map((event, idx) => {
                         const imp = event.importance || 3;
-                        const displayYear = typeof event.year === 'number' 
-                          ? (event.year < 0 ? `前${Math.abs(event.year)}年` : `${event.year}年`)
-                          : event.year;
+                        // 处理年份显示：支持数字、负数（公元前）、字符串（万年前等）
+                        let displayYear: string;
+                        if (typeof event.year === 'number') {
+                          if (event.year < 0) {
+                            displayYear = `前${Math.abs(event.year)}年`;
+                          } else if (event.year < 10000) {
+                            displayYear = `${event.year}年`;
+                          } else {
+                            // 超过10000的认为是万年前的数据
+                            displayYear = `约${event.year}年前`;
+                          }
+                        } else {
+                          displayYear = String(event.year);
+                        }
                         // 查找相关知识点
                         const relatedConcepts = concepts.filter(c => 
                           c.name.includes(event.title) || 
@@ -770,9 +781,19 @@ export default function UnitLearningPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="font-mono text-lg px-3 py-1">
-                    {typeof detailDialog.data.event?.year === 'number' 
-                      ? (detailDialog.data.event.year < 0 ? `前${Math.abs(detailDialog.data.event.year)}年` : `${detailDialog.data.event.year}年`)
-                      : detailDialog.data.event?.year}
+                    {(() => {
+                      const year = detailDialog.data.event?.year;
+                      if (typeof year === 'number') {
+                        if (year < 0) {
+                          return `前${Math.abs(year)}年`;
+                        } else if (year < 10000) {
+                          return `${year}年`;
+                        } else {
+                          return `约${year}年前`;
+                        }
+                      }
+                      return year;
+                    })()}
                   </Badge>
                   {detailDialog.data.event?.dynasty && (
                     <Badge className="bg-orange-100 text-orange-700">{detailDialog.data.event.dynasty}</Badge>
