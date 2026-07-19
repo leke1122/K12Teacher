@@ -98,14 +98,14 @@ export default function GeographyCardsPage() {
 
   if (!current) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
         <div className="w-full px-4 py-4"><p className="text-sm text-slate-500">暂无卡牌</p></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4 space-y-4">
         <div className="flex items-center gap-3">
           <Link href="/learn/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>

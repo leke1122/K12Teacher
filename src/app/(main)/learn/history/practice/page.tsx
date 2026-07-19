@@ -115,7 +115,7 @@ export default function HistoryPractice() {
     const score = Math.round((correctCount / QUESTIONS.length) * 100);
     const grade = score >= 90 ? 'S' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : 'D';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30 p-4">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30 p-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <Link href="/subjects/history"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> 返回</Button></Link>
@@ -144,7 +144,7 @@ export default function HistoryPractice() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30 p-4">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30 p-4">
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center gap-3">
           <Link href="/subjects/history"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> 返回</Button></Link>

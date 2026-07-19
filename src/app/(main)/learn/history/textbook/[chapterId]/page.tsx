@@ -131,7 +131,7 @@ function TextbookPageContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
         <p className="text-sm text-muted-foreground">正在从教材中提取讲解内容...</p>
       </div>
@@ -140,7 +140,7 @@ function TextbookPageContent() {
 
   if (error && !content) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30">
         <div className="w-full px-4 py-4 space-y-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
@@ -165,7 +165,7 @@ function TextbookPageContent() {
   const progress = totalParagraphs > 0 ? Math.round(((currentParagraphIndex + 1) / totalParagraphs) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30">
       <div className="w-full px-4 py-4 space-y-4">
         {/* 顶部 */}
         <div className="flex items-center gap-3">
@@ -399,7 +399,7 @@ export default function HistoryTextbookPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
         </div>
       }

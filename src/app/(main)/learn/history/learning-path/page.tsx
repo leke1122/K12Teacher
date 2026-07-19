@@ -59,7 +59,7 @@ export default function LearningPathPage() {
   const overallProgress = (completedSteps.size / learningSteps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-purple-50/30">
       <div className="max-w-5xl mx-auto p-4 md:p-6">
         {/* 顶部导航 */}
         <div className="flex items-center gap-4 mb-6">

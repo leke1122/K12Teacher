@@ -429,7 +429,7 @@ function PracticePageContent() {
 
   if (phase === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
         <div className="text-center">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-xl animate-pulse">
             <Sparkles className="h-10 w-10 text-white" />
@@ -447,7 +447,7 @@ function PracticePageContent() {
 
   if (phase === 'practicing' && currentQuestion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
         {/* 顶部导航 */}
         <div className="sticky top-16 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
           <div className="container mx-auto px-4 py-3">
@@ -832,7 +832,7 @@ function PracticePageContent() {
 
   // 难度选择页面
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
       <div className="container mx-auto px-4 py-8 max-w-lg">
         <div className="flex items-center gap-3 mb-8">
           <Link href={`/subjects/${subjectId}`}>
@@ -931,7 +931,7 @@ function PracticePageContent() {
 export default function PracticePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
       </div>
     }>

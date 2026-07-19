@@ -66,7 +66,7 @@ const SUBJECT_OPTIONS = [
 
 export default function HistoryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={<div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div>}>
       <HistoryPageContent />
     </Suspense>
   );
@@ -257,7 +257,7 @@ function HistoryPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
       <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

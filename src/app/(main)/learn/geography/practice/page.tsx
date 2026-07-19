@@ -61,7 +61,7 @@ export default function GeographyPracticePage() {
   const currentQuestion = questions[currentIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4">
         <div className="flex items-center gap-3 mb-4">
           <Link href="/learn/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>

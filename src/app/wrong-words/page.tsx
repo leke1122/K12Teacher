@@ -154,7 +154,7 @@ export default function WrongWordsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
       {/* 顶部导航 */}
       <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-4">

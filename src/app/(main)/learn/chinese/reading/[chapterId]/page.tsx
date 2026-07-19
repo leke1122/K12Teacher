@@ -182,7 +182,7 @@ function ReadingPageContent() {
   // 加载状态
   if (loading || progressLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-4" />
           <p className="text-muted-foreground">加载中...</p>
@@ -194,7 +194,7 @@ function ReadingPageContent() {
   // 错误状态
   if (error || !activeTextbook) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -212,7 +212,7 @@ function ReadingPageContent() {
   const progressPercent = (completedSteps.length / 5) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
       {/* 顶部导航 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-4 py-3">
@@ -296,7 +296,7 @@ function ReadingPageContent() {
 export default function ChineseReadingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
       </div>
     }>

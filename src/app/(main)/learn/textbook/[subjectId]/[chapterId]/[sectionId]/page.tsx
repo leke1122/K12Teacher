@@ -627,7 +627,7 @@ function TextbookPageContent() {
   // ============================================================
   if (loading || loadingPdf) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
         <div className="text-center">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-xl">
             <BookOpen className="h-10 w-10 text-white animate-pulse" />
@@ -645,7 +645,7 @@ function TextbookPageContent() {
 
   if (sections.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
         <Card className="max-w-md mx-4">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
@@ -661,7 +661,7 @@ function TextbookPageContent() {
 
   if (isCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 p-4">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 p-4">
         <Card className="max-w-lg w-full">
           <CardContent className="pt-8 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-green-500/30">
@@ -691,7 +691,7 @@ function TextbookPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
       {/* Header */}
       <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 py-3">
@@ -934,7 +934,7 @@ function TextbookPageContent() {
 export default function TextbookLearnPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
       </div>
     }>

@@ -919,7 +919,7 @@ function KnowledgePageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
       <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -1077,7 +1077,7 @@ function KnowledgePageContent() {
 
 export default function KnowledgePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-indigo-500" /></div>}>
+    <Suspense fallback={<div className="min-h-[calc(100vh-4rem)] flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-indigo-500" /></div>}>
       <KnowledgePageContent />
     </Suspense>
   );

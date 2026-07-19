@@ -283,7 +283,7 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="h-12 w-12 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-500">加载中...</p>
@@ -293,7 +293,7 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 pb-8">
       {/* 顶部导航 */}
       <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-4">

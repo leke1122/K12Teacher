@@ -137,7 +137,7 @@ export default function UnitLearningPage() {
 
   if (!unit) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground mb-4">单元不存在</p>
@@ -151,7 +151,7 @@ export default function UnitLearningPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
       {/* 顶部导航 */}
       <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
         <div className="max-w-6xl mx-auto p-3 flex items-center justify-between">

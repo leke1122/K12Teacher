@@ -23,7 +23,7 @@ export default function GrammarExamFocusPage() {
   const otherPoints = filtered.slice(15);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-red-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-red-50/30">
       <div className="w-full px-4 py-4 space-y-4 max-w-4xl mx-auto">
         {/* 顶部 */}
         <div className="flex items-center gap-3">

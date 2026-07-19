@@ -189,7 +189,7 @@ function KnowledgePageContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
         <p className="text-sm text-muted-foreground">正在从教材中提取知识点...</p>
       </div>
@@ -198,7 +198,7 @@ function KnowledgePageContent() {
 
   if (error && knowledgeItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30">
         <div className="w-full px-4 py-4 space-y-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
@@ -219,7 +219,7 @@ function KnowledgePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30">
       {/* 固定页头 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-4 py-3">
@@ -517,7 +517,7 @@ export default function HistoryKnowledgePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
         </div>
       }

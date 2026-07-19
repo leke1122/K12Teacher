@@ -111,7 +111,7 @@ export default function GeographyKnowledgePage() {
   const progress = Math.round((learnedItems.size / mustKnowItems.length) * 100);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       {/* 固定页头 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-4 py-3">

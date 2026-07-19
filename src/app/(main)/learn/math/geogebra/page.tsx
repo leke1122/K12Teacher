@@ -287,7 +287,7 @@ export default function GeoGebraUnifiedPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/40 dark:from-slate-900 dark:to-slate-900">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/40 dark:from-slate-900 dark:to-slate-900">
       {/* Page title + mode tabs (not sticky; layout Header is sticky) */}
       <div className="max-w-7xl mx-auto px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">

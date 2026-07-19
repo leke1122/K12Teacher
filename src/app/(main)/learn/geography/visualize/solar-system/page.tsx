@@ -60,7 +60,7 @@ function TreeNode({ node, depth }: { node: Level; depth: number }) {
 
 export default function SolarSystemPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4 space-y-4">
         <div className="flex items-center gap-3">
           <Link href="/learn/geography/knowledge/compulsory-1">

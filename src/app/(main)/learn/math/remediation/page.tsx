@@ -252,7 +252,7 @@ function MathRemediationContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30">
       <div className="w-full px-4 py-4 max-w-6xl mx-auto">
         {/* 顶部导航 */}
         <div className="flex items-center gap-3 mb-4">
@@ -517,7 +517,7 @@ function MathRemediationContent() {
 export default function MathRemediationPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
       </div>
     }>

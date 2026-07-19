@@ -35,7 +35,7 @@ function HistorySubjectContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
         {/* 标题区 */}
         <div className="text-center py-4">

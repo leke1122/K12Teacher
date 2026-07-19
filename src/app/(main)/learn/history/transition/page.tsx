@@ -89,7 +89,7 @@ export default function TransitionPage() {
 
   if (!transition) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/30 p-6">
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-purple-50/30 p-6">
         <Card className="max-w-4xl mx-auto p-12 text-center">
           <h1 className="text-2xl font-bold mb-4">衔接页开发中</h1>
           <p className="text-muted-foreground mb-6">下一单元的衔接数据正在整理中...</p>
@@ -102,7 +102,7 @@ export default function TransitionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-purple-50/30">
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* 顶部导航 */}
         <div className="flex items-center gap-4 mb-6">

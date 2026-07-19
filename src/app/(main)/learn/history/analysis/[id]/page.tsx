@@ -28,7 +28,7 @@ function AnalysisDetailPageContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
       </div>
     );
@@ -36,7 +36,7 @@ function AnalysisDetailPageContent() {
 
   if (!source) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
         <p className="text-sm text-muted-foreground">未找到材料分析题</p>
       </div>
     );
@@ -49,7 +49,7 @@ export default function HistoryAnalysisDetailPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         </div>
       }

@@ -103,7 +103,7 @@ export default function PoliticsDiscriminationPage() {
   }, [pairs]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-pink-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/30">
       <div className="w-full px-4 py-4">
         <div className="flex items-center gap-3 mb-4">
           <Link href="/subjects/politics">

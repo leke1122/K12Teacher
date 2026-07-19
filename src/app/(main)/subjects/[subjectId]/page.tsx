@@ -108,7 +108,7 @@ export default function SubjectPage() {
 
   if (!subject) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Card className="max-w-lg mx-auto rounded-xl">
           <CardContent className="flex items-center gap-4 p-6">
             <AlertCircle className="h-5 w-5 text-destructive" />
@@ -142,7 +142,7 @@ export default function SubjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-100 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
       {/* 顶部状态栏 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-6 py-3">

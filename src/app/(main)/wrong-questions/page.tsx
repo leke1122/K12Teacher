@@ -304,7 +304,7 @@ function WrongQuestionsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
       {/* 顶部 */}
       <div className="sticky top-16 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-3 space-y-3">
@@ -688,7 +688,7 @@ function WrongQuestionsContent() {
 export default function WrongQuestionsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
       </div>
     }>

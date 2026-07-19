@@ -51,7 +51,7 @@ export function PracticeResult({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 py-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 py-8">
       <div className="container mx-auto px-4 max-w-2xl space-y-6">
         {/* 成绩单头部 */}
         <Card className="border-0 shadow-2xl overflow-hidden">

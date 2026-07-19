@@ -158,7 +158,7 @@ function PracticePageContent() {
   const isCorrect = submitted && answers[currentQuestion?.id] === currentQuestion?.correctAnswer;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30 dark:from-slate-900 dark:to-slate-800">
       {/* 顶部导航 */}
       <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -603,7 +603,7 @@ function PracticePageContent() {
 export default function PracticePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
       </div>
     }>

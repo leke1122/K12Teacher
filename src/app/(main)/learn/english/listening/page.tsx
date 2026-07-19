@@ -38,7 +38,7 @@ export default function EnglishListeningPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-rose-50/40">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-rose-50/40">
       {/* 顶部导航 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-2xl mx-auto px-4 py-3">

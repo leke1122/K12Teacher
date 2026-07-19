@@ -129,7 +129,7 @@ useEffect(() => {
 
   if (!poem) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Card className="max-w-lg">
           <CardContent className="p-6 text-center">
             <p className="text-slate-500">未找到该诗歌</p>
@@ -143,7 +143,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-rose-50/30 dark:from-slate-900 dark:to-rose-950/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-rose-50/30 dark:from-slate-900 dark:to-rose-950/30">
       <header className="sticky top-16 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">

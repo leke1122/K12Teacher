@@ -173,7 +173,7 @@ export default function FunctionPracticePage() {
   const currentQuestion = questions[currentIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-indigo-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
       {/* 顶部导航 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-4xl mx-auto px-4 py-3">
