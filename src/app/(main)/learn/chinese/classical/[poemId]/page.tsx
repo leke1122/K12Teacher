@@ -639,7 +639,6 @@ function ClassicalReadPageContent() {
             )}
 
             {/* 原文卡片 */}
-            {activeTab !== 'practice' && (
             <Card className="border-0 shadow-xl overflow-hidden">
               <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
               <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10">
