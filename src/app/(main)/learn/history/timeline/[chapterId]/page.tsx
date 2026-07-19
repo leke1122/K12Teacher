@@ -697,9 +697,9 @@ function Unit1TimelinePage() {
                                         {importanceStars[item.importance as keyof typeof importanceStars]}
                                       </span>
                                       {/* 展开/收起指示器 */}
-                                      <Badge variant="ghost" className="text-xs ml-auto">
+                                      <span className="text-xs ml-auto text-slate-400">
                                         {expandedMustKnowId === item.id ? '收起 ▲' : '展开 ▼'}
-                                      </Badge>
+                                      </span>
                                     </div>
                                     <h3 className="text-base font-bold text-slate-800">
                                       {item.title}
