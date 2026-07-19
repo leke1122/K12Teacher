@@ -116,6 +116,8 @@ function Unit1TimelinePage() {
   // 必背清单数据（用于时间轴展示）
   const [mustKnowItems, setMustKnowItems] = useState<any[]>([]);
   const [mustKnowLoading, setMustKnowLoading] = useState(false);
+  // 展开的知识点卡片
+  const [expandedMustKnowId, setExpandedMustKnowId] = useState<string | null>(null);
 
   // 获取 API Key
   const getApiKey = () => {
@@ -673,13 +675,16 @@ function Unit1TimelinePage() {
                             </div>
 
                             {/* 知识点卡片 */}
-                            <Card className={`flex-1 transition-all hover:shadow-md border-l-4 ${color}`}>
+                            <Card
+                              className={`flex-1 transition-all hover:shadow-md border-l-4 ${color} cursor-pointer ${expandedMustKnowId === item.id ? 'ring-2 ring-amber-400' : ''}`}
+                              onClick={() => setExpandedMustKnowId(expandedMustKnowId === item.id ? null : item.id)}
+                            >
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       {item.year && (
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="text-xs bg-red-50 border-red-200 text-red-600">
                                           {item.year}
                                         </Badge>
                                       )}
@@ -691,6 +696,10 @@ function Unit1TimelinePage() {
                                       <span className="text-xs" title={`重要性: ${item.importance}`}>
                                         {importanceStars[item.importance as keyof typeof importanceStars]}
                                       </span>
+                                      {/* 展开/收起指示器 */}
+                                      <Badge variant="ghost" className="text-xs ml-auto">
+                                        {expandedMustKnowId === item.id ? '收起 ▲' : '展开 ▼'}
+                                      </Badge>
                                     </div>
                                     <h3 className="text-base font-bold text-slate-800">
                                       {item.title}
@@ -702,24 +711,64 @@ function Unit1TimelinePage() {
                                     </h3>
                                   </div>
                                 </div>
-                                {/* 必背内容 */}
+                                {/* 必背内容（折叠状态只显示部分） */}
                                 <div className="bg-amber-50/50 rounded p-2 mb-2">
-                                  <p className="text-sm text-amber-900 line-clamp-2">
+                                  <p className={`text-sm text-amber-900 ${expandedMustKnowId === item.id ? '' : 'line-clamp-2'}`}>
                                     {item.content}
                                   </p>
                                 </div>
-                                {/* 高考重点 */}
-                                {item.gaokaoFocus && (
-                                  <p className="text-xs text-indigo-600 font-medium">
-                                    🎯 {item.gaokaoFocus}
-                                  </p>
+                                {/* 展开后的详细内容 */}
+                                {expandedMustKnowId === item.id && (
+                                  <div className="space-y-3 mt-3 pt-3 border-t border-amber-200">
+                                    {/* 完整内容 */}
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                                        <span className="text-amber-500">📖</span> 详细解读
+                                      </h4>
+                                      <p className="text-sm text-slate-600 leading-relaxed">
+                                        {item.content}
+                                      </p>
+                                    </div>
+                                    {/* 高考重点 */}
+                                    {item.gaokaoFocus && (
+                                      <div className="bg-indigo-50 p-2 rounded">
+                                        <h4 className="text-sm font-semibold text-indigo-700 mb-1">🎯 高考重点</h4>
+                                        <p className="text-sm text-indigo-600">{item.gaokaoFocus}</p>
+                                      </div>
+                                    )}
+                                    {/* 相关事件 */}
+                                    {item.relatedEvents && item.relatedEvents.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        <span className="text-xs text-slate-500">🔗 相关：</span>
+                                        {item.relatedEvents.map((event: string, i: number) => (
+                                          <Badge key={i} variant="outline" className="text-xs">{event}</Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* 时间范围（如果有） */}
+                                    {item.timeRange && (
+                                      <p className="text-xs text-slate-500">
+                                        📅 时间跨度：{item.timeRange}
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
-                                {/* 相关事件 */}
-                                {item.relatedEvents && item.relatedEvents.length > 0 && (
-                                  <p className="text-xs text-slate-500 mt-1">
-                                    🔗 相关：{item.relatedEvents.slice(0, 3).join('、')}
-                                  </p>
-                                )}
+                                {/* 高考重点（折叠状态） */}
+                                {!expandedMustKnowId || expandedMustKnowId !== item.id ? (
+                                  item.gaokaoFocus && (
+                                    <p className="text-xs text-indigo-600 font-medium">
+                                      🎯 {item.gaokaoFocus}
+                                    </p>
+                                  )
+                                ) : null}
+                                {/* 相关事件（折叠状态） */}
+                                {!expandedMustKnowId || expandedMustKnowId !== item.id ? (
+                                  item.relatedEvents && item.relatedEvents.length > 0 && (
+                                    <p className="text-xs text-slate-500 mt-1">
+                                      🔗 相关：{item.relatedEvents.slice(0, 3).join('、')}
+                                    </p>
+                                  )
+                                ) : null}
                               </CardContent>
                             </Card>
                           </div>
