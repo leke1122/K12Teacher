@@ -920,31 +920,6 @@ function KnowledgePageContent() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
-      <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href={`/subjects/${subjectId}`} className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                <ArrowLeft className="h-5 w-5" />返回
-              </Link>
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{isChapter ? `第 ${decodedChapterId} 章` : `第 ${decodedChapterId} 章 第 ${decodedSectionId} 节`}</h1>
-                <p className="text-sm text-slate-500">{knowledgePoints.length > 0 ? `共 ${knowledgePoints.length} 个知识点` : '点击生成知识点开始学习'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link href={`/learn/math/visualize/function`}>
-                <Button variant="outline" size="sm" className="gap-1.5 border-amber-200 text-amber-600 hover:bg-amber-50">
-                  <Sparkles className="h-4 w-4" />
-                  可视化
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* 继续学习提示 */}
       {showResumeToast && (
         <div className="container mx-auto px-4 mt-4">
@@ -963,35 +938,54 @@ function KnowledgePageContent() {
       )}
 
       {knowledgePoints.length > 0 && (
-        <div className="container mx-auto px-4 py-3">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg p-4">
+        <div className="container mx-auto px-4 pt-4 pb-2">
+          {/* 简化顶部导航 */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <Link href={`/subjects/${subjectId}`} className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <ArrowLeft className="h-4 w-4" />返回
+                </Link>
+                <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+                <h1 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                  {isChapter ? `第 ${decodedChapterId} 章` : `第 ${decodedChapterId} 章 第 ${decodedSectionId} 节`}
+                </h1>
+              </div>
+              <Link href={`/learn/math/visualize/function`}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-amber-200 text-amber-600 hover:bg-amber-50">
+                  <Sparkles className="h-4 w-4" />
+                  可视化
+                </Button>
+              </Link>
+            </div>
+            
+            {/* 统计数据 */}
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">{currentPointIndex + 1}</div>
-                  <div><p className="text-sm text-slate-500">当前 / 总数</p><p className="text-lg font-bold text-slate-800 dark:text-slate-200">{currentPointIndex + 1} / {knowledgePoints.length}</p></div>
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">{currentPointIndex + 1}</div>
+                  <div><p className="text-xs text-slate-500">当前/总数</p><p className="text-sm font-bold text-slate-800 dark:text-slate-200">{currentPointIndex + 1}/{knowledgePoints.length}</p></div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white"><CheckCircle className="w-5 h-5" /></div>
-                  <div><p className="text-sm text-slate-500">已掌握</p><p className="text-lg font-bold text-green-600">{completedCount}</p></div>
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white"><CheckCircle className="w-4 h-4" /></div>
+                  <div><p className="text-xs text-slate-500">已掌握</p><p className="text-sm font-bold text-green-600">{completedCount}</p></div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg', weakCount > 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-slate-200 dark:bg-slate-700')}><AlertTriangle className="w-5 h-5" /></div>
-                  <div><p className="text-sm text-slate-500">薄弱项</p><p className={cn('text-lg font-bold', weakCount > 0 ? 'text-amber-600' : 'text-slate-400')}>{weakCount}</p></div>
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm', weakCount > 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-slate-200 dark:bg-slate-700')}><AlertTriangle className="w-4 h-4" /></div>
+                  <div><p className="text-xs text-slate-500">薄弱项</p><p className={cn('text-sm font-bold', weakCount > 0 ? 'text-amber-600' : 'text-slate-400')}>{weakCount}</p></div>
                 </div>
               </div>
-              <div className="flex-1 max-w-md">
-                <div className="flex items-center justify-between mb-1.5"><span className="text-sm text-slate-500">学习进度</span><span className="text-sm font-medium text-slate-700 dark:text-slate-300">{progressPercent}%</span></div>
-                <Progress value={progressPercent} className="h-3 rounded-full" />
+              <div className="flex-1 max-w-[200px]">
+                <Progress value={progressPercent} className="h-2 rounded-full" />
               </div>
-              <Button variant="outline" size="sm" onClick={handleSaveProgress} disabled={isSaving} className="rounded-xl gap-2"><Save className="h-4 w-4" />{isSaving ? '保存中...' : '保存'}</Button>
-              <Button variant="outline" size="sm" onClick={handleResetProgress} className="rounded-xl gap-2 text-red-500 hover:text-red-700 border-red-300 hover:border-red-500 hover:bg-red-50"><RotateCcw className="h-4 w-4" />从头开始学</Button>
+              <Button variant="outline" size="sm" onClick={handleSaveProgress} disabled={isSaving} className="rounded-lg gap-1.5 text-xs"><Save className="h-3.5 w-3.5" />{isSaving ? '保存' : '保存'}</Button>
+              <Button variant="outline" size="sm" onClick={handleResetProgress} className="rounded-lg gap-1.5 text-xs text-red-500 hover:text-red-700 border-red-300 hover:border-red-500"><RotateCcw className="h-3.5 w-3.5" />重置</Button>
             </div>
           </div>
         </div>
       )}
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-2">
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12 lg:col-span-4 xl:col-span-3">
             <Card className="sticky top-36 border-0 shadow-xl">
