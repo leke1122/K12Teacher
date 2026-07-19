@@ -448,36 +448,6 @@ function PracticePageContent() {
   if (phase === 'practicing' && currentQuestion) {
     return (
       <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
-        {/* 顶部导航 */}
-        <div className="sticky top-16 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-between gap-4 mb-2">
-              <div className="flex items-center gap-2">
-                <Link href={`/subjects/${subjectId}`}>
-                  <Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button>
-                </Link>
-                <div>
-                  <h1 className="text-base font-bold text-slate-800 dark:text-slate-200">
-                    {getSubjectName(subjectId)} · {sectionTitle || `第${chapterId}章`} · 章节练习
-                  </h1>
-                  <p className="text-xs text-slate-500">
-                    难度：{currentQuestion.difficulty === 'simple' ? '简单' : currentQuestion.difficulty === 'hard' ? '困难' : '中等'}  题号：{currentIndex + 1}/{questions.length}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 text-sm">
-                  <span className="text-green-600 font-bold">{correctCount}</span>
-                  <span className="text-slate-400">/</span>
-                  <span className="text-slate-600">{questions.length}</span>
-                  <span className="text-slate-400 ml-1">正确</span>
-                </div>
-              </div>
-            </div>
-            <Progress value={progressPercent} className="h-2 rounded-full" />
-          </div>
-        </div>
-
         {/* 左右分栏主体 */}
         <div className="container mx-auto px-4 py-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
