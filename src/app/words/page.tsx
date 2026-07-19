@@ -635,6 +635,8 @@ function StatsDashboard({
   notificationsEnabled,
   onEnableNotifications,
   onShowMastered,
+  frequentWrongWords,
+  onFrequentWrongReview,
 }: { 
   stats: Stats; 
   dailyGoal: number;
@@ -645,6 +647,8 @@ function StatsDashboard({
   notificationsEnabled: boolean;
   onEnableNotifications: () => void;
   onShowMastered: () => void;
+  frequentWrongWords: { word: string; wrongCount: number; meaning: string }[];
+  onFrequentWrongReview: () => void;
 }) {
   const goalProgress = Math.min((stats.todayLearned / dailyGoal) * 100, 100);
   const goalReached = stats.todayLearned >= dailyGoal;
@@ -709,19 +713,49 @@ function StatsDashboard({
       </div>
       
       {/* 操作按钮 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button variant="outline" className="flex-1 justify-start text-green-600 border-green-200 hover:bg-green-50" onClick={onShowMastered}>
           <Award className="h-4 w-4 mr-2" />
-          已掌握单词 ({stats.mastered})
+          已掌握 ({stats.mastered})
         </Button>
         {wrongCount > 0 && (
           <Button variant="outline" className="flex-1 justify-start text-red-600 border-red-200 hover:bg-red-50" onClick={onWrongReview}>
             <AlertCircle className="h-4 w-4 mr-2" />
-            错词复习 ({wrongCount})
+            错题 ({wrongCount})
+          </Button>
+        )}
+        {frequentWrongWords.length > 0 && (
+          <Button variant="outline" className="flex-1 justify-start text-amber-600 border-amber-200 hover:bg-amber-50" onClick={onFrequentWrongReview}>
+            <Flame className="h-4 w-4 mr-2" />
+            高频错词 ({frequentWrongWords.length})
           </Button>
         )}
         {!notificationsEnabled && <NotificationButton onGranted={onEnableNotifications} />}
       </div>
+      
+      {/* 高频错词预览 */}
+      {frequentWrongWords.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Flame className="h-4 w-4 text-amber-500" />
+              <span className="text-sm font-medium text-amber-700">高频错词（最近3次练习错2次以上）</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {frequentWrongWords.slice(0, 10).map((item, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs bg-white border-amber-200 text-amber-700">
+                  {item.word} ({item.wrongCount})
+                </Badge>
+              ))}
+              {frequentWrongWords.length > 10 && (
+                <Badge variant="outline" className="text-xs bg-white border-amber-200 text-slate-500">
+                  +{frequentWrongWords.length - 10} 更多
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -753,6 +787,15 @@ export default function WordsPage() {
   const [practiceLoading, setPracticeLoading] = useState(false);
   const learningRecordRef = useRef<string | null>(null);
   
+  // 高频错词列表（最近三次练习中错2次以上的单词）
+  const [frequentWrongWords, setFrequentWrongWords] = useState<{word: string; wrongCount: number; meaning: string}[]>([]);
+  
+  // 获取高频错词列表
+  const fetchFrequentWrongWords = useCallback(async () => {
+    const frequentWrong = getFrequentWrongWords();
+    setFrequentWrongWords(frequentWrong);
+  }, []);
+  
   // 保存学习进度到 localStorage
   const saveProgress = (wordId: string, frequencyLevel: string) => {
     localStorage.setItem('word_learning_progress', JSON.stringify({
@@ -773,6 +816,87 @@ export default function WordsPage() {
       }
     }
     return null;
+  };
+  
+  // 保存本次练习的错词到历史记录（用于计算高频错词）
+  const saveWrongWordHistory = (results: PracticeResult[]) => {
+    const wrongWords = results.filter(r => !r.correct).map(r => ({
+      word: r.word.word,
+      meaning: r.word.meaning,
+      timestamp: new Date().toISOString(),
+    }));
+    
+    if (wrongWords.length === 0) return;
+    
+    // 获取历史记录
+    const historyKey = 'word_practice_wrong_history';
+    const saved = localStorage.getItem(historyKey);
+    let history: { word: string; meaning: string; timestamp: string }[] = [];
+    
+    if (saved) {
+      try {
+        history = JSON.parse(saved);
+      } catch {}
+    }
+    
+    // 添加新的错词记录
+    history = [...wrongWords, ...history];
+    
+    // 只保留最近3次练习的记录（大约保留最近3*100=300条）
+    // 或者按时间过滤：只保留3天内的记录
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    history = history.filter(h => new Date(h.timestamp) > threeDaysAgo);
+    
+    // 如果记录太多，只保留最近500条
+    if (history.length > 500) {
+      history = history.slice(0, 500);
+    }
+    
+    localStorage.setItem(historyKey, JSON.stringify(history));
+  };
+  
+  // 获取高频错词（最近3次练习中错2次以上的）
+  const getFrequentWrongWords = (): { word: string; meaning: string; wrongCount: number }[] => {
+    const historyKey = 'word_practice_wrong_history';
+    const saved = localStorage.getItem(historyKey);
+    
+    if (!saved) return [];
+    
+    try {
+      const history: { word: string; meaning: string; timestamp: string }[] = JSON.parse(saved);
+      
+      // 按单词分组统计错误次数
+      const wordCount: Map<string, { count: number; meaning: string }> = new Map();
+      
+      for (const item of history) {
+        const existing = wordCount.get(item.word);
+        if (existing) {
+          existing.count++;
+        } else {
+          wordCount.set(item.word, { count: 1, meaning: item.meaning });
+        }
+      }
+      
+      // 筛选出错误2次以上的
+      const frequentWrong: { word: string; meaning: string; wrongCount: number }[] = [];
+      wordCount.forEach((value, key) => {
+        if (value.count >= 2) {
+          frequentWrong.push({
+            word: key,
+            meaning: value.meaning,
+            wrongCount: value.count,
+          });
+        }
+      });
+      
+      // 按错误次数降序排列
+      frequentWrong.sort((a, b) => b.wrongCount - a.wrongCount);
+      
+      return frequentWrong;
+    } catch {
+      return [];
+    }
   };
 
   // 加载已掌握单词列表
@@ -1082,10 +1206,43 @@ export default function WordsPage() {
     }
   };
   
+  // 开始复习高频错词（最近3次错2次以上的）
+  const startFrequentWrongReview = () => {
+    const frequentWrong = getFrequentWrongWords();
+    if (frequentWrong.length === 0) {
+      alert('暂无高频错词，继续加油！');
+      return;
+    }
+    
+    // 转换为练习格式
+    const wrongWords = frequentWrong.map((item, index) => ({
+      id: `freq_wrong_${index}`,
+      word: item.word,
+      phonetic: '',
+      part_of_speech: '',
+      meaning: item.meaning,
+      example: '',
+      translation: '',
+      collocations: [],
+      synonyms: [],
+      antonyms: [],
+      frequency_level: 'medium' as const,
+    }));
+    
+    setReviewWords(wrongWords);
+    setPracticeResults([]);
+    setPracticeMode('practice');
+    setMode('practice');
+  };
+  
   const handlePracticeComplete = (results: PracticeResult[]) => {
+    // 保存本次练习的错词到历史记录
+    saveWrongWordHistory(results);
     setPracticeResults(results);
     setPracticeMode('complete');
     fetchWrongCount();
+    // 刷新高频错词列表
+    fetchFrequentWrongWords();
   };
   
   const handleRestartPractice = () => {
@@ -1170,6 +1327,8 @@ export default function WordsPage() {
             notificationsEnabled={notificationsEnabled}
             onEnableNotifications={handleEnableNotifications}
             onShowMastered={handleShowMastered}
+            frequentWrongWords={frequentWrongWords}
+            onFrequentWrongReview={startFrequentWrongReview}
           />
           
           {/* 已掌握单词列表 */}
