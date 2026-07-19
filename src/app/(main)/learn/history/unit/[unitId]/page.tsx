@@ -152,8 +152,8 @@ export default function UnitLearningPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-      {/* 顶部导航 */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
+      {/* 顶部导航 - 固定在 Header 下方 */}
+      <div className="sticky top-16 z-10 bg-white border-b shadow-sm">
         <div className="max-w-6xl mx-auto p-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push('/subjects/history')}>
@@ -181,7 +181,7 @@ export default function UnitLearningPage() {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid grid-cols-5 w-full bg-white">
+            <TabsList className="grid grid-cols-6 w-full bg-white">
               <TabsTrigger value="overview" className="flex items-center gap-1">
                 <BookMarked className="h-4 w-4" /> 总览
               </TabsTrigger>
@@ -196,6 +196,9 @@ export default function UnitLearningPage() {
               </TabsTrigger>
               <TabsTrigger value="cards" className="flex items-center gap-1">
                 <Layers className="h-4 w-4" /> 卡牌
+              </TabsTrigger>
+              <TabsTrigger value="practice" className="flex items-center gap-1">
+                <FileQuestion className="h-4 w-4" /> 练习
               </TabsTrigger>
             </TabsList>
 
@@ -387,6 +390,7 @@ export default function UnitLearningPage() {
                     <Brain className="h-4 w-4 text-pink-500" />
                     必背知识点
                   </CardTitle>
+                  <p className="text-sm text-muted-foreground">共 {concepts.length} 个，高频考点 {concepts.filter(c => c.importance >= 4).length} 个</p>
                 </CardHeader>
                 <CardContent>
                   {concepts.length > 0 ? (
@@ -423,6 +427,7 @@ export default function UnitLearningPage() {
                     <Link2 className="h-4 w-4 text-purple-500" />
                     因果关系链
                   </CardTitle>
+                  <p className="text-sm text-muted-foreground">共 {causalLinks.length} 条因果关系</p>
                 </CardHeader>
                 <CardContent>
                   {causalLinks.length > 0 ? (
@@ -459,6 +464,7 @@ export default function UnitLearningPage() {
                     <Layers className="h-4 w-4 text-cyan-500" />
                     历史卡牌
                   </CardTitle>
+                  <p className="text-sm text-muted-foreground">共 {cards.length} 张记忆卡牌</p>
                 </CardHeader>
                 <CardContent>
                   {cards.length > 0 ? (
@@ -478,6 +484,23 @@ export default function UnitLearningPage() {
                   ) : (
                     <p className="text-center text-muted-foreground py-8">暂无卡牌数据</p>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ====== 练习 ====== */}
+            <TabsContent value="practice">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                <CardContent className="p-8 text-center">
+                  <FileQuestion className="h-16 w-16 mx-auto mb-4 text-green-600" />
+                  <h3 className="font-bold text-xl text-green-800 mb-3">综合练习</h3>
+                  <p className="text-green-600 mb-6 max-w-md mx-auto">
+                    包含选择题、填空题、材料分析题等多种题型，覆盖单元所有知识点
+                  </p>
+                  <Button size="lg" className="bg-green-500 hover:bg-green-600" onClick={() => router.push('/learn/history/practice')}>
+                    <Play className="h-5 w-5 mr-2" />
+                    开始练习
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
