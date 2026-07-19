@@ -335,17 +335,10 @@ export function getKnowledgeRange(
   // 先精确匹配
   currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
   
-  // 如果没找到，尝试前缀匹配（如 "1.1" 匹配 "1.1.1" 或 "1.1.2"）
+  // 如果没找到，尝试前缀匹配：检查 sectionId 是否以 stored sectionId 开头
+  // 例如：用户选择 "3.1.1"，存储的是 "3.1"，则 "3.1.1".startsWith("3.1") = true
   if (currentIdx === -1) {
-    // 尝试匹配 sectionId 的前N段（N = parsedSectionId 的段数）
-    const parsedParts = parsedSectionId.split('.');
-    currentIdx = allSections.findIndex(s => {
-      const sParts = s.sectionId.split('.');
-      // 检查 s 是否以 parsedSectionId 开头（前N段完全匹配）
-      // 例如 "3.1" 应该匹配 "3.1.1" 和 "3.1.2"
-      return sParts.length >= parsedParts.length && 
-             parsedParts.every((part, i) => part === sParts[i]);
-    });
+    currentIdx = allSections.findIndex(s => parsedSectionId.startsWith(s.sectionId + '.'));
   }
   
   // 如果还是没找到，尝试部分匹配
@@ -447,12 +440,7 @@ export function getForbiddenKnowledge(
   currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
   // 如果没找到，尝试前缀匹配
   if (currentIdx === -1) {
-    const parsedParts = parsedSectionId.split('.');
-    currentIdx = allSections.findIndex(s => {
-      const sParts = s.sectionId.split('.');
-      return sParts.length >= parsedParts.length && 
-             parsedParts.every((part, i) => part === sParts[i]);
-    });
+    currentIdx = allSections.findIndex(s => parsedSectionId.startsWith(s.sectionId + '.'));
   }
   
   // 如果没找到，返回空（所有知识点都可用）

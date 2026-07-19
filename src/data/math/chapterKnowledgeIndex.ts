@@ -331,12 +331,24 @@ export function getSectionsByChapter(chapterId: string): Array<{ id: string; nam
   }));
 }
 
-// 获取指定小节的知识索引
+// 获取指定小节的知识索引（支持模糊匹配）
 export function getSectionKnowledge(chapterId: string, sectionId: string): SectionKnowledge | null {
   const chapter = mathChapterKnowledgeIndex[chapterId];
   if (!chapter) return null;
   
-  return chapter.sections[sectionId] || null;
+  // 先精确匹配
+  const exact = chapter.sections[sectionId];
+  if (exact) return exact;
+  
+  // 尝试前缀匹配：如 "3.1.1" 匹配 "3.1"
+  const parts = sectionId.split('.');
+  for (let len = parts.length - 1; len >= 1; len--) {
+    const prefix = parts.slice(0, len).join('.');
+    const match = chapter.sections[prefix];
+    if (match) return match;
+  }
+  
+  return null;
 }
 
 // 验证题目是否在允许范围内（严格模式）
