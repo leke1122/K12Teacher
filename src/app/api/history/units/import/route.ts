@@ -1139,7 +1139,7 @@ export async function GET() {
       .from('docx_imports')
       .select('*')
       .eq('user_id', USER_ID)
-      .in('unit_id', ['u1', 'u2', 'u3'])
+      .in('unit_id', ['u1', 'u2', 'u3', 'u4', 'u5'])
       .order('unit_id');
 
     if (error) {
