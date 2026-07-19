@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
     // 转换为TimelineEvent格式
     const events = sourceEvents.map((e: any) => ({
       id: e.id || `event-${Math.random().toString(36).substr(2, 9)}`,
-      year: typeof e.year === 'number' ? e.year : parseYear(e.year),
+      year: typeof e.year === 'number' ? e.year : parseYearToNumber(e.year),
+      yearDisplay: formatYearDisplay(e.year),
       title: e.title || e.name || '',
       dynasty: e.category || '',
       summary: e.summary || e.description || e.definition || '',
@@ -68,6 +69,8 @@ export async function GET(request: NextRequest) {
       unit: docxData.unitTitle || unitId,
       importance: e.importance || 3,
       category: e.category || '',
+      causes: e.causes || '',
+      effects: e.effects || '',
     }));
 
     // 关键词搜索
@@ -86,7 +89,7 @@ export async function GET(request: NextRequest) {
       filteredEvents = filteredEvents.filter((e: any) => e.difficulty === difficulty);
     }
 
-    // 按年份排序
+    // 按年份排序（从古到今）
     filteredEvents.sort((a: any, b: any) => a.year - b.year);
 
     return NextResponse.json({
@@ -112,12 +115,81 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function parseYear(yearStr: string | number): number {
+/**
+ * 将各种格式的年份转换为数字（用于排序）
+ * 公元前用负数表示，数字越大越古老
+ */
+function parseYearToNumber(yearStr: string | number): number {
   if (typeof yearStr === 'number') return yearStr;
   if (!yearStr) return 0;
-  if (yearStr.includes('前')) {
-    const num = parseInt(yearStr.replace(/[^0-9]/g, ''), 10);
+  
+  const str = String(yearStr);
+  
+  // 处理"前"字结尾（如"前221年"、"前221"）
+  const isBC = str.includes('前');
+  
+  // 提取数字部分
+  let numStr = str.replace(/[^0-9.]/g, '');
+  let num = parseFloat(numStr) || 0;
+  
+  // 处理"万年前"格式（如"约200万年前"、"1万年前"）
+  if (str.includes('万')) {
+    // 如果是200万年前 -> -2000000
+    // 如果是1万年前 -> -10000
+    if (isBC) {
+      return -Math.round(num * 10000);
+    } else {
+      return Math.round(num * 10000);
+    }
+  }
+  
+  // 处理普通年份
+  if (isBC) {
     return -num;
   }
-  return parseInt(yearStr.replace(/[^0-9]/g, ''), 10) || 0;
+  
+  return num;
+}
+
+/**
+ * 格式化年份显示
+ */
+function formatYearDisplay(yearStr: string | number): string {
+  if (typeof yearStr === 'number') {
+    if (yearStr < 0) {
+      return `前${Math.abs(yearStr)}年`;
+    }
+    return `${yearStr}年`;
+  }
+  
+  if (!yearStr) return '';
+  
+  const str = String(yearStr);
+  
+  // 如果已经是格式化好的，直接返回
+  if (str.includes('前') && str.includes('年')) {
+    return str;
+  }
+  
+  // 处理"万年前"格式
+  if (str.includes('万')) {
+    const numMatch = str.match(/([\d.]+)万/);
+    if (numMatch) {
+      return `约${numMatch[1]}万年前`;
+    }
+    if (str.includes('约')) {
+      return str.replace('距今约', '').replace('约', '约');
+    }
+    return str;
+  }
+  
+  // 处理普通年份
+  if (str.includes('前')) {
+    const numMatch = str.match(/前?([\d]+)/);
+    if (numMatch) {
+      return `前${numMatch[1]}年`;
+    }
+  }
+  
+  return str;
 }

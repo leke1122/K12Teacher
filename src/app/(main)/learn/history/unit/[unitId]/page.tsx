@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowLeft, Clock, Brain, Link2, Layers, FileQuestion,
-  BookMarked, GitCompare, Target, Play, CheckCircle, X, ChevronRight
+  BookMarked, GitCompare, Target, Play, CheckCircle, X, ChevronRight,
+  Sparkles, Loader2
 } from 'lucide-react';
 import { releasedUnits } from '@/data/history/units';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,6 +27,7 @@ interface ConceptItem {
 interface TimelineEvent {
   id?: string;
   year: number | string;
+  yearDisplay?: string;
   yearEnd?: number | string;
   title: string;
   category?: string;
@@ -54,6 +56,40 @@ interface CardItem {
   category: string;
 }
 
+// 格式化年份显示（用于对话框）
+function formatYearForDialog(year: number | string | undefined): string {
+  if (year === undefined || year === null) return '';
+  if (typeof year === 'number') {
+    if (year < 0) {
+      // 处理大数字（如 -2000000 = 200万年前）
+      if (Math.abs(year) >= 10000) {
+        return `约${Math.abs(year) / 10000}万年前`;
+      }
+      return `前${Math.abs(year)}年`;
+    }
+    return `${year}年`;
+  }
+  return String(year);
+}
+
+// AI生成事件概述
+async function generateEventSummary(event: any, unitId: string): Promise<string | null> {
+  try {
+    const res = await fetch('/api/history/ai-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, unitId })
+    });
+    const json = await res.json();
+    if (json.success && json.data?.summary) {
+      return json.data.summary;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function UnitLearningPage() {
   const params = useParams();
   const router = useRouter();
@@ -69,6 +105,7 @@ export default function UnitLearningPage() {
   const [detailDialog, setDetailDialog] = useState<{open: boolean; type: string; data: any}>({
     open: false, type: '', data: null
   });
+  const [generatingSummary, setGeneratingSummary] = useState(false);
   const [loading, setLoading] = useState(true);
   
   const unit = releasedUnits.find(u => u.id === unitId);
@@ -101,9 +138,14 @@ export default function UnitLearningPage() {
         const timelineData = await timelineRes.json();
         if (timelineData.success && timelineData.data?.events) {
           setEvents(timelineData.data.events.slice(0, 20).map((e: any) => ({
-            year: e.year?.toString() || '',
+            year: e.year,
+            yearDisplay: e.yearDisplay || formatYearDisplay(e.year),
             title: e.title || e.title,
             category: e.category || e.difficulty || '政治',
+            summary: e.summary || '',
+            effects: e.effects || '',
+            causes: e.causes || '',
+            dynasty: e.dynasty || '',
             importance: e.importance || 3
           })));
         }
@@ -329,20 +371,9 @@ export default function UnitLearningPage() {
                     <div className="space-y-3">
                       {events.map((event, idx) => {
                         const imp = event.importance || 3;
-                        // 处理年份显示：支持数字、负数（公元前）、字符串（万年前等）
-                        let displayYear: string;
-                        if (typeof event.year === 'number') {
-                          if (event.year < 0) {
-                            displayYear = `前${Math.abs(event.year)}年`;
-                          } else if (event.year < 10000) {
-                            displayYear = `${event.year}年`;
-                          } else {
-                            // 超过10000的认为是万年前的数据
-                            displayYear = `约${event.year}年前`;
-                          }
-                        } else {
-                          displayYear = String(event.year);
-                        }
+                        // 使用预格式化的yearDisplay，如果没有则格式化
+                        const displayYear = event.yearDisplay || (event.year !== undefined && event.year !== null ? String(event.year) : '');
+                        return (
                         // 查找相关知识点
                         const relatedConcepts = concepts.filter(c => 
                           c.name.includes(event.title) || 
@@ -781,27 +812,50 @@ export default function UnitLearningPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="font-mono text-lg px-3 py-1">
-                    {(() => {
-                      const year = detailDialog.data.event?.year;
-                      if (typeof year === 'number') {
-                        if (year < 0) {
-                          return `前${Math.abs(year)}年`;
-                        } else if (year < 10000) {
-                          return `${year}年`;
-                        } else {
-                          return `约${year}年前`;
-                        }
-                      }
-                      return year;
-                    })()}
+                    {detailDialog.data.event?.yearDisplay || formatYearForDialog(detailDialog.data.event?.year)}
                   </Badge>
                   {detailDialog.data.event?.dynasty && (
                     <Badge className="bg-orange-100 text-orange-700">{detailDialog.data.event.dynasty}</Badge>
                   )}
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">事件概述</h4>
-                  <p className="text-slate-700">{detailDialog.data.event?.summary || detailDialog.data.event?.title}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold">事件概述</h4>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-purple-600"
+                      disabled={generatingSummary}
+                      onClick={async () => {
+                        if (!detailDialog.data.event) return;
+                        setGeneratingSummary(true);
+                        try {
+                          const summary = await generateEventSummary(detailDialog.data.event, unitId);
+                          if (summary) {
+                            setDetailDialog({
+                              ...detailDialog,
+                              data: {
+                                ...detailDialog.data,
+                                event: { ...detailDialog.data.event, summary }
+                              }
+                            });
+                          }
+                        } finally {
+                          setGeneratingSummary(false);
+                        }
+                      }}
+                    >
+                      {generatingSummary ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      {generatingSummary ? '生成中...' : 'AI生成详解'}
+                    </Button>
+                  </div>
+                  <p className="text-slate-700 whitespace-pre-wrap">
+                    {detailDialog.data.event?.summary || detailDialog.data.event?.title || '暂无概述，点击"AI生成详解"获取详细内容'}
+                  </p>
                 </div>
                 {detailDialog.data.event?.effects && (
                   <div>
