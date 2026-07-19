@@ -94,34 +94,7 @@ export default function PoliticsHomePage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-pink-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/30">
-      {/* 顶部状态栏 */}
-      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📜</span>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                  思想政治
-                </h1>
-                <p className="text-xs text-slate-500">
-                  必背内容 · 引导式学习 · AI问答 · 论述训练
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {totalProgress > 0 && (
-                <Badge variant="outline" className="bg-pink-50">
-                  总进度：{totalProgress}%
-                </Badge>
-              )}
-              <Badge variant="outline" className="bg-white dark:bg-slate-800">
-                {selectedChapter.title.split(' ')[0]}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* 去掉学科页头，内容直接显示在主导航栏下方 */}
 
       <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
         {/* 教材选择 */}

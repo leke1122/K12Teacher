@@ -106,32 +106,7 @@ export default function MathPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-100 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/30">
-      {/* 顶部状态栏 */}
-      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{subject.icon}</span>
-                <div>
-                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                    {subject.name}
-                  </h1>
-                  <p className="text-xs text-slate-500">
-                    {activeTextbook ? activeTextbook.name : '请上传教材开始学习'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-white dark:bg-slate-800">
-                {activeTextbook ? '已上传' : '未上传教材'}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* 去掉学科页头，内容直接显示在主导航栏下方 */}
 
       {/* 主内容区 */}
       <main className="max-w-6xl mx-auto px-6 py-6 space-y-5">
