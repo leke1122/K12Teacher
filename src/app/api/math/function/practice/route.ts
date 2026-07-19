@@ -187,7 +187,7 @@ function parseGeneratedQuestions(text: string, nodeId: string): Question[] {
   const questions: Question[] = [];
   
   // 匹配选择题
-  const choicePattern = /题\s*1[.．、]?\s*(.+?)\n([A-D][.．、]\s*.+?\n?){4}答案[：:]\s*([A-D])\n解析[：:]\s*(.+?)(?=题\s*2|$)/is;
+  const choicePattern = /题\s*1[.．、]?\s*([\s\S]+?)\n([A-D][.．、]\s*[\s\S]+?\n?){4}答案[：:]\s*([A-D])\n解析[：:]\s*([\s\S]+?)(?=题\s*2|$)/i;
   const choiceMatch = text.match(choicePattern);
   if (choiceMatch) {
     const validation = validateQuestion(choiceMatch[1], nodeId);
@@ -205,7 +205,7 @@ function parseGeneratedQuestions(text: string, nodeId: string): Question[] {
   }
   
   // 匹配填空题
-  const fillPattern = /题\s*2[.．、]?\s*(.+?)\n答案[：:]\s*(.+?)\n解析[：:]\s*(.+?)(?=题\s*3|$)/is;
+  const fillPattern = /题\s*2[.．、]?\s*([\s\S]+?)\n答案[：:]\s*([\s\S]+?)\n解析[：:]\s*([\s\S]+?)(?=题\s*3|$)/i;
   const fillMatch = text.match(fillPattern);
   if (fillMatch) {
     const validation = validateQuestion(fillMatch[1], nodeId);
