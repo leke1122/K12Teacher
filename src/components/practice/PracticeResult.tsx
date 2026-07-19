@@ -54,7 +54,7 @@ export function PracticeResult({
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-100 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 py-8">
       <div className="container mx-auto px-4 max-w-2xl space-y-6">
         {/* 成绩单头部 */}
-        <Card className="border-0 shadow-2xl overflow-hidden">
+        <Card className="border-0 shadow-2xl overflow-hidden rounded-2xl">
           <div className={cn('h-2 bg-gradient-to-r', getScoreBg())} />
           <CardContent className="pt-8 text-center">
             <div className={cn('w-28 h-28 rounded-full bg-gradient-to-br', getScoreBg(), 'flex items-center justify-center mx-auto mb-4 shadow-xl')}>

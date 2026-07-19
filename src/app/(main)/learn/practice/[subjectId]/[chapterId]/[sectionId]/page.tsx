@@ -820,7 +820,7 @@ function PracticePageContent() {
           </p>
         </div>
 
-        <Card className="border-0 shadow-xl mb-6">
+        <Card className="border-0 shadow-xl mb-6 rounded-2xl">
           <CardHeader>
             <CardTitle className="text-lg">选择练习难度</CardTitle>
           </CardHeader>
