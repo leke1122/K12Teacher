@@ -57,8 +57,15 @@ export async function POST(request: NextRequest) {
     // 生成题型列表
     const typeList = generateQuestionTypeList(difficulty as 'simple' | 'medium' | 'hard', questionCount);
 
+    // 标准化 chapterId：支持 "3" -> "ch3" 或 "ch3" -> "ch3"
+    const normalizeChapterId = (id: string): string => {
+      if (id.startsWith('ch')) return id;
+      return `ch${id}`;
+    };
+    const normalizedChapterId = normalizeChapterId(String(chapterId));
+
     // 构建学科特定的出题提示词
-    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, String(chapterId), sectionId);
+    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, sectionId);
 
     if (apiKey) {
       try {

@@ -23,7 +23,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
   '1': [
     {
       // 1.1 集合及其表示方法
-      sectionId: '1.1.1',
+      sectionId: '1.1',
       sectionTitle: '集合及其表示方法',
       knowledge: [
         { id: 'k_1_1_1', name: '集合的概念', description: '集合的定义、元素特性', symbols: ['∈', '∉'] },
@@ -35,7 +35,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.2 子集与集合的相等
-      sectionId: '1.1.2',
+      sectionId: '1.2',
       sectionTitle: '子集与集合的相等',
       knowledge: [
         { id: 'k_1_2_1', name: '子集', description: '子集的定义与表示', symbols: ['⊆'] },
@@ -45,7 +45,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.3 集合的基本运算
-      sectionId: '1.1.3',
+      sectionId: '1.3',
       sectionTitle: '集合的基本运算',
       knowledge: [
         { id: 'k_1_3_1', name: '交集', description: '交集的定义与运算', symbols: ['∩', '∅'] },
@@ -55,7 +55,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.4 命题与量词
-      sectionId: '1.2.1',
+      sectionId: '1.4',
       sectionTitle: '命题与量词',
       knowledge: [
         { id: 'k_1_4_1', name: '命题', description: '命题的定义与表示' },
@@ -65,7 +65,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 1.5 充分条件与必要条件
-      sectionId: '1.2.2',
+      sectionId: '1.5',
       sectionTitle: '充分条件与必要条件',
       knowledge: [
         { id: 'k_1_5_1', name: '充分条件', description: '充分条件的定义' },
@@ -78,7 +78,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
   '2': [
     {
       // 2.1 等式
-      sectionId: '2.1.1',
+      sectionId: '2.1',
       sectionTitle: '等式',
       knowledge: [
         { id: 'k_2_1_1', name: '等式的性质', description: '等式的基本性质' },
@@ -88,7 +88,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 2.2 不等式
-      sectionId: '2.2.1',
+      sectionId: '2.2',
       sectionTitle: '不等式',
       knowledge: [
         { id: 'k_2_2_1', name: '不等式的性质', description: '不等式的基本性质' },
@@ -98,7 +98,7 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
     },
     {
       // 2.3 一元二次不等式
-      sectionId: '2.2.2',
+      sectionId: '2.3',
       sectionTitle: '一元二次不等式',
       knowledge: [
         { id: 'k_2_2_4', name: '一元二次不等式', description: '一元二次不等式的解法' },
@@ -110,17 +110,17 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
   '3': [
     {
       // 3.1 函数的概念
-      sectionId: '3.1.1',
+      sectionId: '3.1',
       sectionTitle: '函数的概念',
       knowledge: [
-        { id: 'k_3_1_1', name: '函数概念', description: '函数的定义、定义域、值域' },
-        { id: 'k_3_1_2', name: '函数表示', description: '列表法、图像法、解析法' },
-        { id: 'k_3_1_3', name: '分段函数', description: '分段函数的定义与表示' },
+        { id: 'k_3_1_1', name: '函数概念', description: '函数的定义、定义域、值域、对应关系', symbols: ['f(x)', '∈', '∉'] },
+        { id: 'k_3_1_2', name: '函数表示', description: '列表法、图像法、解析法', symbols: ['f(x)'] },
+        { id: 'k_3_1_3', name: '分段函数', description: '分段函数的定义与表示', symbols: ['f(x)'] },
       ],
     },
     {
       // 3.2 函数的基本性质
-      sectionId: '3.1.2',
+      sectionId: '3.2',
       sectionTitle: '函数的基本性质',
       knowledge: [
         { id: 'k_3_2_1', name: '单调性', description: '增函数、减函数定义', symbols: ['↗', '↘'] },
@@ -335,9 +335,17 @@ export function getKnowledgeRange(
   // 先精确匹配
   currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
   
-  // 如果没找到，尝试前缀匹配（如 "1.1" 匹配 "1.1.1"）
+  // 如果没找到，尝试前缀匹配（如 "1.1" 匹配 "1.1.1" 或 "1.1.2"）
   if (currentIdx === -1) {
-    currentIdx = allSections.findIndex(s => s.sectionId.startsWith(parsedSectionId + '.'));
+    // 尝试匹配 sectionId 的前N段（N = parsedSectionId 的段数）
+    const parsedParts = parsedSectionId.split('.');
+    currentIdx = allSections.findIndex(s => {
+      const sParts = s.sectionId.split('.');
+      // 检查 s 是否以 parsedSectionId 开头（前N段完全匹配）
+      // 例如 "3.1" 应该匹配 "3.1.1" 和 "3.1.2"
+      return sParts.length >= parsedParts.length && 
+             parsedParts.every((part, i) => part === sParts[i]);
+    });
   }
   
   // 如果还是没找到，尝试部分匹配
@@ -435,9 +443,16 @@ export function getForbiddenKnowledge(
   
   // 找当前小节的索引
   let currentIdx = -1;
+  // 先精确匹配
   currentIdx = allSections.findIndex(s => s.sectionId === parsedSectionId);
+  // 如果没找到，尝试前缀匹配
   if (currentIdx === -1) {
-    currentIdx = allSections.findIndex(s => s.sectionId.startsWith(parsedSectionId + '.'));
+    const parsedParts = parsedSectionId.split('.');
+    currentIdx = allSections.findIndex(s => {
+      const sParts = s.sectionId.split('.');
+      return sParts.length >= parsedParts.length && 
+             parsedParts.every((part, i) => part === sParts[i]);
+    });
   }
   
   // 如果没找到，返回空（所有知识点都可用）
