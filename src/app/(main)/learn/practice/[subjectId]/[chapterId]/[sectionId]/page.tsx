@@ -450,6 +450,15 @@ function PracticePageContent() {
       <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
         {/* 左右分栏主体 */}
         <div className="container mx-auto px-4 py-4">
+          {/* 顶部导航 */}
+          <div className="flex items-center gap-3 mb-4">
+            <Link href={`/learn/practice/${subjectId}/${chapterId}/${sectionId}`}>
+              <Button variant="ghost" size="sm" className="gap-1 text-slate-600 dark:text-slate-400">
+                <ArrowLeft className="h-4 w-4" />返回难度选择
+              </Button>
+            </Link>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
             {/* 左侧 1/4：题目区域 */}
             <div className="lg:col-span-1 space-y-4">
