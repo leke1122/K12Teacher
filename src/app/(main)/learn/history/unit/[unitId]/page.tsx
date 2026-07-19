@@ -139,7 +139,7 @@ export default function UnitLearningPage() {
         if (timelineData.success && timelineData.data?.events) {
           setEvents(timelineData.data.events.slice(0, 20).map((e: any) => ({
             year: e.year,
-            yearDisplay: e.yearDisplay || formatYearDisplay(e.year),
+            yearDisplay: e.yearDisplay || formatYearForDialog(e.year),
             title: e.title || e.title,
             category: e.category || e.difficulty || '政治',
             summary: e.summary || '',
@@ -373,7 +373,6 @@ export default function UnitLearningPage() {
                         const imp = event.importance || 3;
                         // 使用预格式化的yearDisplay，如果没有则格式化
                         const displayYear = event.yearDisplay || (event.year !== undefined && event.year !== null ? String(event.year) : '');
-                        return (
                         // 查找相关知识点
                         const relatedConcepts = concepts.filter(c => 
                           c.name.includes(event.title) || 
