@@ -165,7 +165,30 @@ function buildMathPrompt(
     ? `\n\n【禁止的题型模式（出题时绝对不能出现以下模式）】\n${mathKnowledge.forbiddenPatterns.map(p => `- ${p.reason}`).join('\n')}` : '';
   const requiredPatternsWarning = mathKnowledge?.requiredPatterns
     ? `\n\n【必须包含的题型特征（每道题必须有）】\n${mathKnowledge.requiredPatterns.map(p => `- ${p.reason}`).join('\n')}` : '';
+  
+  // 针对函数章节的特殊规则
+  const isFunctionSection = chapterId && sectionId && (
+    sectionId.startsWith('3.1') || 
+    sectionId === '3.1'
+  );
+  const functionSectionRule = isFunctionSection ? `
+  
+【🚨🚨🚨 极度重要：第3章函数练习题禁止出现以下内容 🚨🚨🚨】
+如果正在出第3章（函数）的练习题，绝对不能出以下类型的题：
+❌ "已知集合 A = {x | 1 ≤ x ≤ 5}，求 A ∪ B" → 这是集合题，超纲！
+❌ "设 A ∩ B = {2, 3}，求..." → 这是集合题，超纲！
+❌ "判断 {1,2} ⊆ {1,2,3} 是否成立" → 这是集合题，超纲！
+❌ 任何包含 ∈、∩、∪、⊆、⊂、⊇、⊃、∅、∁ 符号的题
+❌ 任何包含"集合"、"子集"、"交集"、"并集"、"补集"等词的题
+
+【✅ 正确示例（第3章函数应出的题）】
+✅ "已知 f(x) = x² + 2x + 1，求 f(2) 的值"
+✅ "求函数 y = √(x-1) 的定义域"
+✅ "判断函数 f(x) 和 g(x) 是否相等"
+` : '';
+
   const systemPrompt = `你是一位资深高中数学教师，精通辽宁高考出题规律，擅长设计原创练习题。
+${functionSectionRule}
 
 【核心原则】
 1. 绝对原创：题目必须是你原创设计的，严禁复制任何已有题目
@@ -198,10 +221,10 @@ ${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n
 - 计算题（calculation）：考察解题步骤规范性
 
 【数学符号规范】
-集合：∈, ∉, ⊆, ⊂, ⊇, ⊃, ∪, ∩, ∅, ∁
 运算：+, −, ×, ÷, ±, √, ², ³, π, Δ
 关系：=, ≠, <, >, ≤, ≥, ≈, ⇒, ⇔, →
-其他：∀, ∃, ∞, ∑, ∫, {, }, [, ]
+函数：f(x), g(x), h(x)
+其他：∀, ∃, ∞, ∑, ∫
 
 【选项设计规则】
 - 干扰项必须是"明显错误"或"容易发现的矛盾"

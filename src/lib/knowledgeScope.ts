@@ -113,9 +113,10 @@ const MATH_KNOWLEDGE: Record<string, PracticeSectionKnowledge[]> = {
       sectionId: '3.1',
       sectionTitle: '函数的概念',
       knowledge: [
-        { id: 'k_3_1_1', name: '函数概念', description: '函数的定义、定义域、值域、对应关系', symbols: ['f(x)', '∈', '∉'] },
+        { id: 'k_3_1_1', name: '函数概念', description: '函数的定义、定义域、值域、对应关系', symbols: ['f(x)'] },
         { id: 'k_3_1_2', name: '函数表示', description: '列表法、图像法、解析法', symbols: ['f(x)'] },
         { id: 'k_3_1_3', name: '分段函数', description: '分段函数的定义与表示', symbols: ['f(x)'] },
+        { id: 'k_3_1_4', name: '函数相等', description: '两个函数相等的条件（定义域和对应关系都相同）', symbols: ['f(x)'] },
       ],
     },
     {
@@ -308,10 +309,24 @@ function parseSectionId(sectionId: string): string {
 }
 
 /**
+ * 获取该小节所属的章号
+ * 支持格式: "3.1" -> "3", "3.2" -> "3", "1.1" -> "1"
+ */
+function getChapterFromSection(sectionId: string): string {
+  const parsed = parseSectionId(sectionId);
+  const dotIdx = parsed.indexOf('.');
+  return dotIdx > 0 ? parsed.substring(0, dotIdx) : parsed;
+}
+
+/**
  * 根据学科和章节ID获取该章节及之前所有章节的知识点
  * @param subjectId 学科ID
  * @param chapterId 章节编号（如 "1"）
  * @param sectionId 小节编号（如 "1.1"，"1.1.1"，"lesson_1_1"，"all"表示整章）
+ * 
+ * 【重要】修复：之前知识点只包含同一章之前的节，不跨章
+ * 例如：选择 3.1 函数的概念 时，之前的知识点只包含 3.0 之前同章的节（无）
+ * 不会包含第1章集合的内容，避免出题时混入集合题目
  */
 export function getKnowledgeRange(
   subjectId: string,
@@ -328,6 +343,7 @@ export function getKnowledgeRange(
 
   // 解析 sectionId
   const parsedSectionId = parseSectionId(sectionId);
+  const currentChapter = getChapterFromSection(parsedSectionId);
   
   // 找当前小节的索引
   let currentIdx = -1;
@@ -351,8 +367,19 @@ export function getKnowledgeRange(
     return { currentKnowledge: [], previousKnowledge: [] };
   }
   
-  // 之前章节（包括当前小节之前的所有内容）
-  const previousKnowledge = allSections.slice(0, currentIdx);
+  // 【关键修复】之前知识点只包含同一章之前的节
+  // 例如：3.1 函数的概念 之前知识点 = 3.0 之前的 3.x 节（无）
+  // 不会包含 1.x（集合）、2.x（不等式）的内容，避免出题时混入其他章节题目
+  const previousKnowledge: PracticeSectionKnowledge[] = [];
+  for (let i = 0; i < currentIdx; i++) {
+    const sectionChapter = getChapterFromSection(allSections[i].sectionId);
+    // 只添加同章的节（因为 sectionChapter == currentChapter 意味着是同一章更早的节）
+    // 不添加之前章的节（如 1.x, 2.x 对于 3.1 来说都是"之前章"，不应包含）
+    if (sectionChapter === currentChapter) {
+      previousKnowledge.push(allSections[i]);
+    }
+  }
+  
   // 当前小节
   const currentKnowledge = [allSections[currentIdx]];
 
@@ -417,6 +444,10 @@ export function isKnowledgeInScope(
 /**
  * 获取禁止知识点（当前小节之后的所有知识点）
  * 用于出题时避免超纲
+ * 
+ * 【重要】这里需要包含之前章的知识点作为禁止列表
+ * 因为用户选择 3.1 函数的概念 时，之前知识点只包含同章之前的节（无）
+ * 但禁止列表应该包含：1.x（集合）、2.x（不等式）以及 3.2 之后的所有内容
  */
 export function getForbiddenKnowledge(
   subjectId: string,
@@ -433,6 +464,7 @@ export function getForbiddenKnowledge(
 
   // 解析 sectionId
   const parsedSectionId = parseSectionId(sectionId);
+  const currentChapter = getChapterFromSection(parsedSectionId);
   
   // 找当前小节的索引
   let currentIdx = -1;
@@ -443,14 +475,33 @@ export function getForbiddenKnowledge(
     currentIdx = allSections.findIndex(s => parsedSectionId.startsWith(s.sectionId + '.'));
   }
   
-  // 如果没找到，返回空（所有知识点都可用）
+  // 如果没找到，返回空
   if (currentIdx === -1) {
     return [];
   }
   
-  // 返回当前小节之后的所有知识点
-  const forbiddenSections = allSections.slice(currentIdx + 1);
-  const forbiddenPoints = flattenKnowledgePoints(forbiddenSections);
+  // 禁止列表 = 之前章的所有知识点 + 当前章之后的所有节
+  const forbiddenPoints: string[] = [];
   
-  return forbiddenPoints.map(k => k.name);
+  // 1. 添加之前章的所有知识点（跨章禁止）
+  // 例如：3.1 禁止 1.x, 2.x 的所有内容
+  for (let i = 0; i < currentIdx; i++) {
+    const sectionChapter = getChapterFromSection(allSections[i].sectionId);
+    if (sectionChapter < currentChapter) {
+      forbiddenPoints.push(...allSections[i].knowledge.map(k => k.name));
+    }
+  }
+  
+  // 2. 添加当前章之后的所有节（同章后续）
+  // 例如：3.1 禁止 3.2, 3.3... 的所有内容
+  const forbiddenSections = allSections.slice(currentIdx + 1);
+  for (const section of forbiddenSections) {
+    // 只添加同章的后续节，或者任何章的后续节（如果是同章就添加）
+    const sectionChapter = getChapterFromSection(section.sectionId);
+    if (sectionChapter === currentChapter) {
+      forbiddenPoints.push(...section.knowledge.map(k => k.name));
+    }
+  }
+  
+  return forbiddenPoints;
 }
