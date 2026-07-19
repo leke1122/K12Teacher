@@ -382,13 +382,20 @@ export default function UnitLearningPage() {
                             {event.summary && (
                               <p className="text-sm text-slate-600 line-clamp-2 mb-1">{event.summary}</p>
                             )}
-                            {/* 显示相关知识点 */}
+                            {/* 显示相关知识点 - 可点击 */}
                             {relatedConcepts.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {relatedConcepts.map((c, ci) => (
-                                  <Badge key={ci} variant="outline" className="text-xs bg-pink-50 border-pink-200">
-                                    {c.name}
-                                  </Badge>
+                                  <button
+                                    key={ci}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDetailDialog({open: true, type: 'knowledge', data: c});
+                                    }}
+                                    className="px-2 py-0.5 rounded-full text-xs bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 hover:border-pink-300 transition-colors cursor-pointer"
+                                  >
+                                    {c.name} →
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -792,9 +799,13 @@ export default function UnitLearningPage() {
                     <h4 className="font-semibold mb-2">相关知识点</h4>
                     <div className="flex flex-wrap gap-2">
                       {detailDialog.data.relatedConcepts.map((c: any, i: number) => (
-                        <Badge key={i} className="bg-pink-50 text-pink-700 border-pink-200">
+                        <button
+                          key={i}
+                          onClick={() => setDetailDialog({open: true, type: 'knowledge', data: c})}
+                          className="px-3 py-1.5 rounded-lg bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 hover:border-pink-300 transition-colors cursor-pointer text-sm"
+                        >
                           {c.name}
-                        </Badge>
+                        </button>
                       ))}
                     </div>
                   </div>
