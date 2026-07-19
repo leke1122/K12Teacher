@@ -4,6 +4,12 @@
  * 适用于人教B版必修第一册
  */
 
+// 题型特征模式
+export interface PatternRule {
+  regex: string;
+  reason: string;
+}
+
 export interface SectionKnowledge {
   name: string;
   keywords: string[];
@@ -13,6 +19,10 @@ export interface SectionKnowledge {
   prerequisiteTopics: string[];
   pageRange: string;
   description: string;
+  // 题型黑名单：识别并禁止特定题型模式
+  forbiddenPatterns?: PatternRule[];
+  // 必须包含的题型特征（用于验证题目是否属于本节）
+  requiredPatterns?: PatternRule[];
 }
 
 export interface ChapterKnowledge {
@@ -40,7 +50,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（无）
         prerequisiteTopics: [],
         pageRange: '1-15',
-        description: '理解集合的概念，掌握集合的表示方法，能用列举法和描述法表示集合'
+        description: '理解集合的概念，掌握集合的表示方法，能用列举法和描述法表示集合',
+        // 集合章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(集合|元素|属于|列举法|描述法)', reason: '集合关键词' }
+        ],
+        // 函数章节禁止的特征
+        forbiddenPatterns: [
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' },
+          { regex: '定义域|值域', reason: '函数定义域/值域' }
+        ]
       },
       '1.2': {
         name: '集合间的基本关系',
@@ -52,7 +71,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（1.1集合的概念）
         prerequisiteTopics: ['集合的定义', '元素与集合的关系', '集合的表示方法'],
         pageRange: '16-28',
-        description: '理解子集、真子集、集合相等的概念，掌握它们之间的关系'
+        description: '理解子集、真子集、集合相等的概念，掌握它们之间的关系',
+        // 子集章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(子集|真子集|⊆|⊂|包含于)', reason: '子集关系关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' },
+          { regex: '定义域|值域|单调|奇偶', reason: '函数相关概念' },
+          { regex: '∩|∪|补集', reason: '集合运算（交集、并集、补集）' }
+        ]
       },
       '1.3': {
         name: '集合的运算',
@@ -64,7 +92,15 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（1.1集合概念 + 1.2子集关系）
         prerequisiteTopics: ['集合的定义', '元素与集合的关系', '子集的定义', '真子集的定义', '空集的性质'],
         pageRange: '29-45',
-        description: '掌握交集、并集、补集的定义和运算律，能用Venn图表示集合关系'
+        description: '掌握交集、并集、补集的定义和运算律，能用Venn图表示集合关系',
+        // 集合运算章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(∩|∪|补集|交集|并集)', reason: '集合运算符号' }
+        ],
+        forbiddenPatterns: [
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' },
+          { regex: '定义域|值域|单调|奇偶', reason: '函数相关概念' }
+        ]
       }
     }
   },
@@ -84,7 +120,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（无，不需要用到集合）
         prerequisiteTopics: [],
         pageRange: '46-57',
-        description: '掌握等式和不等式的基本性质，能用性质比较大小'
+        description: '掌握等式和不等式的基本性质，能用性质比较大小',
+        // 不等式章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(不等式|>|≥|<|≤|比较大小)', reason: '不等式关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' },
+          { regex: '定义域|值域|单调|奇偶', reason: '函数相关概念' },
+          { regex: '∩|∪|集合|元素|属于', reason: '集合相关概念' }
+        ]
       },
       '2.2': {
         name: '基本不等式',
@@ -96,7 +141,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（2.1不等式性质）
         prerequisiteTopics: ['不等式的基本性质', '比较大小方法'],
         pageRange: '58-70',
-        description: '掌握基本不等式，能利用基本不等式求最值'
+        description: '掌握基本不等式，能利用基本不等式求最值',
+        // 基本不等式章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(基本不等式|√|均值|算术平均|几何平均)', reason: '基本不等式关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' },
+          { regex: '定义域|值域|单调|奇偶', reason: '函数相关概念' },
+          { regex: '∩|∪|集合', reason: '集合相关概念' }
+        ]
       },
       '2.3': {
         name: '二次函数与一元二次方程、不等式',
@@ -108,7 +162,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（2.1不等式性质 + 2.2基本不等式）
         prerequisiteTopics: ['不等式的基本性质', '基本不等式', '求最值的方法'],
         pageRange: '71-90',
-        description: '掌握二次函数的图像，理解三个二次的关系，能解一元二次不等式'
+        description: '掌握二次函数的图像，理解三个二次的关系，能解一元二次不等式',
+        // 二次函数章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(二次函数|一元二次|ax²|bx\\+c|判别式|求根公式|韦达)', reason: '二次函数/方程关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: '单调性|单调递增|单调递减|增函数|减函数', reason: '函数单调性' },
+          { regex: '奇偶性|奇函数|偶函数', reason: '函数奇偶性' },
+          { regex: '指数函数|对数函数|幂函数', reason: '超越函数' }
+        ]
       }
     }
   },
@@ -134,7 +197,23 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（无 - 这是函数的起始章节）
         prerequisiteTopics: [],
         pageRange: '91-110',
-        description: '理解函数的概念，掌握函数的三要素，会求定义域和值域'
+        description: '理解函数的概念，掌握函数的三要素，会求定义域和值域',
+        // 函数概念章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(定义域|值域|对应关系|函数三要素|区间)', reason: '函数概念关键词' },
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' }
+        ],
+        // 函数章节禁止集合相关的所有特征
+        forbiddenPatterns: [
+          { regex: '\\{[^}]*\\|[^}]*\\}', reason: '集合描述法 {x | ...}' },
+          { regex: '∈|∉', reason: '元素属于符号 ∈ ∉' },
+          { regex: '∩|∪', reason: '集合交并运算 ∩ ∪' },
+          { regex: 'ℤ|ℕ|ℚ|ℝ', reason: '数集符号 ℤ ℕ ℚ ℝ' },
+          { regex: '(子集|真子集|包含于|包含关系)', reason: '集合关系词' },
+          { regex: '(交集|并集|补集|韦恩图|德摩根)', reason: '集合运算' },
+          { regex: '(单调性|增函数|减函数|单调递增|单调递减)', reason: '函数单调性（后续章节）' },
+          { regex: '(奇偶性|奇函数|偶函数|对称性)', reason: '函数奇偶性（后续章节）' }
+        ]
       },
       '3.2': {
         name: '函数的表示法',
@@ -151,7 +230,19 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（3.1函数的概念）
         prerequisiteTopics: ['函数的定义', '函数的表示方法', '定义域的求法', '值域的求法', '函数的三要素', '区间'],
         pageRange: '111-125',
-        description: '掌握函数的表示方法，理解分段函数和映射的概念'
+        description: '掌握函数的表示方法，理解分段函数和映射的概念',
+        // 函数表示法章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(解析法|图像法|列表法|分段函数|映射)', reason: '函数表示法关键词' },
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' }
+        ],
+        forbiddenPatterns: [
+          { regex: '\\{[^}]*\\|[^}]*\\}', reason: '集合描述法' },
+          { regex: '∈|∉', reason: '元素属于符号' },
+          { regex: '∩|∪', reason: '集合运算' },
+          { regex: '(单调性|增函数|减函数)', reason: '函数单调性' },
+          { regex: '(奇偶性|奇函数|偶函数)', reason: '函数奇偶性' }
+        ]
       },
       '3.3': {
         name: '函数的单调性',
@@ -168,7 +259,17 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（3.1函数概念 + 3.2函数表示法）
         prerequisiteTopics: ['函数的定义', '函数的表示方法', '定义域的求法', '值域的求法', '函数的三要素'],
         pageRange: '126-145',
-        description: '理解函数单调性的概念，掌握判断和证明函数单调性的方法'
+        description: '理解函数单调性的概念，掌握判断和证明函数单调性的方法',
+        // 函数单调性章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(单调|增函数|减函数|递增|递减|单调区间)', reason: '单调性关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: '\\{[^}]*\\|[^}]*\\}', reason: '集合描述法' },
+          { regex: '∈|∉', reason: '元素属于符号' },
+          { regex: '∩|∪', reason: '集合运算' },
+          { regex: '(奇偶性|奇函数|偶函数)', reason: '函数奇偶性（后续章节）' }
+        ]
       },
       '3.4': {
         name: '函数的奇偶性',
@@ -184,7 +285,16 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         // 前置知识点（3.1函数概念 + 3.2函数表示法 + 3.3单调性）
         prerequisiteTopics: ['函数的定义', '函数的表示方法', '定义域的求法', '值域的求法', '单调性的定义', '单调性的判断方法'],
         pageRange: '146-165',
-        description: '理解函数奇偶性的概念，掌握判断函数奇偶性的方法'
+        description: '理解函数奇偶性的概念，掌握判断函数奇偶性的方法',
+        // 函数奇偶性章节必须包含的特征
+        requiredPatterns: [
+          { regex: '(奇偶性|奇函数|偶函数|对称性|f\\(-x\\))', reason: '奇偶性关键词' }
+        ],
+        forbiddenPatterns: [
+          { regex: '\\{[^}]*\\|[^}]*\\}', reason: '集合描述法' },
+          { regex: '∈|∉', reason: '元素属于符号' },
+          { regex: '∩|∪', reason: '集合运算' }
+        ]
       }
     }
   }
@@ -271,4 +381,107 @@ export function validateTopicLenient(topic: string, chapterId: string, sectionId
   }
   
   return { valid: true };
+}
+
+// 验证题型特征（使用正则表达式模式）
+export function validatePatterns(
+  questionText: string,
+  knowledge: SectionKnowledge
+): { valid: boolean; reason?: string } {
+  // 如果没有定义模式规则，跳过验证
+  if (!knowledge.forbiddenPatterns && !knowledge.requiredPatterns) {
+    return { valid: true };
+  }
+
+  const fullText = questionText + ' ' + (knowledge.keywords || []).join(' ');
+
+  // 检查禁止的模式
+  if (knowledge.forbiddenPatterns) {
+    for (const pattern of knowledge.forbiddenPatterns) {
+      try {
+        const regex = new RegExp(pattern.regex, 'i');
+        if (regex.test(fullText)) {
+          return { 
+            valid: false, 
+            reason: `题目包含禁止特征【${pattern.reason}】` 
+          };
+        }
+      } catch (e) {
+        // 正则表达式可能无效，忽略该模式
+        console.warn(`无效的正则表达式: ${pattern.regex}`);
+      }
+    }
+  }
+
+  // 检查必须的模式
+  if (knowledge.requiredPatterns) {
+    const hasRequired = knowledge.requiredPatterns.some(pattern => {
+      try {
+        const regex = new RegExp(pattern.regex, 'i');
+        return regex.test(fullText);
+      } catch (e) {
+        return false;
+      }
+    });
+    
+    if (!hasRequired) {
+      return { 
+        valid: false, 
+        reason: `题目未包含本节必需特征（应包含：${knowledge.requiredPatterns.map(p => p.reason).join('、')}）` 
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+// 综合验证函数（严格模式）
+export function validateQuestion(
+  question: string,
+  chapterId: string,
+  sectionId: string,
+  strictMode: boolean = true
+): { valid: boolean; reason?: string } {
+  const knowledge = getSectionKnowledge(chapterId, sectionId);
+  if (!knowledge) {
+    return { valid: false, reason: '未找到该小节的知识索引' };
+  }
+
+  // 1. 验证禁止关键词
+  const keywordValidation = validateTopic(question, chapterId, sectionId);
+  if (!keywordValidation.valid) {
+    return keywordValidation;
+  }
+
+  // 2. 验证题型模式
+  if (strictMode) {
+    const patternValidation = validatePatterns(question, knowledge);
+    if (!patternValidation.valid) {
+      return patternValidation;
+    }
+  }
+
+  return { valid: true };
+}
+
+// 过滤超纲题目
+export function filterQuestions<T extends { question: string }>(
+  questions: T[],
+  chapterId: string,
+  sectionId: string,
+  strictMode: boolean = true
+): { valid: T[]; invalid: Array<{ question: T; reason: string }> } {
+  const valid: T[] = [];
+  const invalid: Array<{ question: T; reason: string }> = [];
+
+  for (const q of questions) {
+    const validation = validateQuestion(q.question, chapterId, sectionId, strictMode);
+    if (validation.valid) {
+      valid.push(q);
+    } else {
+      invalid.push({ question: q, reason: validation.reason || '未知原因' });
+    }
+  }
+
+  return { valid, invalid };
 }

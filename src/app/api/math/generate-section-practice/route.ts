@@ -4,7 +4,8 @@ import {
   getAllChapters, 
   getSectionsByChapter,
   validateTopic,
-  validateTopicLenient,
+  validateQuestion,
+  filterQuestions,
   type SectionKnowledge 
 } from '@/data/math/chapterKnowledgeIndex';
 
@@ -143,6 +144,12 @@ ${knowledge.forbiddenTopics.join('、')}
 【前置知识点（可以使用）】
 ${knowledge.prerequisiteTopics.length > 0 ? knowledge.prerequisiteTopics.join('、') : '无'}
 
+【必须包含的题型特征】
+${knowledge.requiredPatterns?.map(p => `${p.reason}（匹配模式：${p.regex}）`).join('\n') || '无'}
+
+【严格禁止的题型特征】
+${knowledge.forbiddenPatterns?.map(p => `${p.reason}（匹配模式：${p.regex}）`).join('\n') || '无'}
+
 输出格式：
 每道题格式如下：
 题1. [题目内容]
@@ -166,6 +173,12 @@ D. [选项D]
 页数范围：${knowledge.pageRange}
 小节描述：${knowledge.description}
 
+【必须包含的题型特征】
+${knowledge.requiredPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
+
+【严格禁止的题型特征】
+${knowledge.forbiddenPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
+
 【关键要求】
 1. 所有题目必须严格只涉及"允许的知识点"
 2. 严禁出现"禁止的知识点"中的任何内容
@@ -176,23 +189,18 @@ D. [选项D]
     const generatedText = await callDeepSeek(prompt, systemPrompt);
     const questions = parseQuestions(generatedText, chapterId, sectionId);
     
-    // 严格验证每道题目
-    const validQuestions: PracticeQuestion[] = [];
-    const warnings: string[] = [];
+    // 严格验证每道题目（使用综合验证：关键词 + 模式）
+    const { valid, invalid } = filterQuestions(questions, chapterId, sectionId, true);
     
-    for (const q of questions) {
-      // 使用严格验证
-      const validation = validateTopic(q.question, chapterId, sectionId);
-      if (validation.valid) {
-        validQuestions.push(q);
-      } else {
-        warnings.push(`${q.question.substring(0, 30)}...: ${validation.reason}`);
-      }
-    }
+    const warnings = invalid.map(item => 
+      `${item.question.question.substring(0, 30)}...: ${item.reason}`
+    );
     
     return {
-      questions: validQuestions.length > 0 ? validQuestions : questions,
-      warning: warnings.length > 0 ? `以下题目已过滤（涉及超纲内容）：\n${warnings.join('\n')}` : undefined
+      questions: valid.length > 0 ? valid : questions,
+      warning: warnings.length > 0 
+        ? `以下 ${warnings.length} 道题目已过滤（涉及超纲内容）：\n${warnings.join('\n')}` 
+        : undefined
     };
   } catch (error) {
     throw error;
