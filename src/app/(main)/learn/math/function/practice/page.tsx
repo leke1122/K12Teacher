@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
   Brain, BookOpen, TrendingUp, Zap, RefreshCw
 } from 'lucide-react';
 import { functionGraphNodes, FunctionGraphNode } from '@/data/math/functionKnowledgeGraph';
+import { startLearning, endLearning } from '@/lib/learningService';
 
 interface Question {
   id: string;
@@ -37,6 +38,7 @@ interface PracticeResult {
 export default function FunctionPracticePage() {
   const router = useRouter();
   const userId = 'personal-user';
+  const learningRecordRef = useRef<string | null>(null);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeLabel, setSelectedNodeLabel] = useState<string>('');
@@ -47,6 +49,30 @@ export default function FunctionPracticePage() {
   const [loading, setLoading] = useState(false);
   const [practiceComplete, setPracticeComplete] = useState(false);
   const [result, setResult] = useState<PracticeResult | null>(null);
+
+  // 学习记录：进入时开始，离开时结束
+  useEffect(() => {
+    startLearning({
+      subjectId: 'math',
+      subjectName: '数学',
+      activityType: 'practice',
+      chapterId: '3', // 函数章节
+      sectionId: selectedNodeId || 'all',
+      activityDetail: { 
+        sectionTitle: '函数专项练习',
+        sectionName: selectedNodeLabel || '全部知识点',
+        chapterTitle: '第三章 函数'
+      },
+    }).then(id => { learningRecordRef.current = id; });
+
+    const handleUnload = () => { if (learningRecordRef.current) endLearning(learningRecordRef.current); };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (learningRecordRef.current) { endLearning(learningRecordRef.current); learningRecordRef.current = null; }
+    };
+  }, [selectedNodeId, selectedNodeLabel]);
 
   // 按难度分类的节点
   const nodesByDifficulty = {

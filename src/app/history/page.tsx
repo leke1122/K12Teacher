@@ -164,9 +164,13 @@ function HistoryPageContent() {
   const renderActivityDescription = (record: SessionRecord) => {
     const detail = (record.activity_detail || {}) as Record<string, unknown>;
     const subject = record.subject_name || record.subject_id || '未知学科';
-    const chapter = record.chapter_id ? `第${record.chapter_id}章` : '';
-    const section = record.section_id ? `第${record.section_id}节` : '';
-    const position = [chapter, section].filter(Boolean).join(' › ') || '未指定位置';
+    
+    // 优先从 activity_detail 获取章节标题，否则使用 ID
+    const chapterTitle = typeof detail.chapterTitle === 'string' ? detail.chapterTitle : 
+                        (record.chapter_id ? `第${record.chapter_id}章` : '');
+    const sectionTitle = typeof detail.sectionTitle === 'string' ? detail.sectionTitle : 
+                        (record.section_id ? `第${record.section_id}节` : '');
+    const position = [chapterTitle, sectionTitle].filter(Boolean).join(' › ') || '未指定位置';
 
     switch (record.activity_type) {
       case 'words': {
