@@ -70,7 +70,7 @@ export const historyUnits: HistoryUnit[] = [
     previousUnitId: 'u2',
     nextUnitId: 'u4',
   },
-  // ============ 第四单元（占位）============
+  // ============ 第四单元 ============
   {
     id: 'u4',
     bookId: 'outline-upper',
@@ -83,11 +83,17 @@ export const historyUnits: HistoryUnit[] = [
     coreTheme: '版图奠定与专制强化',
     curriculumDimensions: ['制度变化与创新', '民族交融', '区域开发', '思想文化'],
     lessons: ['u4-l13', 'u4-l14', 'u4-l15'],
-    status: 'planned',
+    status: 'released',
+    liaoningSummary: {
+      totalQuestions: 8,
+      totalScore: 43,
+      bigQuestions: 2,
+      highFrequencyTopics: ['明朝君主专制强化', '清朝民族政策', '清朝统治政策'],
+    },
     previousUnitId: 'u3',
     nextUnitId: 'u5',
   },
-  // ============ 第五单元（占位）============
+  // ============ 第五单元 ============
   {
     id: 'u5',
     bookId: 'outline-upper',
@@ -99,8 +105,14 @@ export const historyUnits: HistoryUnit[] = [
     endYear: 1912,
     coreTheme: '民族危机与近代化探索',
     curriculumDimensions: ['制度变化与创新', '民族交融', '区域开发', '思想文化'],
-    lessons: [],
-    status: 'planned',
+    lessons: ['u5-l16', 'u5-l17', 'u5-l18'],
+    status: 'released',
+    liaoningSummary: {
+      totalQuestions: 7,
+      totalScore: 30,
+      bigQuestions: 1,
+      highFrequencyTopics: ['鸦片战争影响', '清末新政与新式学堂'],
+    },
     previousUnitId: 'u4',
     nextUnitId: 'u6',
   },
