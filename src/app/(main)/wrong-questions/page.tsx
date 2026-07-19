@@ -306,10 +306,8 @@ function WrongQuestionsContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
       <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
-        {/* 搜索和筛选区域 */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-md p-4 space-y-3">
-          {/* 搜索框 */}
-          <div className="relative">
+        {/* 搜索框 */}
+        <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={search}
@@ -408,7 +406,6 @@ function WrongQuestionsContent() {
             </div>
             <Badge variant="outline" className="text-sm">{filtered.length}题</Badge>
           </div>
-        </div>
 
         {/* 薄弱项统计 */}
         {weakPoints.length > 0 && (
