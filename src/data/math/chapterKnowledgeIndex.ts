@@ -198,20 +198,30 @@ export const mathChapterKnowledgeIndex: Record<string, ChapterKnowledge> = {
         prerequisiteTopics: [],
         pageRange: '91-110',
         description: '理解函数的概念，掌握函数的三要素，会求定义域和值域',
-        // 函数概念章节必须包含的特征
+        // 函数概念章节必须包含的特征（至少一个）
         requiredPatterns: [
-          { regex: '(定义域|值域|对应关系|函数三要素|区间)', reason: '函数概念关键词' },
-          { regex: 'f\\(x\\)', reason: '函数符号 f(x)' }
+          { regex: 'f\\(x\\)', reason: '函数符号 f(x)（必须有）' },
+          { regex: '(定义域|值域|对应关系)', reason: '函数概念关键词' }
         ],
-        // 函数章节禁止集合相关的所有特征
+        // 函数章节严格禁止集合相关的所有特征
         forbiddenPatterns: [
-          { regex: '\\{[^}]*\\|[^}]*\\}', reason: '集合描述法 {x | ...}' },
+          // 集合描述法 {x | ...} 或 {x : ...}
+          { regex: '\\{[^{}]*[|:][^{}]*\\}', reason: '集合描述法 {x | ...} 或 {x : ...}' },
+          // 元素属于符号
           { regex: '∈|∉', reason: '元素属于符号 ∈ ∉' },
-          { regex: '∩|∪', reason: '集合交并运算 ∩ ∪' },
+          // 集合交并运算
+          { regex: '∩|∪', reason: '集合交并运算符号 ∩ ∪' },
+          // 数集符号
           { regex: 'ℤ|ℕ|ℚ|ℝ', reason: '数集符号 ℤ ℕ ℚ ℝ' },
-          { regex: '(子集|真子集|包含于|包含关系)', reason: '集合关系词' },
-          { regex: '(交集|并集|补集|韦恩图|德摩根)', reason: '集合运算' },
+          // 集合关系词
+          { regex: '(集合|子集|真子集|包含于|包含关系)', reason: '集合关系词' },
+          // 集合运算词
+          { regex: '(交集|并集|补集|韦恩图|德摩根)', reason: '集合运算词' },
+          // 集合运算表达式 A ∪ B, A ∩ B
+          { regex: '[A-Z]\\s*[∩∪]\\s*[A-Z]', reason: '集合运算表达式' },
+          // 单调性（后续章节）
           { regex: '(单调性|增函数|减函数|单调递增|单调递减)', reason: '函数单调性（后续章节）' },
+          // 奇偶性（后续章节）
           { regex: '(奇偶性|奇函数|偶函数|对称性)', reason: '函数奇偶性（后续章节）' }
         ]
       },
@@ -386,14 +396,16 @@ export function validateTopicLenient(topic: string, chapterId: string, sectionId
 // 验证题型特征（使用正则表达式模式）
 export function validatePatterns(
   questionText: string,
-  knowledge: SectionKnowledge
-): { valid: boolean; reason?: string } {
+  knowledge: SectionKnowledge,
+  debug: boolean = false
+): { valid: boolean; reason?: string; matchedPatterns?: string[] } {
   // 如果没有定义模式规则，跳过验证
   if (!knowledge.forbiddenPatterns && !knowledge.requiredPatterns) {
     return { valid: true };
   }
 
   const fullText = questionText + ' ' + (knowledge.keywords || []).join(' ');
+  const matchedPatterns: string[] = [];
 
   // 检查禁止的模式
   if (knowledge.forbiddenPatterns) {
@@ -401,9 +413,14 @@ export function validatePatterns(
       try {
         const regex = new RegExp(pattern.regex, 'i');
         if (regex.test(fullText)) {
+          matchedPatterns.push(`禁止: ${pattern.reason}`);
+          if (debug) {
+            console.log(`[validatePatterns] 匹配到禁止模式: ${pattern.reason}, 正则: ${pattern.regex}`);
+          }
           return { 
             valid: false, 
-            reason: `题目包含禁止特征【${pattern.reason}】` 
+            reason: `题目包含禁止特征【${pattern.reason}】`,
+            matchedPatterns
           };
         }
       } catch (e) {
@@ -425,14 +442,19 @@ export function validatePatterns(
     });
     
     if (!hasRequired) {
+      const requiredReasons = knowledge.requiredPatterns.map(p => p.reason).join('、');
+      if (debug) {
+        console.log(`[validatePatterns] 缺少必需模式，应包含: ${requiredReasons}`);
+      }
       return { 
         valid: false, 
-        reason: `题目未包含本节必需特征（应包含：${knowledge.requiredPatterns.map(p => p.reason).join('、')}）` 
+        reason: `题目未包含本节必需特征（应包含：${requiredReasons}）`,
+        matchedPatterns
       };
     }
   }
 
-  return { valid: true };
+  return { valid: true, matchedPatterns };
 }
 
 // 综合验证函数（严格模式）
@@ -440,27 +462,55 @@ export function validateQuestion(
   question: string,
   chapterId: string,
   sectionId: string,
-  strictMode: boolean = true
+  strictMode: boolean = true,
+  debug: boolean = false
 ): { valid: boolean; reason?: string } {
   const knowledge = getSectionKnowledge(chapterId, sectionId);
   if (!knowledge) {
     return { valid: false, reason: '未找到该小节的知识索引' };
   }
 
+  if (debug) {
+    console.log(`[validateQuestion] 开始验证: ${question.substring(0, 50)}...`);
+  }
+
+  // 0. 特殊检查：如果题目包含"集合"关键词但没有函数符号，视为无效
+  if (chapterId === 'ch3' && sectionId === '3.1') {
+    const hasSetKeyword = /集合|子集|交集|并集|补集|属于|元素/.test(question);
+    const hasFunctionSymbol = /f\(x\)/.test(question);
+    const hasFunctionKeyword = /函数|定义域|值域/.test(question);
+    
+    if (hasSetKeyword && !hasFunctionSymbol && !hasFunctionKeyword) {
+      if (debug) {
+        console.log(`[validateQuestion] ❌ 拒绝：题目包含集合关键词但没有函数特征`);
+      }
+      return { valid: false, reason: '这是集合题，不是函数题！题目包含集合关键词但没有函数特征。' };
+    }
+  }
+
   // 1. 验证禁止关键词
   const keywordValidation = validateTopic(question, chapterId, sectionId);
   if (!keywordValidation.valid) {
+    if (debug) {
+      console.log(`[validateQuestion] ❌ 拒绝（关键词）: ${keywordValidation.reason}`);
+    }
     return keywordValidation;
   }
 
   // 2. 验证题型模式
   if (strictMode) {
-    const patternValidation = validatePatterns(question, knowledge);
+    const patternValidation = validatePatterns(question, knowledge, debug);
     if (!patternValidation.valid) {
+      if (debug) {
+        console.log(`[validateQuestion] ❌ 拒绝（模式）: ${patternValidation.reason}`);
+      }
       return patternValidation;
     }
   }
 
+  if (debug) {
+    console.log(`[validateQuestion] ✅ 通过验证`);
+  }
   return { valid: true };
 }
 

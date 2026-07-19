@@ -125,38 +125,78 @@ function parseQuestions(text: string, chapterId: string, sectionId: string): Pra
 
 // 生成练习题
 async function generatePractice(knowledge: SectionKnowledge, chapterId: string, sectionId: string, count: number = 5): Promise<{ questions: PracticeQuestion[]; warning?: string }> {
-  // 构建严格的系统提示
+  // 构建极端严格的系统提示
   const systemPrompt = `你是一位专业的高中数学教师。你需要根据给定的知识点生成练习题目。
 
-【重要规则】
-1. 只能出本小节范围内的题目，禁止出现任何后续章节的知识点
-2. 题目难度适中，适合刚学完该小节的学生
-3. 每道题必须有详细的解析
-4. 题目必须原创，不能照抄教材或教辅资料
-5. 选择题和填空题混合
+【核心原则】
+你必须严格在指定小节的知识点范围内出题，禁止出任何超纲题！
 
 【允许的知识点】
 ${knowledge.allowedTopics.join('、')}
 
-【禁止出现的知识点（后续章节）】
+【严禁出现的知识点（后续章节内容）】
 ${knowledge.forbiddenTopics.join('、')}
 
-【前置知识点（可以使用）】
+【前置知识点（可辅助使用）】
 ${knowledge.prerequisiteTopics.length > 0 ? knowledge.prerequisiteTopics.join('、') : '无'}
 
 【必须包含的题型特征】
-${knowledge.requiredPatterns?.map(p => `${p.reason}（匹配模式：${p.regex}）`).join('\n') || '无'}
+${knowledge.requiredPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
 
-【严格禁止的题型特征】
-${knowledge.forbiddenPatterns?.map(p => `${p.reason}（匹配模式：${p.regex}）`).join('\n') || '无'}
+【严格禁止的题型模式】
+${knowledge.forbiddenPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
 
-输出格式：
-每道题格式如下：
-题1. [题目内容]
-A. [选项A]
-B. [选项B]
-C. [选项C]
-D. [选项D]
+【错误示例（绝对不能出这种题）】
+❌ "已知集合 A = {x | 1 ≤ x ≤ 5}，求 A ∪ B" → 这是集合题，超纲！
+❌ "设 A ∩ B = {2, 3}，求..." → 这是集合题，超纲！
+❌ "判断 {1,2} ⊆ {1,2,3} 是否成立" → 这是集合题，超纲！
+
+【正确示例】
+✅ "已知 f(x) = x² + 2x + 1，求 f(2) 的值" → 函数题，正确！
+✅ "求函数 f(x) = √(x-1) 的定义域" → 函数题，正确！
+✅ "判断函数 f(x) = x² 在 R 上是否为偶函数" → 错误，这是奇偶性，超纲！`;
+
+  const prompt = `请为小节"${knowledge.name}"生成${count}道练习题。
+
+【章节信息】
+- 小节名称：${knowledge.name}
+- 页数范围：${knowledge.pageRange}
+- 小节描述：${knowledge.description}
+
+【允许的知识点（只能考这些）】
+${knowledge.allowedTopics.join('、')}
+
+【严禁出现的知识点（出现即为超纲）】⚠️⚠️⚠️
+${knowledge.forbiddenTopics.join('、')}
+
+【必须包含的题型特征（每道题必须有这些）】✅
+${knowledge.requiredPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
+
+【严格禁止的题型模式（出现即过滤）】🚫
+${knowledge.forbiddenPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
+
+【🚨🚨🚨 极度重要：3.1函数的概念禁止出集合题 🚨🚨🚨】
+如果选择"3.1函数的概念"，绝对不能出以下类型的题：
+- "已知集合 A = {x | ...}，求..." 类型的题
+- "求 A ∪ B"、"求 A ∩ B" 类型的题
+- "判断 {1,2} 是否为集合..." 类型的题
+- 任何包含 ∈、∩、∪ 符号的题
+- 任何包含 ℕ、ℤ、ℚ、ℝ 数集符号的题
+- 任何包含"集合"、"子集"、"交集"、"并集"、"补集"等词的题
+
+【✅ 正确示例（3.1函数的概念应出的题）】
+✅ 已知 f(x) = x² + 1，求 f(2)
+✅ 求函数 y = √(x-1) 的定义域
+✅ 判断函数 f(x) = x³ 的单调性（等等，这是单调性，3.1不能出）
+✅ 已知 f(x) = 2x + 3，求 f(x) 的值域
+✅ 判断函数 f(x) = x² + 1 和 g(x) = x² + 1 是否相等
+
+【输出格式】
+题1. [选择题题目，必须包含 f(x) 或函数关键词]
+A. [选项]
+B. [选项]
+C. [选项]
+D. [选项]
 答案：[答案]
 解析：[详细解析]
 
@@ -164,33 +204,26 @@ D. [选项D]
 答案：[答案]
 解析：[详细解析]`;
 
-  const prompt = `请为以下小节生成${count}道练习题：
-
-小节名称：${knowledge.name}
-允许的知识点：${knowledge.allowedTopics.join('、')}
-禁止的知识点（严禁出现任何以下内容）：${knowledge.forbiddenTopics.join('、')}
-前置知识点（可辅助使用）：${knowledge.prerequisiteTopics.join('、') || '无'}
-页数范围：${knowledge.pageRange}
-小节描述：${knowledge.description}
-
-【必须包含的题型特征】
-${knowledge.requiredPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
-
-【严格禁止的题型特征】
-${knowledge.forbiddenPatterns?.map(p => `- ${p.reason}`).join('\n') || '无'}
-
-【关键要求】
-1. 所有题目必须严格只涉及"允许的知识点"
-2. 严禁出现"禁止的知识点"中的任何内容
-3. 例如：如果选择"3.1函数的概念"，则不能出现集合、子集、交集、并集、补集、单调性、奇偶性、导数、三角函数等后续章节的内容
-4. 只能出函数概念相关的题目，如：求定义域、求值域、函数三要素、函数表示法等`;
-
   try {
     const generatedText = await callDeepSeek(prompt, systemPrompt);
-    const questions = parseQuestions(generatedText, chapterId, sectionId);
+    console.log(`[generatePractice] 生成原始题目数量: ${generatedText.split('题').length - 1}`);
     
-    // 严格验证每道题目（使用综合验证：关键词 + 模式）
+    const questions = parseQuestions(generatedText, chapterId, sectionId);
+    console.log(`[generatePractice] 解析后题目数量: ${questions.length}`);
+    
+    // 严格验证每道题目（使用综合验证：关键词 + 模式 + 特殊检查）
     const { valid, invalid } = filterQuestions(questions, chapterId, sectionId, true);
+    
+    console.log(`[generatePractice] ✅ 通过验证: ${valid.length} 道`);
+    console.log(`[generatePractice] ❌ 过滤超纲: ${invalid.length} 道`);
+    
+    // 详细记录被过滤的题目
+    if (invalid.length > 0) {
+      invalid.forEach((item, index) => {
+        console.log(`[generatePractice] 过滤题目 ${index + 1}: ${item.question.question.substring(0, 50)}...`);
+        console.log(`[generatePractice] 过滤原因: ${item.reason}`);
+      });
+    }
     
     const warnings = invalid.map(item => 
       `${item.question.question.substring(0, 30)}...: ${item.reason}`
