@@ -90,13 +90,6 @@ function ModelDetailPageContent() {
               <ArrowLeft className="h-4 w-4" />
               返回
             </Button>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" />
-                {model.name}
-              </h1>
-              <p className="text-xs text-slate-500">公式：{model.formula}</p>
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant={topicMode === 'model' ? 'default' : 'outline'} size="sm" onClick={() => setTopicMode('model')}>

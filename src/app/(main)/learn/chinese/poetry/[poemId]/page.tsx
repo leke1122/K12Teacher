@@ -154,14 +154,6 @@ useEffect(() => {
                   返回
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                  {poem.title}
-                </h1>
-                <p className="text-xs text-slate-500">
-                  {poem.dynasty} · {poem.author} · {poem.fromSection}
-                </p>
-              </div>
             </div>
             <Badge variant="outline" className="text-xs">
               诗歌鉴赏

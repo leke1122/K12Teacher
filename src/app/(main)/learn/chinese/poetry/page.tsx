@@ -35,10 +35,6 @@ export default function PoetryListPage() {
                   返回
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">诗歌鉴赏</h1>
-                <p className="text-xs text-slate-500">高考必背篇目 + 辽宁高考风格演练</p>
-              </div>
             </div>
             <Badge variant="outline" className="text-xs">{POETRY_LIST.length} 首</Badge>
           </div>

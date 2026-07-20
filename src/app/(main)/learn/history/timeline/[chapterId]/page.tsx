@@ -398,27 +398,17 @@ function Unit1TimelinePage() {
             <ArrowLeft className="h-4 w-4" />
             返回
           </Button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-amber-500" />
-              📜 {knowledgeData.unitTitle || '历史时间轴'}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              高中历史 · {knowledgeData.pageRange || '辽宁高考方向'} · 共 {knowledgeData.timelineEvents.length} 个核心事件
-              {dataSource === 'docx' && <span className="ml-2 text-emerald-600">📝 您导入的知识点</span>}
-              {dataSource === 'builtin' && <span className="ml-2 text-muted-foreground">📚 教材内置知识</span>}
-            </p>
-            {dataSource && (
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-xs font-normal">
-                  {dataSource === 'docx' ? '📝 您导入的知识点' : '📚 教材内置知识'}
-                </Badge>
-              </div>
-            )}
-          </div>
+
+          {/* 统计信息 */}
+          <Badge variant="outline" className="text-xs">
+            📜 {knowledgeData.timelineEvents.length}个核心事件
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            {dataSource === 'docx' ? '📝 已导入' : '📚 内置知识'}
+          </Badge>
 
           {/* 单元选择器 */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <Select value={selectedUnitId} onValueChange={handleUnitChange}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="选择单元" />

@@ -250,10 +250,6 @@ export default function MathConclusionsPage() {
                 返回
               </Button>
             </Link>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">数学 · 二级结论</h1>
-              <p className="text-xs text-slate-500">人教B版必修第一册 · 高考高频考点</p>
-            </div>
             <Badge variant="outline" className="ml-auto text-xs">{mathSecondLevelConclusions.length}条结论</Badge>
           </div>
         </div>

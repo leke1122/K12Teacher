@@ -253,10 +253,6 @@ export default function HistoryTextbookPage() {
                 返回
               </Button>
             </Link>
-            <div className="flex items-center gap-2">
-              <BookMarked className="h-5 w-5 text-amber-500" />
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">课本还原</h1>
-            </div>
             <div className="ml-auto flex items-center gap-2">
               <Badge variant="outline" className="bg-amber-50 text-amber-600 text-xs">
                 逐段讲解

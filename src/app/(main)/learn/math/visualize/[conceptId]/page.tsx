@@ -122,22 +122,15 @@ function VisualizePageContent() {
       <header className="sticky top-16 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                  可视化学习 · {data.conceptName}
-                </h1>
-                <p className="text-xs text-slate-500">当前年级：{GRADE_LABELS[grade]}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{data.conceptName}</Badge>
-            </div>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              返回
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{data.conceptName}</Badge>
+          </div>
           </div>
         </div>
       </header>

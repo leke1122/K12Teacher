@@ -702,15 +702,6 @@ function TextbookPageContent() {
                   <ArrowLeft className="h-4 w-4" />返回
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">还原课本</h1>
-                <p className="text-sm text-slate-500">
-                  {subjectId === 'history'
-                    ? displaySectionTitle
-                    : `第 ${chapterId} 章 第 ${sectionId} 节`}
-                </p>
-              </div>
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-sm">

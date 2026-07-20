@@ -414,10 +414,6 @@ function ClassicalReadPageContent() {
               <Link href={`/subjects/${info.subjectId}`}>
                 <Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button>
               </Link>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{getSubjectName(info.subjectId)} · 文言文精读</h1>
-                <p className="text-sm text-slate-500">{info.dynasty} · {info.author} · {info.title}</p>
-              </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">{info.category}</Badge>

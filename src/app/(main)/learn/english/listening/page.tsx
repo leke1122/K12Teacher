@@ -47,10 +47,6 @@ export default function EnglishListeningPage() {
               <ArrowLeft className="h-4 w-4" />
               返回
             </Button>
-            <div className="flex items-center gap-2">
-              <Headphones className="h-5 w-5 text-rose-500" />
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">听力训练</h1>
-            </div>
             <Badge variant="outline" className="ml-auto bg-rose-50 text-rose-600">
               开发中
             </Badge>

@@ -229,15 +229,6 @@ function KnowledgePageContent() {
               <ArrowLeft className="h-4 w-4" />
               返回
             </Button>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Brain className="h-5 w-5 text-amber-500" />
-                历史知识点学习 · {chapterInfo.title}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                基于教材提取，严格遵循史实
-              </p>
-            </div>
             <Button
               variant="outline"
               size="sm"

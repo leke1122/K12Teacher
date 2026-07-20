@@ -23,12 +23,6 @@ export default function PoliticsKnowledgePage() {
       {/* 固定页头 */}
       <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-6xl mx-auto px-4 py-3">
-          {/* 标题 */}
-          <div className="mb-3">
-            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">思想政治 · 知识点学习</h1>
-            <p className="text-xs text-slate-500">必背内容 · 引导式学习 · AI问答</p>
-          </div>
-
           {/* 学习模式选择卡片 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button

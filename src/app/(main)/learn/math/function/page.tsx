@@ -85,10 +85,6 @@ export default function FunctionLearningPage() {
               <ArrowLeft className="h-4 w-4" />
               返回
             </Button>
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-indigo-500" />
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">函数智能学习</h1>
-            </div>
             <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-600">
               <Sparkles className="h-3 w-3 mr-1" />
               Neural-Math Lab

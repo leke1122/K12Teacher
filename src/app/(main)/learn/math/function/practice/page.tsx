@@ -224,10 +224,6 @@ export default function FunctionPracticePage() {
               <ArrowLeft className="h-4 w-4" />
               返回
             </Button>
-            <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-indigo-500" />
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">函数专项练习</h1>
-            </div>
           </div>
         </div>
       </header>

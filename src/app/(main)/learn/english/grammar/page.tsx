@@ -187,19 +187,11 @@ function GrammarPageContent() {
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-blue-50/30">
       <div className="w-full px-4 py-4 space-y-4 max-w-5xl mx-auto">
         {/* 顶部 */}
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" className="gap-1" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
             返回
           </Button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              📚 语法学习
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              外研版高中英语 · 8个阶段 · 43个知识点
-            </p>
-          </div>
           <Button
             size="sm"
             variant="outline"

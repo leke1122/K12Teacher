@@ -122,11 +122,7 @@ export default function GeographyKnowledgePage() {
                 返回
               </Button>
             </Link>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">地理 · {data?.unitTitle || '第一章 宇宙中的地球'}</h1>
-              <p className="text-xs text-slate-500">高考地理核心知识点</p>
-            </div>
-            <Badge variant="outline" className="bg-emerald-50">
+            <Badge variant="outline" className="ml-auto bg-emerald-50">
               {learnedItems.size}/{mustKnowItems.length} 已学习
             </Badge>
           </div>

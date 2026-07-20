@@ -118,10 +118,6 @@ export default function ClassicalTextListPage() {
               <Link href="/subjects/chinese">
                 <Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button>
               </Link>
-              <div>
-                <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">语文 · 文言文精读</h1>
-                <p className="text-sm text-slate-500">统编版必修上册 · 新高考Ⅱ卷考点</p>
-              </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">8篇</Badge>

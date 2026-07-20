@@ -43,12 +43,6 @@ export default function ChineseLanguagePage() {
                 返回
               </Button>
             </Link>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                📝 语言文字运用
-              </h1>
-              <p className="text-xs text-muted-foreground">高考语文专项训练 · 语段阅读 + 混合题型</p>
-            </div>
           </div>
         </div>
       </header>
