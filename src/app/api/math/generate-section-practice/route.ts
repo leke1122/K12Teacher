@@ -204,40 +204,76 @@ D. [选项]
 答案：[答案]
 解析：[详细解析]`;
 
-  try {
-    const generatedText = await callDeepSeek(prompt, systemPrompt);
-    console.log(`[generatePractice] 生成原始题目数量: ${generatedText.split('题').length - 1}`);
-    
-    const questions = parseQuestions(generatedText, chapterId, sectionId);
-    console.log(`[generatePractice] 解析后题目数量: ${questions.length}`);
-    
-    // 严格验证每道题目（使用综合验证：关键词 + 模式 + 特殊检查）
-    const { valid, invalid } = filterQuestions(questions, chapterId, sectionId, true);
-    
-    console.log(`[generatePractice] ✅ 通过验证: ${valid.length} 道`);
-    console.log(`[generatePractice] ❌ 过滤超纲: ${invalid.length} 道`);
-    
-    // 详细记录被过滤的题目
-    if (invalid.length > 0) {
+  // 重试机制：最多重试3次以获得足够的合格题目
+  const MAX_RETRIES = 3;
+  let allValid: PracticeQuestion[] = [];
+  const allInvalid: Array<{ question: PracticeQuestion; reason: string }> = [];
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      // 每次重试请求更多题目
+      const requestCount = count + (attempt - 1) * 3;
+      const attemptPrompt = attempt === 1 
+        ? prompt 
+        : prompt
+            .replace(`生成${count}道`, `生成${requestCount}道`)
+            .replace(`生成${count} 道`, `生成${requestCount}道`);
+      
+      const generatedText = await callDeepSeek(attemptPrompt, systemPrompt);
+      console.log(`[generatePractice] 第${attempt}次生成原始题目数量: ${generatedText.split('题').length - 1}`);
+      
+      const questions = parseQuestions(generatedText, chapterId, sectionId);
+      console.log(`[generatePractice] 第${attempt}次解析后题目数量: ${questions.length}`);
+      
+      // 严格验证每道题目
+      const { valid, invalid } = filterQuestions(questions, chapterId, sectionId, true);
+      
+      console.log(`[generatePractice] 第${attempt}次通过验证: ${valid.length} 道`);
+      console.log(`[generatePractice] 第${attempt}次过滤超纲: ${invalid.length} 道`);
+      
+      // 累积合格题目
+      allValid = [...allValid, ...valid];
+      
+      // 详细记录被过滤的题目
       invalid.forEach((item, index) => {
-        console.log(`[generatePractice] 过滤题目 ${index + 1}: ${item.question.question.substring(0, 50)}...`);
+        console.log(`[generatePractice] 第${attempt}次过滤题目 ${index + 1}: ${item.question.question.substring(0, 50)}...`);
         console.log(`[generatePractice] 过滤原因: ${item.reason}`);
       });
+      
+      allInvalid.push(...invalid);
+      
+      // 如果合格题目数量足够，提前结束
+      if (allValid.length >= count) {
+        break;
+      }
+    } catch (error) {
+      console.error(`[generatePractice] 第${attempt}次生成失败:`, error);
+      if (attempt === MAX_RETRIES) throw error;
     }
-    
-    const warnings = invalid.map(item => 
-      `${item.question.question.substring(0, 30)}...: ${item.reason}`
-    );
-    
-    return {
-      questions: valid.length > 0 ? valid : questions,
-      warning: warnings.length > 0 
-        ? `以下 ${warnings.length} 道题目已过滤（涉及超纲内容）：\n${warnings.join('\n')}` 
-        : undefined
-    };
-  } catch (error) {
-    throw error;
   }
+  
+  // 截取所需数量的合格题目
+  const finalValid = allValid.slice(0, count);
+  
+  const warnings = allInvalid.map(item => 
+    `${item.question.question.substring(0, 30)}...: ${item.reason}`
+  );
+  
+  // 关键修复：如果过滤后没有合格的题目，不能fallback到原始题目（包含超纲题）
+  if (finalValid.length === 0) {
+    console.error(`[generatePractice] ❌ 重试${MAX_RETRIES}次后仍无合格题目`);
+    return {
+      questions: [],
+      warning: `经过${MAX_RETRIES}次重试后，仍未生成符合"${knowledge.name}"小节要求的题目。被过滤的题目：\n${warnings.slice(0, 5).join('\n')}${warnings.length > 5 ? `\n...还有 ${warnings.length - 5} 道` : ''}`
+    };
+  }
+  
+  return {
+    questions: finalValid,
+    warning: warnings.length > 0 
+      ? `以下 ${warnings.length} 道题目已过滤（涉及超纲内容）：\n${warnings.slice(0, 5).join('\n')}${warnings.length > 5 ? `\n...还有 ${warnings.length - 5} 道` : ''}` 
+      : undefined
+  };
 }
 
 // 获取章节列表

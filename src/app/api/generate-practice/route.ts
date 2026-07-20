@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
 
     const seed = generateSeed();
     const subjectName = getSubjectName(subjectId);
+    const diffLabelMap: Record<string, string> = { simple: '简单', medium: '中等', hard: '困难' };
+    const diffLabel = diffLabelMap[difficulty] || '中等';
 
     // 获取知识点范围
     const { currentKnowledge, previousKnowledge } = getKnowledgeRange(
@@ -90,7 +92,95 @@ export async function POST(request: NextRequest) {
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
         const result = parseQuestions(content);
-        return NextResponse.json({ success: true, questions: result.questions, seed });
+        const allQuestions = result.questions;
+
+        // 数学学科：严格的超纲题过滤（使用正则模式匹配）
+        let finalQuestions = allQuestions;
+        if (subjectId === 'math' && chapterId && sectionId) {
+          const validatedQuestions: any[] = [];
+          const rejectedQuestions: Array<{ q: any; reason: string }> = [];
+          
+          for (const q of allQuestions) {
+            const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, sectionId, true);
+            if (validation.valid) {
+              validatedQuestions.push(q);
+            } else {
+              rejectedQuestions.push({ q, reason: validation.reason || '超纲' });
+              console.log(`[generate-practice] 过滤超纲题: ${(q.text || q.question || '').substring(0, 50)}... - ${validation.reason}`);
+            }
+          }
+          
+          // 如果过滤后没有合格题目，重试3次
+          if (validatedQuestions.length === 0 && allQuestions.length > 0) {
+            console.warn(`[generate-practice] 所有${allQuestions.length}题都被过滤，触发重试机制`);
+            
+            for (let retry = 1; retry <= 3; retry++) {
+              try {
+                const newSeed = seed + retry * 1000;
+                const retryTypeList = typeList.slice(0, Math.max(questionCount - validatedQuestions.length, 8));
+                const retryPrompt = buildMathPrompt(
+                  difficulty, diffLabel, retryTypeList, newSeed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, sectionId
+                );
+                
+                const retryResponse = await fetch('https://api.deepseek.com/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [
+                      { role: 'system', content: retryPrompt.system },
+                      { role: 'user', content: retryPrompt.user },
+                    ],
+                    temperature: 0.6,
+                    max_tokens: 8000,
+                  }),
+                });
+                
+                if (!retryResponse.ok) continue;
+                const retryData = await retryResponse.json();
+                const retryContent = retryData.choices?.[0]?.message?.content || '';
+                const retryResult = parseQuestions(retryContent);
+                
+                for (const q of retryResult.questions) {
+                  const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, sectionId, true);
+                  if (validation.valid) {
+                    validatedQuestions.push(q);
+                  } else {
+                    rejectedQuestions.push({ q, reason: validation.reason || '超纲' });
+                  }
+                }
+                
+                if (validatedQuestions.length >= questionCount) break;
+              } catch (err) {
+                console.error(`[generate-practice] 第${retry}次重试失败:`, err);
+              }
+            }
+          }
+          
+          finalQuestions = validatedQuestions.slice(0, questionCount);
+          
+          if (rejectedQuestions.length > 0) {
+            console.log(`[generate-practice] 总过滤${rejectedQuestions.length}道超纲题`);
+          }
+          
+          // 如果重试后仍然没有合格题目，使用默认题目兜底
+          if (finalQuestions.length === 0) {
+            console.warn('[generate-practice] 多次重试后仍无合格题目，使用默认题目');
+            finalQuestions = generateDefaultQuestions(subjectId, chapterId, sectionId, difficulty);
+          }
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          questions: finalQuestions, 
+          seed,
+          warning: finalQuestions.length < allQuestions.length 
+            ? `已过滤 ${allQuestions.length - finalQuestions.length} 道超纲题` 
+            : undefined,
+        });
       } catch (err) {
         console.error('[GeneratePractice] API失败，使用默认题目:', err);
         return NextResponse.json({
