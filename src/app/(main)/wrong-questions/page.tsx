@@ -319,8 +319,7 @@ function WrongQuestionsContent() {
             />
           </div>
 
-          {/* 筛选区域：学科 + 类型 + 掌握状态 */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
             {/* 掌握状态筛选 */}
             <div className="flex gap-1 mr-2">
               {[
@@ -418,16 +417,16 @@ function WrongQuestionsContent() {
                 );
               })}
             </div>
-          </div>
 
-          {/* 结果统计 */}
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500">共 {filtered.length} 道错题</span>
-            {weakPoints.length > 0 && (
-              <span className="text-amber-600 dark:text-amber-400">
-                {weakPoints.length} 个薄弱项
-              </span>
-            )}
+            {/* 结果统计 - 紧凑显示在筛选同行 */}
+            <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+              <span>共 <span className="font-semibold text-indigo-600">{filtered.length}</span> 道</span>
+              {weakPoints.length > 0 && (
+                <span className="text-amber-600">
+                  · {weakPoints.length} 个薄弱项
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
