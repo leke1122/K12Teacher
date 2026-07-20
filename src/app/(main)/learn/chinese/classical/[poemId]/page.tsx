@@ -187,6 +187,14 @@ function ClassicalReadPageContent() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
+  // 本次练习的错题记录
+  const [wrongRecords, setWrongRecords] = useState<{
+    time: string;
+    question: string;
+    userAnswer: string;
+    correctAnswer: string;
+    word: string;
+  }[]>([]);
 
   // 加载课本内容
   useEffect(() => {
@@ -359,6 +367,7 @@ function ClassicalReadPageContent() {
     setSelectedAnswer(null);
     setShowAnswer(false);
     setPracticeScore({ correct: 0, total: questions.length });
+    setWrongRecords([]); // 重置错题记录
     setPracticeMode(true);
     setActiveTab('practice');
   };
@@ -369,8 +378,36 @@ function ClassicalReadPageContent() {
     setSelectedAnswer(answer);
     setShowAnswer(true);
     
-    if (answer === practiceQuestions[currentQuestionIndex].correctAnswer) {
+    const currentQuestion = practiceQuestions[currentQuestionIndex];
+    const isCorrect = answer === currentQuestion.correctAnswer;
+    
+    if (isCorrect) {
       setPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+    } else {
+      // 记录错题
+      const wrongRecord = {
+        time: new Date().toISOString(),
+        question: currentQuestion.question,
+        userAnswer: answer,
+        correctAnswer: currentQuestion.correctAnswer,
+        word: currentQuestion.word,
+      };
+      setWrongRecords(prev => [...prev, wrongRecord]);
+      
+      // 同步到Supabase错题本
+      fetch('/api/wrong-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: 'chinese',
+          question: currentQuestion.question,
+          correctAnswer: currentQuestion.correctAnswer,
+          userAnswer: answer,
+          analysis: currentQuestion.explanation,
+          difficulty: 'medium',
+          knowledgePoint: `文言文·${info.title}·${currentQuestion.word}`,
+        }),
+      }).catch(console.error);
     }
   };
 
@@ -613,6 +650,38 @@ function ClassicalReadPageContent() {
                           </Button>
                         )}
                       </div>
+
+                      {/* 本次练习错题记录 */}
+                      {showAnswer && currentQuestionIndex === practiceQuestions.length - 1 && wrongRecords.length > 0 && (
+                        <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
+                          <h4 className="font-bold text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
+                            <XCircle className="h-4 w-4" />
+                            本次错题 ({wrongRecords.length}道)
+                          </h4>
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {wrongRecords.map((record, idx) => (
+                              <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-red-100 dark:border-red-900">
+                                <div className="text-xs text-slate-400 mb-1">
+                                  {new Date(record.time).toLocaleString('zh-CN')}
+                                </div>
+                                <div className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                                  {record.question}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <span className="text-slate-500">你的答案：</span>
+                                    <span className="text-red-500 font-medium">{record.userAnswer}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">正确答案：</span>
+                                    <span className="text-emerald-500 font-medium">{record.correctAnswer}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -869,6 +938,38 @@ function ClassicalReadPageContent() {
                           </Button>
                         )}
                       </div>
+
+                      {/* 本次练习错题记录 */}
+                      {showAnswer && currentQuestionIndex === practiceQuestions.length - 1 && wrongRecords.length > 0 && (
+                        <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
+                          <h4 className="font-bold text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
+                            <XCircle className="h-4 w-4" />
+                            本次错题 ({wrongRecords.length}道)
+                          </h4>
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {wrongRecords.map((record, idx) => (
+                              <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-red-100 dark:border-red-900">
+                                <div className="text-xs text-slate-400 mb-1">
+                                  {new Date(record.time).toLocaleString('zh-CN')}
+                                </div>
+                                <div className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                                  {record.question}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <span className="text-slate-500">你的答案：</span>
+                                    <span className="text-red-500 font-medium">{record.userAnswer}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">正确答案：</span>
+                                    <span className="text-emerald-500 font-medium">{record.correctAnswer}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
