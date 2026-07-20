@@ -287,45 +287,43 @@ export default function ChineseSubjectPage() {
           </Card>
         )}
 
-        {/* 专题学习 */}
-        {activeTextbook && chapters.length > 0 && (
-          <div>
-            <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
-              <span className="text-indigo-500">🎯</span> 专题学习
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {SPECIAL_TOPICS.map((topic) => {
-                const Icon = topic.icon;
-                return (
-                  <Card
-                    key={topic.id}
-                    className={`cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all border ${topic.borderColor} ${topic.bgColor}`}
-                    onClick={() => router.push(topic.href)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${topic.color}-100 dark:bg-${topic.color}-900`}>
-                          <Icon className={`h-5 w-5 text-${topic.color}-600 dark:text-${topic.color}-400`} />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{topic.title}</h3>
-                          <p className="text-xs text-slate-500">{topic.stats}</p>
-                        </div>
+        {/* 专题学习 - 始终显示 */}
+        <div>
+          <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+            <span className="text-indigo-500">🎯</span> 专题学习
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {SPECIAL_TOPICS.map((topic) => {
+              const Icon = topic.icon;
+              return (
+                <Card
+                  key={topic.id}
+                  className={`cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all border ${topic.borderColor} ${topic.bgColor}`}
+                  onClick={() => router.push(topic.href)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${topic.color}-100 dark:bg-${topic.color}-900`}>
+                        <Icon className={`h-5 w-5 text-${topic.color}-600 dark:text-${topic.color}-400`} />
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
-                        {topic.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline" className="text-xs">点击进入</Badge>
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                      <div>
+                        <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{topic.title}</h3>
+                        <p className="text-xs text-slate-500">{topic.stats}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
+                      {topic.description}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">点击进入</Badge>
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* 古诗文72篇 */}
         <Card className="rounded-xl shadow-sm border border-amber-200 dark:border-amber-800/50 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
@@ -428,63 +426,68 @@ export default function ChineseSubjectPage() {
           </CardContent>
         </Card>
 
-        {/* 辅助工具（可折叠） */}
-        {activeTextbook && chapters.length > 0 && (
-          <Card className="rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <CardContent className="p-0">
-              {/* 折叠头部 */}
-              <button
-                onClick={() => setToolsExpanded(!toolsExpanded)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">🛠️ 辅助工具</span>
-                  <Badge variant="outline" className="text-xs">功能保持不变</Badge>
-                </div>
-                {toolsExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
-                )}
-              </button>
-
-              {/* 折叠内容 */}
-              {toolsExpanded && (
-                <div className="px-4 pb-4 pt-0 border-t border-slate-100 dark:border-slate-700">
-                  <div className="flex flex-wrap gap-3 pt-4">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => router.push(`/learn/textbook/chinese/${currentChapterId}`)}
-                    >
-                      <BookText className="h-4 w-4" />
-                      课本还原
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => router.push(`/learn/knowledge/chinese/${currentChapterId}/all`)}
-                    >
-                      <GraduationCap className="h-4 w-4" />
-                      知识点列表
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => router.push(`/learn/practice/chinese/${currentChapterId}/all`)}
-                    >
-                      <PenTool className="h-4 w-4" />
-                      章节练习
-                    </Button>
-                  </div>
-                </div>
+        {/* 辅助工具（可折叠） - 始终显示 */}
+        <Card className="rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <CardContent className="p-0">
+            {/* 折叠头部 */}
+            <button
+              onClick={() => setToolsExpanded(!toolsExpanded)}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">🛠️ 辅助工具</span>
+                <Badge variant="outline" className="text-xs">功能保持不变</Badge>
+              </div>
+              {toolsExpanded ? (
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400" />
               )}
-            </CardContent>
-          </Card>
-        )}
+            </button>
+
+            {/* 折叠内容 */}
+            {toolsExpanded && (
+              <div className="px-4 pb-4 pt-0 border-t border-slate-100 dark:border-slate-700">
+                <div className="flex flex-wrap gap-3 pt-4">
+                  {currentChapterId && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => router.push(`/learn/textbook/chinese/${currentChapterId}`)}
+                      >
+                        <BookText className="h-4 w-4" />
+                        课本还原
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => router.push(`/learn/knowledge/chinese/${currentChapterId}/all`)}
+                      >
+                        <GraduationCap className="h-4 w-4" />
+                        知识点列表
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => router.push(`/learn/practice/chinese/${currentChapterId}/all`)}
+                      >
+                        <PenTool className="h-4 w-4" />
+                        章节练习
+                      </Button>
+                    </>
+                  )}
+                  {!currentChapterId && (
+                    <p className="text-sm text-slate-500">上传教材并提取章节后即可使用辅助工具</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 章节列表 */}
         {textbooksLoading ? (
