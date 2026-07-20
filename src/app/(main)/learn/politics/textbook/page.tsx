@@ -481,7 +481,7 @@ export default function TextbookRestorePage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-amber-50 via-slate-50 to-orange-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950/30">
       {/* 顶部导航 */}
-      <header className="sticky top-16 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <Link href="/subjects/politics">

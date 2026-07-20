@@ -306,7 +306,7 @@ function WrongQuestionsContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
       {/* 固定页头：筛选区域 */}
-      <div className="sticky top-16 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="container mx-auto px-4 py-3 space-y-3">
           {/* 搜索框 */}
           <div className="relative">
