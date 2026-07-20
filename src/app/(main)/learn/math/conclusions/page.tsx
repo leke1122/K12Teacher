@@ -31,6 +31,7 @@ export default function MathConclusionsPage() {
 
   // 练习状态
   const [practiceMode, setPracticeMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('list');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -99,6 +100,7 @@ export default function MathConclusionsPage() {
       if (data.success && data.questions) {
         setAiQuestions(data.questions);
         setPracticeScore({ correct: 0, total: data.questions.length });
+        setActiveTab('practice');
         toast.success('生成成功！开始答题吧');
       } else {
         toast.error(data.error || '生成失败');
@@ -258,7 +260,7 @@ export default function MathConclusionsPage() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="list" className="space-y-4">
+        <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="list" className="gap-1">
               <BookOpen className="h-4 w-4" />
