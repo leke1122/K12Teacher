@@ -434,25 +434,6 @@ function WrongQuestionsContent() {
 
       {/* 内容区域 */}
       <div className="container mx-auto px-4 py-4 max-w-2xl space-y-4">
-        {/* 薄弱项统计 */}
-        {weakPoints.length > 0 && (
-          <Card className="border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">薄弱项分布</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {weakPoints.sort((a, b) => b.wrongCount - a.wrongCount).slice(0, 8).map(wp => (
-                  <Badge key={wp.id} variant="outline" className="text-xs">
-                    {wp.weakPoint} <span className="text-red-500 ml-1">{wp.wrongCount}次</span>
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* 错题列表 */}
         {loading ? (
           <div className="flex justify-center py-16">
