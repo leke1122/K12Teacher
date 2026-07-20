@@ -19,6 +19,7 @@ export interface HistoryKnowledgePoint {
   memoryTip: string;
   relatedEvents: string[];
   source: string;
+  dynasty?: string; // 朝代/时期标签，如"先秦"、"秦汉"
 }
 
 interface ExtractRequest {
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
           memoryTip: '',
           relatedEvents: c.relatedEvents,
           source: 'docx_import',
+          dynasty: c.dynasty || c.category || '',
         }));
         return NextResponse.json({
           success: true,

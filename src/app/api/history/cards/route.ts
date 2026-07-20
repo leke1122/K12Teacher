@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
         front: c.name || "",
         back: c.definition || "",
         difficulty: c.importance >= 4 ? "hard" : c.importance >= 2 ? "medium" : "easy",
+        dynasty: c.dynasty || c.category || "",
+        type: c.type || "event",
       }));
     }
 

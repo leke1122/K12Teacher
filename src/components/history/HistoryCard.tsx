@@ -11,6 +11,7 @@ export interface HistoryCardItem {
   front: string;
   back: string;
   chapterId: string;
+  dynasty?: string; // 朝代/时期标签，如"先秦"、"秦汉"
 }
 
 interface HistoryCardProps {
@@ -118,15 +119,22 @@ export function HistoryCard({ cards, onProgressChange }: HistoryCardProps) {
           >
             <div>
               <div className="flex items-center justify-between mb-4">
-                <Badge variant="outline" className="text-xs">
-                  {current.type === 'event'
-                    ? '事件卡'
-                    : current.type === 'person'
-                    ? '人物卡'
-                    : current.type === 'system'
-                    ? '制度卡'
-                    : '条约卡'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {current.type === 'event'
+                      ? '事件卡'
+                      : current.type === 'person'
+                      ? '人物卡'
+                      : current.type === 'system'
+                      ? '制度卡'
+                      : '条约卡'}
+                  </Badge>
+                  {current.dynasty && (
+                    <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100">
+                      {current.dynasty}
+                    </Badge>
+                  )}
+                </div>
                 {currentMastered && (
                   <Badge variant="secondary" className="text-xs">
                     已掌握
@@ -158,9 +166,16 @@ export function HistoryCard({ cards, onProgressChange }: HistoryCardProps) {
           >
             <div>
               <div className="flex items-center justify-between mb-4">
-                <Badge variant="outline" className="bg-amber-100 text-xs">
-                  答案
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-amber-100 text-xs">
+                    答案
+                  </Badge>
+                  {current.dynasty && (
+                    <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                      {current.dynasty}
+                    </Badge>
+                  )}
+                </div>
                 {currentMastered && (
                   <Badge variant="secondary" className="text-xs">
                     已掌握

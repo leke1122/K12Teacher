@@ -28,6 +28,7 @@ interface HistoryKnowledgePoint {
   memoryTip: string;
   relatedEvents: string[];
   source: string;
+  dynasty?: string; // 朝代/时期标签
 }
 
 // 历史题目类型
@@ -286,7 +287,14 @@ function KnowledgePageContent() {
             <Card className="bg-white">
               <CardHeader className="pb-3 pt-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{currentItem?.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg">{currentItem?.name}</CardTitle>
+                    {currentItem?.dynasty && (
+                      <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                        {currentItem.dynasty}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">来源：{currentItem?.source || '教材'}</p>
               </CardHeader>

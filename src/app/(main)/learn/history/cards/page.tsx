@@ -26,6 +26,7 @@ function generateDefaultCards(): HistoryCardItem[] {
       front: event.title,
       back: `${event.year} · ${event.dynasty}\n\n${event.summary}\n\n历史影响：${event.impact || '详见课本'}`,
       chapterId: 'unit1',
+      dynasty: event.dynasty,
     });
   }
 
@@ -38,6 +39,7 @@ function generateDefaultCards(): HistoryCardItem[] {
       front: concept.name,
       back: `类别：${concept.category}\n\n定义：${concept.definition}${concept.keyPeople?.length ? `\n\n关键人物：${concept.keyPeople.join('、')}` : ''}`,
       chapterId: 'unit1',
+      dynasty: concept.category,
     });
   }
 

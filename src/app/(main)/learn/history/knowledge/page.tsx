@@ -15,6 +15,8 @@ interface KnowledgeItem {
   content: string;
   gaokaoFocus?: string;
   importance: number;
+  dynasty?: string; // 朝代/时期标签
+  year?: string;
 }
 
 export default function HistoryKnowledgePage() {
@@ -116,8 +118,16 @@ export default function HistoryKnowledgePage() {
               <Card key={item.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-slate-800">{item.title}</h3>
+                      {item.dynasty && (
+                        <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100">
+                          {item.dynasty}
+                        </Badge>
+                      )}
+                      {item.year && (
+                        <span className="text-xs text-muted-foreground">{item.year}</span>
+                      )}
                       <Badge variant="outline" className="text-xs">{item.category}</Badge>
                     </div>
                     <div className="flex gap-0.5">
