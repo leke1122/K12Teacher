@@ -19,6 +19,8 @@ interface ConceptItem {
   id: string;
   name: string;
   category: string;
+  dynasty?: string;
+  timeRange?: string;
   definition: string;
   keyPoints?: string[];
   importance: number;
@@ -129,7 +131,9 @@ export default function UnitLearningPage() {
           const formattedConcepts: ConceptItem[] = mustKnowData.data.items.map((item: any) => ({
             id: item.id,
             name: item.title,
-            category: item.dynasty || item.gaokaoFocus?.split('·')[0] || '知识点',
+            category: item.category || '知识点',
+            dynasty: item.dynasty,
+            timeRange: item.timeRange || item.period,
             definition: item.content,
             keyPoints: item.explanation?.split('。').filter(Boolean),
             importance: item.importance,
@@ -608,8 +612,13 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-semibold text-slate-800">{concept.name}</h3>
+                              {(concept.dynasty || concept.timeRange) && (
+                                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                  {concept.dynasty || concept.timeRange}
+                                </Badge>
+                              )}
                               <ChevronRight className="h-4 w-4 text-slate-400" />
                             </div>
                             <div className="flex gap-1">

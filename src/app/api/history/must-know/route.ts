@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       unitTitle: docxData.unitTitle || unitId,
       title: c.name || c.title || "",
       year: c.year || "",
-      dynasty: c.category || "",
+      dynasty: c.dynasty || c.category || "",
       content: c.definition || c.description || "",
       explanation: c.definition || (c.keyPoints || []).join("\n") || "",
       gaokaoFocus: c.gaokaoFocus || "",
