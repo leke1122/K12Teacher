@@ -30,6 +30,7 @@ const SUBJECT_PATHS: Record<string, { id: string; name: string; icon: string }> 
   '/learn/biology': { id: 'biology', name: '生物学习中心', icon: '🧬' },
   '/learn/geography': { id: 'geography', name: '地理学习中心', icon: '🌍' },
   '/learn/history': { id: 'history', name: '历史学习中心', icon: '🏛️' },
+  '/learn/politics': { id: 'politics', name: '政治学习中心', icon: '📜' },
 };
 
 function getPageInfo(pathname: string, currentSubject: string | null) {
