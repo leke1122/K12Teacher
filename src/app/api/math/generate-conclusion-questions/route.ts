@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
 }`;
 
     // 调用DeepSeek API
+    console.log('[generate-conclusion-questions] 正在调用DeepSeek API...');
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -57,18 +58,22 @@ export async function POST(request: NextRequest) {
       }),
     });
 
+    console.log('[generate-conclusion-questions] API响应状态:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('DeepSeek API error:', response.status, errorText);
-      return NextResponse.json({ success: false, error: 'AI服务请求失败' });
+      return NextResponse.json({ success: false, error: `AI服务请求失败 (${response.status}): ${errorText}` });
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+      const data = await response.json();
+      console.log('[generate-conclusion-questions] API返回数据:', JSON.stringify(data).substring(0, 500));
+      const content = data.choices?.[0]?.message?.content;
 
-    if (!content) {
-      return NextResponse.json({ success: false, error: 'AI返回内容为空' });
-    }
+      if (!content) {
+        console.error('[generate-conclusion-questions] AI返回内容为空');
+        return NextResponse.json({ success: false, error: 'AI返回内容为空，请重试' });
+      }
 
     // 解析JSON
     let questions = [];

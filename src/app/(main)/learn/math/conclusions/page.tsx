@@ -66,6 +66,9 @@ export default function MathConclusionsPage() {
 
   // AI生成试题
   const generateQuestions = async (conclusion: SecondLevelConclusion) => {
+    console.log('[MathConclusions] 生成试题被调用', conclusion.title);
+    console.log('[MathConclusions] settings.deepseekKey:', settings?.deepseekKey ? '已设置' : '未设置');
+
     if (!settings?.deepseekKey) {
       toast.error('请先在设置中配置 DeepSeek API Key');
       return;
@@ -80,6 +83,7 @@ export default function MathConclusionsPage() {
     setShowAnswer(false);
 
     try {
+      console.log('[MathConclusions] 发送请求到API...');
       const response = await fetch('/api/math/generate-conclusion-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,14 +92,19 @@ export default function MathConclusionsPage() {
           apiKey: settings.deepseekKey,
         }),
       });
+      console.log('[MathConclusions] 收到响应，状态:', response.status);
       const data = await response.json();
+      console.log('[MathConclusions] 响应数据:', data);
+
       if (data.success && data.questions) {
         setAiQuestions(data.questions);
         setPracticeScore({ correct: 0, total: data.questions.length });
+        toast.success('生成成功！开始答题吧');
       } else {
         toast.error(data.error || '生成失败');
       }
     } catch (e) {
+      console.error('[MathConclusions] 请求失败:', e);
       toast.error('请求失败，请检查网络');
     } finally {
       setGeneratingQuestions(false);
