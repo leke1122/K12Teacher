@@ -55,7 +55,7 @@ interface ClassicalAnalysis {
 
 function ClassicalReadPageContent() {
   const params = useParams();
-  const poemId = params.poemId as string;
+  const poemId = decodeURIComponent(params.poemId as string);
   const { settings } = useSettingsStore();
 
   // TTS 状态
