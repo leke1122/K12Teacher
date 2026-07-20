@@ -612,27 +612,27 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                               <h3 className="font-semibold text-slate-800">{concept.name}</h3>
                               {(concept.dynasty || concept.timeRange) && (
-                                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                                  {concept.dynasty || concept.timeRange}
+                                <Badge className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 font-medium shadow-sm">
+                                  🏛️ {concept.dynasty || concept.timeRange}
                                 </Badge>
                               )}
                               <ChevronRight className="h-4 w-4 text-slate-400" />
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-0.5 flex-shrink-0">
                               {Array.from({ length: concept.importance }).map((_, i) => (
-                                <span key={i} className="text-red-500">★</span>
+                                <span key={i} className="text-red-500 text-sm">★</span>
                               ))}
                             </div>
                           </div>
                           <p className="text-sm text-slate-600 mb-2 line-clamp-2">{concept.definition}</p>
                           <div className="flex items-center gap-2 flex-wrap">
                             {concept.gaokaoFocus && (
-                              <Badge variant="outline" className="text-xs bg-blue-50">{concept.gaokaoFocus}</Badge>
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">📚 {concept.gaokaoFocus}</Badge>
                             )}
-                            <Badge variant="outline" className="text-xs">{concept.category}</Badge>
+                            <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600">{concept.category}</Badge>
                           </div>
                         </div>
                       ))}
@@ -665,8 +665,15 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
-                            <div className="flex gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
+                              {concept.dynasty && (
+                                <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                                  {concept.dynasty}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
                               {Array.from({ length: concept.importance }).map((_, i) => (
                                 <span key={i} className="text-red-500 text-xs">★</span>
                               ))}
@@ -697,8 +704,15 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
-                            <div className="flex gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
+                              {concept.dynasty && (
+                                <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                                  {concept.dynasty}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
                               {Array.from({ length: concept.importance }).map((_, i) => (
                                 <span key={i} className="text-red-500 text-xs">★</span>
                               ))}
@@ -729,8 +743,15 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
-                            <div className="flex gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
+                              {concept.dynasty && (
+                                <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                                  {concept.dynasty}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
                               {Array.from({ length: concept.importance }).map((_, i) => (
                                 <span key={i} className="text-red-500 text-xs">★</span>
                               ))}
@@ -761,8 +782,15 @@ export default function UnitLearningPage() {
                           onClick={() => setDetailDialog({open: true, type: 'knowledge', data: concept})}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
-                            <div className="flex gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-800 text-sm">{concept.name}</h3>
+                              {concept.dynasty && (
+                                <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                                  {concept.dynasty}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
                               {Array.from({ length: concept.importance }).map((_, i) => (
                                 <span key={i} className="text-red-500 text-xs">★</span>
                               ))}
@@ -899,7 +927,12 @@ export default function UnitLearningPage() {
             {/* 知识点详情 */}
             {detailDialog.type === 'knowledge' && detailDialog.data && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {detailDialog.data.dynasty && (
+                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 font-medium">
+                      🏛️ {detailDialog.data.dynasty}
+                    </Badge>
+                  )}
                   <Badge className="bg-pink-100 text-pink-700">重要性：{detailDialog.data.importance}星</Badge>
                   <Badge variant="outline">{detailDialog.data.category}</Badge>
                   {detailDialog.data.gaokaoFocus && (
