@@ -416,7 +416,7 @@ function MapPageContent() {
               <CardHeader className="pb-1 pt-3 px-4">
                 <CardTitle className="text-sm flex items-center gap-2">
                   {mode === 'china' ? '中国地形图' : '世界气候与洋流图'}
-                  {mapReady && <Badge variant="success" className="ml-2 text-xs bg-green-100 text-green-700">已加载</Badge>}
+                  {mapReady && <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-700">已加载</Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 relative">
