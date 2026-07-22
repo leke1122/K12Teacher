@@ -132,15 +132,6 @@ function MapPageContent() {
       // 获取所有省份名称
       const allProvinces = chinaGeoJson.features?.map((f: any) => f.properties?.name || '') || [];
 
-      const mapData = allProvinces.map((name: string) => {
-        const shortName = nameMap[name] || name;
-        return {
-          name,
-          value: 100,
-          itemStyle: { areaColor: colors[shortName] || '#E8D5B7' },
-        };
-      });
-
       // 辽宁闪烁标注
       const liaoningData = [{ name: '辽宁省', value: [122.5, 41.8, 100] }];
 
@@ -169,20 +160,42 @@ function MapPageContent() {
             return shortName || '';
           },
         },
+        // 省份区域配置（使用 GeoJSON 中的完整名称）
+        const regionNameMap: Record<string, string> = {
+          '北京': '北京市', '天津': '天津市', '河北': '河北省', '山西': '山西省',
+          '内蒙古': '内蒙古自治区', '辽宁': '辽宁省', '吉林': '吉林省', '黑龙江': '黑龙江省',
+          '上海': '上海市', '江苏': '江苏省', '浙江': '浙江省', '安徽': '安徽省',
+          '福建': '福建省', '江西': '江西省', '山东': '山东省', '河南': '河南省',
+          '湖北': '湖北省', '湖南': '湖南省', '广东': '广东省', '广西': '广西壮族自治区',
+          '海南': '海南省', '重庆': '重庆市', '四川': '四川省', '贵州': '贵州省',
+          '云南': '云南省', '西藏': '西藏自治区', '陕西': '陕西省', '甘肃': '甘肃省',
+          '青海': '青海省', '宁夏': '宁夏回族自治区', '新疆': '新疆维吾尔自治区',
+          '台湾': '台湾省', '香港': '香港特别行政区', '澳门': '澳门特别行政区',
+        };
+
+        const regionsData = Object.entries(colors).map(([shortName, color]) => ({
+          name: regionNameMap[shortName] || shortName,
+          itemStyle: { areaColor: color },
+        }));
+
         geo: {
           map: 'china',
           roam: true,
           zoom: 1.2,
           center: [105, 36],
-          itemStyle: { borderColor: '#999', borderWidth: 0.8 },
+          itemStyle: {
+            areaColor: '#E8D5B7',
+            borderColor: '#999',
+            borderWidth: 0.8,
+          },
           emphasis: {
             itemStyle: { areaColor: '#FFD700', borderColor: '#FF6B6B', borderWidth: 2 },
             label: { show: true, color: '#333', fontWeight: 'bold', fontSize: 14 },
           },
           select: { disabled: true },
+          regions: regionsData,
         },
         series: [
-          { name: '中国地图', type: 'map', map: 'china', data: mapData },
           ...riverSeries,
           {
             name: '辽宁标注',
