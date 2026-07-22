@@ -182,12 +182,12 @@ function MapPageContent() {
           select: { disabled: true },
         },
         series: [
-          { name: '中国地图', type: 'map', geoIndex: 0, data: mapData },
+          { name: '中国地图', type: 'map', map: 'china', data: mapData },
           ...riverSeries,
           {
             name: '辽宁标注',
             type: 'effectScatter',
-            geoIndex: 0,
+            coordinateSystem: 'geo',
             data: liaoningData,
             symbolSize: 14,
             showEffectOn: 'render',
