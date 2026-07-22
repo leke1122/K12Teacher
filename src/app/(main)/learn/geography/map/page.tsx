@@ -103,7 +103,20 @@ function MapPageContent() {
         console.error('[ECharts] Register failed:', e);
       }
 
-      // 省份海拔配色
+      // 省份名称映射（GeoJSON全称 -> 数据键名）
+      const nameMap: Record<string, string> = {
+        '北京市': '北京', '天津市': '天津', '河北省': '河北', '山西省': '山西',
+        '内蒙古自治区': '内蒙古', '辽宁省': '辽宁', '吉林省': '吉林', '黑龙江省': '黑龙江',
+        '上海市': '上海', '江苏省': '江苏', '浙江省': '浙江', '安徽省': '安徽',
+        '福建省': '福建', '江西省': '江西', '山东省': '山东', '河南省': '河南',
+        '湖北省': '湖北', '湖南省': '湖南', '广东省': '广东', '广西壮族自治区': '广西',
+        '海南省': '海南', '重庆市': '重庆', '四川省': '四川', '贵州省': '贵州',
+        '云南省': '云南', '西藏自治区': '西藏', '陕西省': '陕西', '甘肃省': '甘肃',
+        '青海省': '青海', '宁夏回族自治区': '宁夏', '新疆维吾尔自治区': '新疆',
+        '台湾省': '台湾', '香港特别行政区': '香港', '澳门特别行政区': '澳门',
+      };
+
+      // 省份地形配色
       const colors: Record<string, string> = {
         '内蒙古': '#C4A484', '新疆': '#DEB887', '西藏': '#8B7355', '青海': '#BDB76B',
         '四川': '#228B22', '云南': '#32CD32', '贵州': '#9ACD32', '甘肃': '#F4A460',
@@ -117,13 +130,16 @@ function MapPageContent() {
       };
 
       // 获取所有省份名称
-      const allProvinces = chinaGeoJson.features?.map((f: any) => f.properties?.name || f.properties?.NAME || f.name) || [];
+      const allProvinces = chinaGeoJson.features?.map((f: any) => f.properties?.name || '') || [];
 
-      const mapData = allProvinces.map((name: string) => ({
-        name,
-        value: 100,
-        itemStyle: { areaColor: colors[name] || '#E8D5B7' },
-      }));
+      const mapData = allProvinces.map((name: string) => {
+        const shortName = nameMap[name] || name;
+        return {
+          name,
+          value: 100,
+          itemStyle: { areaColor: colors[shortName] || '#E8D5B7' },
+        };
+      });
 
       // 辽宁闪烁标注
       const liaoningData = [{ name: '辽宁省', value: [122.5, 41.8, 100] }];
@@ -145,11 +161,12 @@ function MapPageContent() {
           trigger: 'item',
           formatter: (params: any) => {
             if (params.seriesType === 'lines') return `<b>${params.name}</b>`;
-            const data = chinaProvincesData[params.name];
+            const shortName = nameMap[params.name] || params.name;
+            const data = chinaProvincesData[shortName];
             if (data) {
               return `<b>${data.name}</b><br/>温度带: ${data.temperatureZone}<br/>干湿区: ${data.humidityZone}<br/>地形: ${data.terrain}`;
             }
-            return params.name || '';
+            return shortName || '';
           },
         },
         geo: {
@@ -192,10 +209,14 @@ function MapPageContent() {
       setMapReady(true);
 
       chart.on('click', (params: any) => {
-        if (params.name && chinaProvincesData[params.name]) {
-          setSelectedProvince(chinaProvincesData[params.name]);
-          setSelectedProvinceName(params.name);
-          setSelectedClimate(null);
+        if (params.name) {
+          const shortName = nameMap[params.name] || params.name;
+          const data = chinaProvincesData[shortName];
+          if (data) {
+            setSelectedProvince(data);
+            setSelectedProvinceName(shortName);
+            setSelectedClimate(null);
+          }
         }
       });
 
