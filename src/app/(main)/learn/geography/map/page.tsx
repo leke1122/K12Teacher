@@ -191,6 +191,10 @@ function MapPageContent() {
           roam: true,
           zoom: 1.2,
           center: [105, 36],
+          scaleLimit: {
+            min: 0.8,
+            max: 8,
+          },
           itemStyle: {
             areaColor: '#E8D5B7',
             borderColor: '#999',
