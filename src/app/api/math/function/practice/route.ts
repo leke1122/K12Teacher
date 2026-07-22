@@ -186,36 +186,168 @@ D. [选项]
 function parseGeneratedQuestions(text: string, nodeId: string): Question[] {
   const questions: Question[] = [];
   
-  // 匹配选择题
-  const choicePattern = /题\s*1[.．、]?\s*([\s\S]+?)\n([A-D][.．、]\s*[\s\S]+?\n?){4}答案[：:]\s*([A-D])\n解析[：:]\s*([\s\S]+?)(?=题\s*2|$)/i;
-  const choiceMatch = text.match(choicePattern);
-  if (choiceMatch) {
-    const validation = validateQuestion(choiceMatch[1], nodeId);
-    if (validation.valid) {
-      questions.push({
-        id: `${nodeId}_ai_1`,
-        text: choiceMatch[1].trim(),
-        type: 'choice',
-        options: choiceMatch[2].split('\n').map(o => o.replace(/^[A-D][.．、]\s*/, '').trim()).filter(Boolean),
-        answer: choiceMatch[3].trim().toUpperCase(),
-        explanation: choiceMatch[4].trim(),
-        difficulty: 'medium',
-      });
+  if (!text || text.trim().length < 10) {
+    console.log('[FunctionPractice] AI 返回内容过短或为空');
+    return [];
+  }
+  
+  // 清理文本：移除可能的 markdown 代码块标记
+  const cleanText = text
+    .replace(/```(?:json)?/gi, '')
+    .replace(/`/g, '')
+    .trim();
+  
+  // 通用正则模式：匹配题号开头的内容
+  const questionBlocks = cleanText.split(/(?:^|\n)(?:题|问题|练习)[\s\d]*/i)
+    .filter(block => block.trim().length > 10)
+    .map(block => block.trim());
+  
+  for (let i = 0; i < questionBlocks.length; i++) {
+    const block = questionBlocks[i];
+    const qNum = i + 1;
+    
+    // 尝试提取题目文本
+    let questionText = '';
+    let questionType: 'choice' | 'fill' = 'fill';
+    let options: string[] | undefined = undefined;
+    let answer = '';
+    let explanation = '';
+    
+    // 检测是否为选择题（有 A B C D 选项）
+    const hasOptions = /[A-D][.、)）]\s*[\u4e00-\u9fa5a-zA-Z0-9√()（）、。.]/.test(block);
+    
+    if (hasOptions) {
+      questionType = 'choice';
+      
+      // 提取题目（选项之前的部分）
+      const optionsMatch = block.match(/^([\s\S]+?)(?=[A-D][.、)）])/);
+      if (optionsMatch) {
+        questionText = optionsMatch[1].trim();
+      }
+      
+      // 提取选项
+      const optionMatches = block.match(/[A-D][.、)）]\s*([^\n]+)/g);
+      if (optionMatches) {
+        options = optionMatches.map(o => {
+          const cleaned = o.replace(/^[A-D][.、)）]\s*/, '');
+          return cleaned.trim();
+        }).filter(o => o.length > 0);
+      }
+    } else {
+      // 填空题
+      questionText = block.split(/答案[：:]/)[0]?.trim() || block;
+    }
+    
+    // 提取答案
+    const answerMatch = block.match(/答案[：:]\s*([A-D]|[^\n]+?)(?=\n解析|$)/i);
+    if (answerMatch) {
+      answer = answerMatch[1].trim();
+      // 如果是选择题，确保答案是单个字母
+      if (questionType === 'choice' && /^[A-D]$/i.test(answer)) {
+        answer = answer.toUpperCase();
+      }
+    }
+    
+    // 提取解析
+    const explanationMatch = block.match(/解析[：:]\s*([\s\S]+?)$/i);
+    if (explanationMatch) {
+      explanation = explanationMatch[1].trim();
+    }
+    
+    // 验证题目有效性
+    if (questionText && answer) {
+      // 验证是否包含超纲内容
+      const validation = validateQuestion(questionText, nodeId);
+      if (validation.valid) {
+        questions.push({
+          id: `${nodeId}_ai_${qNum}`,
+          text: questionText.replace(/^\d+[.、)）]\s*/, ''), // 移除可能的题号
+          type: questionType,
+          options: questionType === 'choice' ? options : undefined,
+          answer: questionType === 'choice' ? (answer.match(/[A-D]/i)?.[0]?.toUpperCase() || answer) : answer,
+          explanation: explanation || '请参考相关知识点',
+          difficulty: 'medium',
+        });
+      } else {
+        console.log(`[FunctionPractice] 题目${qNum}验证失败:`, validation.reason);
+      }
     }
   }
   
-  // 匹配填空题
-  const fillPattern = /题\s*2[.．、]?\s*([\s\S]+?)\n答案[：:]\s*([\s\S]+?)\n解析[：:]\s*([\s\S]+?)(?=题\s*3|$)/i;
-  const fillMatch = text.match(fillPattern);
-  if (fillMatch) {
-    const validation = validateQuestion(fillMatch[1], nodeId);
+  // 如果解析出来的题目数量太少，尝试备用解析方法
+  if (questions.length < 2) {
+    console.log('[FunctionPractice] 主要解析方法提取题目不足，尝试备用解析');
+    const fallbackQuestions = fallbackParse(text, nodeId);
+    questions.push(...fallbackQuestions);
+  }
+  
+  console.log(`[FunctionPractice] 共解析出 ${questions.length} 道有效题目`);
+  return questions.slice(0, 5); // 最多返回5道题
+}
+
+// 备用解析方法：处理各种非标准格式
+function fallbackParse(text: string, nodeId: string): Question[] {
+  const questions: Question[] = [];
+  
+  // 移除 markdown 标记
+  const cleanText = text.replace(/```/g, '').trim();
+  
+  // 按行分割，尝试找到题目-答案-解析模式
+  const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l);
+  
+  let currentQuestion = '';
+  let currentAnswer = '';
+  let currentExplanation = '';
+  let inQuestion = false;
+  let qCount = 0;
+  
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    
+    if (lowerLine.includes('题') && /\d/.test(line)) {
+      // 新题目开始，保存上一个题目
+      if (currentQuestion) {
+        qCount++;
+        const validation = validateQuestion(currentQuestion, nodeId);
+        if (validation.valid && currentAnswer) {
+          questions.push({
+            id: `${nodeId}_fb_${qCount}`,
+            text: currentQuestion,
+            type: 'fill',
+            answer: currentAnswer,
+            explanation: currentExplanation || '请参考相关知识点',
+            difficulty: 'medium',
+          });
+        }
+      }
+      currentQuestion = line.replace(/题\s*\d+\s*[.、)）]/, '');
+      currentAnswer = '';
+      currentExplanation = '';
+      inQuestion = true;
+    } else if (lowerLine.includes('答案') || lowerLine.includes('回答')) {
+      inQuestion = false;
+      const match = line.match(/(?:答案|回答)[：:]\s*([^\n]+)/i);
+      if (match) currentAnswer = match[1].trim();
+    } else if (lowerLine.includes('解析') || lowerLine.includes('解释') || lowerLine.includes('说明')) {
+      const match = line.match(/(?:解析|解释|说明)[：:]\s*([^\n]+)/i);
+      if (match) currentExplanation = match[1].trim();
+    } else if (inQuestion && currentQuestion) {
+      // 继续累积题目文本
+      currentQuestion += ' ' + line;
+    }
+  }
+  
+  // 保存最后一个题目
+  if (currentQuestion && currentAnswer) {
+    qCount++;
+    const validation = validateQuestion(currentQuestion, nodeId);
     if (validation.valid) {
       questions.push({
-        id: `${nodeId}_ai_2`,
-        text: fillMatch[1].trim(),
+        id: `${nodeId}_fb_${qCount}`,
+        text: currentQuestion,
         type: 'fill',
-        answer: fillMatch[2].trim(),
-        explanation: fillMatch[3].trim(),
+        answer: currentAnswer,
+        explanation: currentExplanation || '请参考相关知识点',
         difficulty: 'medium',
       });
     }

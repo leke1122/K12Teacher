@@ -118,9 +118,12 @@ export default function FunctionPracticePage() {
         }),
       });
       const data = await res.json();
+      
       if (data.success && data.questions && data.questions.length > 0) {
         setQuestions(data.questions);
+        console.log(`[FunctionPractice] 加载成功，共 ${data.questions.length} 题，来源: ${data.source}`);
       } else {
+        console.log('[FunctionPractice] API返回空，使用内置题库');
         // 使用内置题库
         setQuestions(getBuiltinQuestions(nodeId));
       }
