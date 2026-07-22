@@ -5,12 +5,11 @@ import { Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Map, Loader2, Globe } from 'lucide-react';
+import { ArrowLeft, Map, Loader2, Globe, AlertCircle } from 'lucide-react';
 import { updateStepProgress } from '@/lib/geographyProgress';
 import { GeoInfoCard } from '@/components/geography/InfoCard';
 import {
   chinaProvincesData,
-  chinaTerrainMarks,
   worldClimateZones,
   worldOceanCurrents,
   worldGeoRegions,
@@ -21,6 +20,35 @@ import {
 
 type MapMode = 'china' | 'world';
 
+// 备用 GeoJSON 数据源列表
+const CHINA_GEOJSON_SOURCES = [
+  'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
+  'https://unpkg.com/china-atlas@1.0.0/json/china.json',
+  'https://raw.githubusercontent.com/lyd1234567890/EchartsMapData/main/china.json',
+];
+
+const WORLD_GEOJSON_SOURCES = [
+  'https://cdn.jsdelivr.net/npm/echarts@5/map/json/world.json',
+  'https://unpkg.com/world-atlas@1.0.0/countries-110m.json',
+  'https://raw.githubusercontent.com/apache/echarts/master/test/data/map/json/world.json',
+];
+
+async function loadGeoJson(urls: string[], fallbackName: string): Promise<any> {
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`[Map] Loaded from: ${url}`);
+        return data;
+      }
+    } catch (e) {
+      console.warn(`[Map] Failed: ${url}`, e);
+    }
+  }
+  throw new Error(`所有 ${fallbackName} 数据源加载失败`);
+}
+
 function MapPageContent() {
   const [mode, setMode] = useState<MapMode>('china');
   const [selectedProvince, setSelectedProvince] = useState<ChinaProvinceData | null>(null);
@@ -28,7 +56,11 @@ function MapPageContent() {
   const [selectedClimate, setSelectedClimate] = useState<WorldClimateZone | null>(null);
   const [chinaGeoJson, setChinaGeoJson] = useState<any>(null);
   const [worldGeoJson, setWorldGeoJson] = useState<any>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [chinaError, setChinaError] = useState<string | null>(null);
+  const [worldError, setWorldError] = useState<string | null>(null);
+  const [chinaLoading, setChinaLoading] = useState(true);
+  const [worldLoading, setWorldLoading] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const chinaChartRef = useRef<HTMLDivElement>(null);
   const worldChartRef = useRef<HTMLDivElement>(null);
@@ -39,32 +71,14 @@ function MapPageContent() {
     updateStepProgress('geography', 'compulsory-1', 'map', 'in_progress');
   }, []);
 
-  // 预加载中国地图 GeoJSON
+  // 加载中国地图
   useEffect(() => {
-    fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
-      .then((r) => r.json())
-      .then((data) => {
-        setChinaGeoJson(data);
-      })
-      .catch(() => {
-        // 备用地址
-        fetch('https://unpkg.com/china-map@1.0.0/100000_full.json')
-          .then((r) => r.json())
-          .then(setChinaGeoJson)
-          .catch(() => setLoadError('中国地图加载失败'));
-      });
-  }, []);
-
-  // 预加载世界地图 GeoJSON
-  useEffect(() => {
-    fetch('https://cdn.jsdelivr.net/npm/echarts@5/map/json/world.json')
-      .then((r) => r.json())
-      .then((data) => {
-        setWorldGeoJson(data);
-      })
-      .catch(() => {
-        setLoadError('世界地图加载失败');
-      });
+    setChinaLoading(true);
+    setChinaError(null);
+    loadGeoJson(CHINA_GEOJSON_SOURCES, '中国地图')
+      .then(setChinaGeoJson)
+      .catch((e) => setChinaError(e.message))
+      .finally(() => setChinaLoading(false));
   }, []);
 
   // 渲染中国地图
@@ -72,17 +86,24 @@ function MapPageContent() {
     if (!chinaGeoJson || !chinaChartRef.current || mode !== 'china') return;
 
     import('echarts').then((echarts) => {
+      // 清理旧实例
       if (chinaChartInstance.current) {
         chinaChartInstance.current.dispose();
       }
+
       const chart = echarts.init(chinaChartRef.current);
       chinaChartInstance.current = chart;
 
       // 注册地图
-      echarts.registerMap('china', chinaGeoJson);
+      try {
+        const result = echarts.registerMap('china', chinaGeoJson);
+        console.log('[ECharts] China map registered:', result);
+      } catch (e) {
+        console.error('[ECharts] Register failed:', e);
+      }
 
       // 省份海拔配色
-      const provinceElevationColors: Record<string, string> = {
+      const colors: Record<string, string> = {
         '内蒙古': '#C4A484', '新疆': '#DEB887', '西藏': '#8B7355', '青海': '#BDB76B',
         '四川': '#228B22', '云南': '#32CD32', '贵州': '#9ACD32', '甘肃': '#F4A460',
         '陕西': '#DEB887', '山西': '#D2B48C', '宁夏': '#F5DEB3', '重庆': '#228B22',
@@ -94,21 +115,19 @@ function MapPageContent() {
         '上海': '#F5DEB3', '香港': '#20B2AA', '澳门': '#20B2AA',
       };
 
-      // 构建 series data
-      const mapData = Object.keys(chinaProvincesData).map((name) => ({
+      // 获取所有省份名称
+      const allProvinces = chinaGeoJson.features?.map((f: any) => f.properties?.name || f.properties?.NAME || f.name) || [];
+
+      const mapData = allProvinces.map((name: string) => ({
         name,
         value: 100,
-        itemStyle: { areaColor: provinceElevationColors[name] || '#E8D5B7' },
+        itemStyle: { areaColor: colors[name] || '#E8D5B7' },
       }));
 
-      // 添加一些不在数据中的省份（确保地图完整）
-      const allProvinces = chinaGeoJson.features.map((f: any) => f.properties.name);
-      const missingProvinces = allProvinces.filter((n: string) => !chinaProvincesData[n]);
-      missingProvinces.forEach((name: string) => {
-        mapData.push({ name, value: 50, itemStyle: { areaColor: '#E8D5B7' } });
-      });
+      // 辽宁闪烁标注
+      const liaoningData = [{ name: '辽宁省', value: [122.5, 41.8, 100] }];
 
-      // 河流数据
+      // 河流
       const riverSeries = chinaMajorRivers.map((river) => ({
         name: river.name,
         type: 'lines',
@@ -118,26 +137,6 @@ function MapPageContent() {
         effect: { show: true, period: 6, trailLength: 0.3, symbol: 'arrow', symbolSize: 4 },
         data: [{ coords: river.coords }],
       }));
-
-      // 辽宁标注
-      const liaoningSeries = {
-        name: '辽宁标注',
-        type: 'effectScatter',
-        geoIndex: 0,
-        data: [{ name: '辽宁省', value: [122.5, 41.8, 100] }],
-        symbolSize: 14,
-        showEffectOn: 'render',
-        rippleEffect: { brushType: 'stroke', scale: 5 },
-        itemStyle: { color: '#FF6347', shadowBlur: 15, shadowColor: '#FF6347' },
-        label: {
-          show: true,
-          formatter: '{b}',
-          position: 'top',
-          fontSize: 12,
-          fontWeight: 'bold',
-          color: '#FF6347',
-        },
-      };
 
       const option = {
         backgroundColor: '#f0f4f8',
@@ -167,11 +166,29 @@ function MapPageContent() {
         series: [
           { name: '中国地图', type: 'map', geoIndex: 0, data: mapData },
           ...riverSeries,
-          liaoningSeries,
+          {
+            name: '辽宁标注',
+            type: 'effectScatter',
+            geoIndex: 0,
+            data: liaoningData,
+            symbolSize: 14,
+            showEffectOn: 'render',
+            rippleEffect: { brushType: 'stroke', scale: 5 },
+            itemStyle: { color: '#FF6347', shadowBlur: 15, shadowColor: '#FF6347' },
+            label: {
+              show: true,
+              formatter: '{b}',
+              position: 'top',
+              fontSize: 12,
+              fontWeight: 'bold',
+              color: '#FF6347',
+            },
+          },
         ],
       };
 
       chart.setOption(option as any);
+      setMapReady(true);
 
       chart.on('click', (params: any) => {
         if (params.name && chinaProvincesData[params.name]) {
@@ -185,10 +202,25 @@ function MapPageContent() {
       window.addEventListener('resize', handleResize);
       return () => {
         window.removeEventListener('resize', handleResize);
-        chart.dispose();
       };
     });
   }, [chinaGeoJson, mode]);
+
+  // 切换到世界地图时加载
+  const handleSwitchToWorld = () => {
+    if (worldGeoJson) {
+      setMode('world');
+      return;
+    }
+    setWorldLoading(true);
+    loadGeoJson(WORLD_GEOJSON_SOURCES, '世界地图')
+      .then((data) => {
+        setWorldGeoJson(data);
+        setMode('world');
+      })
+      .catch((e) => setWorldError(e.message))
+      .finally(() => setWorldLoading(false));
+  };
 
   // 渲染世界地图
   useEffect(() => {
@@ -198,10 +230,15 @@ function MapPageContent() {
       if (worldChartInstance.current) {
         worldChartInstance.current.dispose();
       }
+
       const chart = echarts.init(worldChartRef.current);
       worldChartInstance.current = chart;
 
-      echarts.registerMap('world', worldGeoJson);
+      try {
+        echarts.registerMap('world', worldGeoJson);
+      } catch (e) {
+        console.error('[ECharts] World map register failed:', e);
+      }
 
       // 暖流
       const warmCurrents = worldOceanCurrents
@@ -268,13 +305,7 @@ function MapPageContent() {
         showEffectOn: 'render',
         rippleEffect: { brushType: 'stroke', scale: 4 },
         itemStyle: { color: '#FFD700', shadowBlur: 8, shadowColor: '#FFD700' },
-        label: {
-          show: true,
-          formatter: '{b}',
-          position: 'right',
-          fontSize: 10,
-          color: '#333',
-        },
+        label: { show: true, formatter: '{b}', position: 'right', fontSize: 10, color: '#333' },
       };
 
       const option = {
@@ -288,9 +319,7 @@ function MapPageContent() {
         tooltip: {
           trigger: 'item',
           formatter: (params: any) => {
-            if (params.seriesType === 'lines') {
-              return `<b>${params.name}</b><br/>${params.seriesName === '暖流' ? '🔴' : '🔵'} ${params.seriesName}`;
-            }
+            if (params.seriesType === 'lines') return `<b>${params.name}</b><br/>${params.seriesName === '暖流' ? '🔴' : '🔵'} ${params.seriesName}`;
             return params.name || '';
           },
         },
@@ -327,12 +356,14 @@ function MapPageContent() {
       window.addEventListener('resize', handleResize);
       return () => {
         window.removeEventListener('resize', handleResize);
-        chart.dispose();
       };
     });
   }, [worldGeoJson, mode]);
 
-  const selectedClimateZone = selectedClimate;
+  // 调试：检查页面状态
+  useEffect(() => {
+    console.log('[Map] State:', { chinaGeoJson: !!chinaGeoJson, chinaError, mode, mapReady });
+  }, [chinaGeoJson, chinaError, mode, mapReady]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
@@ -367,10 +398,11 @@ function MapPageContent() {
           <Button
             size="sm"
             variant={mode === 'world' ? 'default' : 'outline'}
-            onClick={() => setMode('world')}
+            onClick={handleSwitchToWorld}
+            disabled={worldLoading}
             className="gap-1"
           >
-            <Globe className="h-4 w-4" />
+            {worldLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
             🌏 世界气候与洋流
           </Button>
         </div>
@@ -382,50 +414,88 @@ function MapPageContent() {
             <Card className="overflow-hidden">
               <CardHeader className="pb-1 pt-3 px-4">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  {mode === 'china' ? (
-                    <>
-                      <span>中国地形图</span>
-                      <div className="flex items-center gap-1 ml-auto text-xs text-slate-400">
-                        <span className="inline-block w-3 h-3 rounded bg-[#6495ED]" />平原
-                        <span className="inline-block w-3 h-3 rounded bg-[#228B22] ml-1" />山地
-                        <span className="inline-block w-3 h-3 rounded bg-[#C4A484] ml-1" />高原
-                        <span className="inline-block w-3 h-3 rounded bg-[#20B2AA] ml-1" />沿海
-                        <span className="inline-block w-3 h-3 rounded bg-[#DEB887] ml-1" />沙漠
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span>世界气候与洋流图</span>
-                      <div className="flex items-center gap-1 ml-auto text-xs text-slate-400">
-                        <span className="inline-block w-3 h-3 rounded bg-[#FF6347]" />暖流
-                        <span className="inline-block w-3 h-3 rounded bg-[#4169E1] ml-1" />寒流
-                        <span className="inline-block w-3 h-3 rounded bg-[#FFD700] ml-1" />地理区
-                      </div>
-                    </>
-                  )}
+                  {mode === 'china' ? '中国地形图' : '世界气候与洋流图'}
+                  {mapReady && <Badge variant="success" className="ml-2 text-xs bg-green-100 text-green-700">已加载</Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 relative">
-                {/* 加载状态 */}
-                {(mode === 'china' && !chinaGeoJson) || (mode === 'world' && !worldGeoJson) ? (
+                {/* 加载中 */}
+                {mode === 'china' && chinaLoading && (
                   <div className="h-[500px] flex items-center justify-center bg-slate-100 dark:bg-slate-800">
                     <div className="text-center">
                       <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">
-                        {loadError || '加载地图中...'}
-                      </p>
+                      <p className="text-sm text-slate-500">正在加载中国地图...</p>
+                      <p className="text-xs text-slate-400 mt-1">尝试多个数据源中</p>
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {/* 加载失败 */}
+                {mode === 'china' && chinaError && !chinaLoading && (
+                  <div className="h-[500px] flex items-center justify-center bg-red-50 dark:bg-red-950/20">
+                    <div className="text-center max-w-md px-4">
+                      <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-red-600 mb-2">地图加载失败</p>
+                      <p className="text-xs text-slate-500 mb-3">{chinaError}</p>
+                      <div className="text-xs text-slate-400 bg-white p-3 rounded border text-left">
+                        <p className="font-semibold mb-1">可能原因：</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>网络连接问题</li>
+                          <li>防火墙拦截了外部资源</li>
+                          <li>Vercel 部署环境无法访问外网</li>
+                        </ul>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3"
+                        onClick={() => {
+                          setChinaError(null);
+                          setChinaLoading(true);
+                          loadGeoJson(CHINA_GEOJSON_SOURCES, '中国地图')
+                            .then(setChinaGeoJson)
+                            .catch((e) => setChinaError(e.message))
+                            .finally(() => setChinaLoading(false));
+                        }}
+                      >
+                        重试
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 世界地图加载中 */}
+                {mode === 'world' && worldLoading && (
+                  <div className="h-[500px] flex items-center justify-center bg-slate-100">
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500">正在加载世界地图...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 世界地图加载失败 */}
+                {mode === 'world' && worldError && !worldLoading && (
+                  <div className="h-[500px] flex items-center justify-center bg-red-50">
+                    <div className="text-center">
+                      <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-red-600">世界地图加载失败</p>
+                      <p className="text-xs text-slate-500 mt-1">{worldError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 地图容器 */}
+                {((mode === 'china' && !chinaLoading && !chinaError) || (mode === 'world' && !worldLoading && !worldError)) && (
                   <>
                     <div
                       ref={chinaChartRef}
-                      className={`w-full transition-all ${mode === 'china' ? 'h-[500px]' : 'h-0'}`}
+                      className={`w-full ${mode === 'china' ? 'h-[500px]' : 'h-0'}`}
                       style={{ display: mode === 'china' ? 'block' : 'none' }}
                     />
                     <div
                       ref={worldChartRef}
-                      className={`w-full transition-all ${mode === 'world' ? 'h-[500px]' : 'h-0'}`}
+                      className={`w-full ${mode === 'world' ? 'h-[500px]' : 'h-0'}`}
                       style={{ display: mode === 'world' ? 'block' : 'none' }}
                     />
                   </>
@@ -434,34 +504,30 @@ function MapPageContent() {
             </Card>
 
             {/* 图例说明 */}
-            {mode === 'world' && (
+            {mode === 'china' && !chinaError && (
               <Card className="mt-3">
                 <CardContent className="p-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="font-semibold text-slate-600 mb-1">🔴 重要暖流</p>
-                      {worldOceanCurrents.filter((c) => c.type === 'warm').slice(0, 5).map((c) => (
-                        <p key={c.name} className="text-slate-500">· {c.name}</p>
-                      ))}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-600 mb-1">🔵 重要寒流</p>
-                      {worldOceanCurrents.filter((c) => c.type === 'cold').slice(0, 5).map((c) => (
-                        <p key={c.name} className="text-slate-500">· {c.name}</p>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
+                    <span className="inline-block w-3 h-3 rounded bg-[#6495ED]" />平原
+                    <span className="inline-block w-3 h-3 rounded bg-[#228B22] ml-2" />山地
+                    <span className="inline-block w-3 h-3 rounded bg-[#C4A484] ml-2" />高原
+                    <span className="inline-block w-3 h-3 rounded bg-[#20B2AA] ml-2" />沿海
                   </div>
+                  <p className="text-xs text-slate-500">
+                    💡 点击省份查看详情，<span className="text-red-500 font-bold">辽宁红色闪烁标注</span>，河流流动箭头，拖动缩放平移
+                  </p>
                 </CardContent>
               </Card>
             )}
 
-            {mode === 'china' && (
+            {mode === 'world' && !worldError && (
               <Card className="mt-3">
                 <CardContent className="p-3">
-                  <p className="text-xs text-slate-500">
-                    💡 <b>提示：</b>点击任意省份查看详情，辽宁省以 <span className="text-red-500 font-bold">红色闪烁</span> 标注。
-                    河流（黄河、长江、辽河等）以流动箭头标注。拖动可缩放和平移地图。
-                  </p>
+                  <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
+                    <span className="inline-block w-3 h-3 rounded bg-[#FF6347]" />暖流
+                    <span className="inline-block w-3 h-3 rounded bg-[#4169E1] ml-2" />寒流
+                    <span className="inline-block w-3 h-3 rounded bg-[#FFD700] ml-2" />地理区
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -475,9 +541,7 @@ function MapPageContent() {
               </div>
             ) : (
               <div className="sticky top-4 space-y-3">
-                <GeoInfoCard mode="world" climateZone={selectedClimateZone} />
-
-                {/* 气候类型速查 */}
+                <GeoInfoCard mode="world" climateZone={selectedClimate} />
                 <Card className="bg-white/80 dark:bg-slate-900/80">
                   <CardHeader className="pb-1 pt-3 px-3">
                     <CardTitle className="text-xs text-slate-500">气候类型速查</CardTitle>
