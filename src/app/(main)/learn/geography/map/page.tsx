@@ -21,14 +21,15 @@ import {
 type MapMode = 'china' | 'world';
 
 // 备用 GeoJSON 数据源列表
+// 本地 GeoJSON 数据源（优先使用）
 const CHINA_GEOJSON_SOURCES = [
+  '/maps/china.json',
   'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
   'https://unpkg.com/china-atlas@1.0.0/json/china.json',
-  'https://raw.githubusercontent.com/lyd1234567890/EchartsMapData/main/china.json',
 ];
 
 const WORLD_GEOJSON_SOURCES = [
-  'https://cdn.jsdelivr.net/npm/echarts@5/map/json/world.json',
+  '/maps/world.json',
   'https://unpkg.com/world-atlas@1.0.0/countries-110m.json',
   'https://raw.githubusercontent.com/apache/echarts/master/test/data/map/json/world.json',
 ];
