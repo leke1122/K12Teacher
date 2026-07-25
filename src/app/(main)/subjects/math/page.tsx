@@ -209,6 +209,20 @@ export default function MathPage() {
                 <p className="text-xs text-slate-400 mt-0.5">高考高频考点</p>
               </div>
             </button>
+
+            {/* 函数练习 */}
+            <button
+              onClick={() => router.push('/learn/math/function/practice')}
+              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/30 hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-center"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-rose-100 dark:bg-rose-900 group-hover:scale-110 transition-transform">
+                📝
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">函数练习</p>
+                <p className="text-xs text-slate-400 mt-0.5">AI生成题目</p>
+              </div>
+            </button>
           </div>
         </div>
 

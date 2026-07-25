@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -27,6 +28,7 @@ import { startLearning, endLearning } from '@/lib/learningService';
 type Difficulty = 'simple' | 'medium' | 'hard';
 
 function PracticePageContent() {
+  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const subjectId = params.subjectId as string;
@@ -129,10 +131,6 @@ function PracticePageContent() {
   const correctCount = answers.filter(a => a.correct).length;
 
   const startPractice = async () => {
-    if (!settings?.deepseekKey) {
-      alert('请先在设置中配置 DeepSeek API Key');
-      return;
-    }
     setPhase('loading');
     try {
       const response = await fetch('/api/generate-practice', {
@@ -144,8 +142,7 @@ function PracticePageContent() {
           sectionId,
           difficulty,
           pdfContext,
-          questionCount: 10,
-          apiKey: settings.deepseekKey,
+          questionCount: 5,
         }),
       });
       const data = await response.json();
@@ -484,11 +481,12 @@ function PracticePageContent() {
         <div className="container mx-auto px-4 py-4">
           {/* 顶部导航 */}
           <div className="flex items-center gap-3 mb-4">
-            <Link href={`/learn/practice/${subjectId}/${chapterId}/${sectionId}`}>
-              <Button variant="ghost" size="sm" className="gap-1 text-slate-600 dark:text-slate-400">
-                <ArrowLeft className="h-4 w-4" />返回难度选择
-              </Button>
-            </Link>
+            <button
+              onClick={() => router.push(`/learn/practice/${subjectId}/${chapterId}/${sectionId}`)}
+              className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3 gap-1 text-slate-600 dark:text-slate-400"
+            >
+              <ArrowLeft className="h-4 w-4" />返回难度选择
+            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">

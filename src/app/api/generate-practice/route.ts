@@ -18,6 +18,7 @@ import {
   validateQuestion,
   type SectionKnowledge,
 } from '@/data/math/chapterKnowledgeIndex';
+import { normalizeSectionId } from '@/lib/chapterPageMapping';
 
 /**
  * 生成章节练习题
@@ -45,53 +46,84 @@ export async function POST(request: NextRequest) {
     const diffLabelMap: Record<string, string> = { simple: '简单', medium: '中等', hard: '困难' };
     const diffLabel = diffLabelMap[difficulty] || '中等';
 
-    // 获取知识点范围
+    // 标准化 chapterId：支持 "3" -> "ch3" 或 "ch3" -> "ch3"
+    const normalizedChapterId = chapterId.startsWith('ch') ? chapterId : `ch${chapterId}`;
+    
+    // 标准化 sectionId：使用专门的 normalizeSectionId 函数处理各种格式
+    // 支持："第1课"、"第1节"、"1"、"1.1"、"1.1.1" 等格式
+    const normalizedSectionId = normalizeSectionId(String(sectionId), String(chapterId));
+
+    // 获取知识点范围（使用标准化后的 sectionId）
     const { currentKnowledge, previousKnowledge } = getKnowledgeRange(
       subjectId,
-      String(chapterId),
-      sectionId
+      normalizedChapterId,
+      normalizedSectionId
     );
     const { currentStr, previousStr } = formatKnowledgeForPrompt(currentKnowledge, previousKnowledge);
     
     // 获取禁止知识点（当前小节之后的内容）
-    const forbiddenKnowledge = getForbiddenKnowledge(subjectId, String(chapterId), sectionId);
+    const forbiddenKnowledge = getForbiddenKnowledge(subjectId, normalizedChapterId, normalizedSectionId);
 
     // 生成题型列表
     const typeList = generateQuestionTypeList(difficulty as 'simple' | 'medium' | 'hard', questionCount);
 
-    // 标准化 chapterId：支持 "3" -> "ch3" 或 "ch3" -> "ch3"
-    const normalizeChapterId = (id: string): string => {
-      if (id.startsWith('ch')) return id;
-      return `ch${id}`;
-    };
-    const normalizedChapterId = normalizeChapterId(String(chapterId));
-
     // 构建学科特定的出题提示词
-    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, sectionId);
+    const subjectPrompt = buildSubjectPrompt(subjectId, difficulty, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, normalizedSectionId);
 
-    if (apiKey) {
+    // 获取 API Key（优先使用请求中的 key，否则使用环境变量）
+    const effectiveApiKey = apiKey || process.env.QWEN_API_KEY;
+    
+    if (effectiveApiKey) {
       try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: subjectPrompt.system },
-              { role: 'user', content: subjectPrompt.user },
-            ],
-            temperature: 0.6,
-            max_tokens: 8000,
-          }),
-        });
+        // 根据 key 类型选择不同的 API
+        const isQwenKey = effectiveApiKey.startsWith('sk-ws-') && effectiveApiKey.includes('.mctz.');
+        const isDeepSeekKey = effectiveApiKey.startsWith('sk-') && !isQwenKey;
+        
+        let response;
+        if (isQwenKey) {
+          // 通义千问 API
+          response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${effectiveApiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'qwen-plus',
+              messages: [
+                { role: 'system', content: subjectPrompt.system },
+                { role: 'user', content: subjectPrompt.user },
+              ],
+              temperature: 0.5,
+              max_tokens: 4000,
+            }),
+          });
+        } else {
+          // DeepSeek API
+          response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${effectiveApiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'deepseek-chat',
+              messages: [
+                { role: 'system', content: subjectPrompt.system },
+                { role: 'user', content: subjectPrompt.user },
+              ],
+              temperature: 0.5,
+              max_tokens: 4000,
+            }),
+          });
+        }
 
         if (!response.ok) throw new Error('API请求失败');
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
+        console.log('[generate-practice] AI原始响应:', content.substring(0, 500));
         const result = parseQuestions(content);
+        console.log('[generate-practice] 解析后题目数:', result.questions.length);
         const allQuestions = result.questions;
 
         // 数学学科：严格的超纲题过滤（使用正则模式匹配）
@@ -101,7 +133,7 @@ export async function POST(request: NextRequest) {
           const rejectedQuestions: Array<{ q: any; reason: string }> = [];
           
           for (const q of allQuestions) {
-            const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, sectionId, true);
+            const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, normalizedSectionId, true);
             if (validation.valid) {
               validatedQuestions.push(q);
             } else {
@@ -110,34 +142,56 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          // 如果过滤后没有合格题目，重试3次
+          // 如果过滤后没有合格题目，重试1次（减少等待时间）
           if (validatedQuestions.length === 0 && allQuestions.length > 0) {
             console.warn(`[generate-practice] 所有${allQuestions.length}题都被过滤，触发重试机制`);
             
-            for (let retry = 1; retry <= 3; retry++) {
+            for (let retry = 1; retry <= 1; retry++) {
               try {
                 const newSeed = seed + retry * 1000;
                 const retryTypeList = typeList.slice(0, Math.max(questionCount - validatedQuestions.length, 8));
                 const retryPrompt = buildMathPrompt(
-                  difficulty, diffLabel, retryTypeList, newSeed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, sectionId
+                  difficulty, diffLabel, retryTypeList, newSeed, currentStr, previousStr, forbiddenKnowledge, pdfContext, normalizedChapterId, normalizedSectionId
                 );
                 
-                const retryResponse = await fetch('https://api.deepseek.com/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                  },
-                  body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                      { role: 'system', content: retryPrompt.system },
-                      { role: 'user', content: retryPrompt.user },
-                    ],
-                    temperature: 0.6,
-                    max_tokens: 8000,
-                  }),
-                });
+                // 重试时也使用同样的 API
+                const isQwenKeyRetry = effectiveApiKey.startsWith('sk-ws-') && effectiveApiKey.includes('.mctz.');
+                let retryResponse;
+                if (isQwenKeyRetry) {
+                  retryResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${effectiveApiKey}`,
+                    },
+                    body: JSON.stringify({
+                      model: 'qwen-plus',
+                      messages: [
+                        { role: 'system', content: retryPrompt.system },
+                        { role: 'user', content: retryPrompt.user },
+                      ],
+                      temperature: 0.5,
+                      max_tokens: 4000,
+                    }),
+                  });
+                } else {
+                  retryResponse = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${effectiveApiKey}`,
+                    },
+                    body: JSON.stringify({
+                      model: 'deepseek-chat',
+                      messages: [
+                        { role: 'system', content: retryPrompt.system },
+                        { role: 'user', content: retryPrompt.user },
+                      ],
+                      temperature: 0.5,
+                      max_tokens: 4000,
+                    }),
+                  });
+                }
                 
                 if (!retryResponse.ok) continue;
                 const retryData = await retryResponse.json();
@@ -145,7 +199,7 @@ export async function POST(request: NextRequest) {
                 const retryResult = parseQuestions(retryContent);
                 
                 for (const q of retryResult.questions) {
-                  const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, sectionId, true);
+                  const validation = validateQuestion(q.text || q.question || '', normalizedChapterId, normalizedSectionId, true);
                   if (validation.valid) {
                     validatedQuestions.push(q);
                   } else {

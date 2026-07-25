@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Settings, ListChecks, BarChart3, Link2, BookMarked, Home, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SUBJECTS, useSubjectStore } from "@/stores/subjectStore";
+import { SUBJECTS } from "@/stores/subjectStore";
 
 export function Sidebar() {
-  const { currentSubject } = useSubjectStore();
   const pathname = usePathname();
 
   return (
@@ -31,7 +30,7 @@ export function Sidebar() {
       <div className="space-y-0.5">
         {SUBJECTS.map((subject) => {
           const href = `/subjects/${subject.id}`;
-          const isActive = pathname === href || currentSubject === subject.id;
+          const isActive = pathname === href;
 
           return (
             <Link key={subject.id} href={href}>

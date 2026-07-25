@@ -59,6 +59,18 @@ export default function GeographyHomePage() {
       badge: '核心概念',
     },
     {
+      key: 'knowledge-full',
+      icon: BookOpen,
+      name: '完整知识点',
+      desc: '全部知识点详细讲解',
+      href: `/learn/geography/knowledge-full/chapter1`,
+      color: 'violet',
+      bgColor: 'bg-violet-50 dark:bg-violet-950/30',
+      iconColor: 'text-violet-500',
+      borderColor: 'hover:border-violet-300 dark:hover:border-violet-700',
+      badge: '全部内容',
+    },
+    {
       key: 'map',
       icon: Map,
       name: '交互地图',

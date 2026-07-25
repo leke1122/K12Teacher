@@ -10,7 +10,6 @@ import {
   Clock, Layers, Link2, GitCompare, Brain, FileText, 
   MapPin, GitFork, Target, Zap, FileQuestion,
   BarChart3, Brain as BrainIcon, GraduationCap, BookMarked,
-  CheckCircle, ArrowDown, Sparkles
 } from 'lucide-react';
 import { historyBooks } from '@/data/history/books';
 import { releasedUnits } from '@/data/history/units';
@@ -58,97 +57,20 @@ function HistorySubjectContent() {
         </div>
 
         {/* ====== 学习路径步骤 ====== */}
-        <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-purple-700">
-              <Sparkles className="h-5 w-5" />
-              七步学习法
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">按步骤学习，循序渐进，全面掌握历史知识</p>
+        <Card className="border border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">七步学习法</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="relative">
-              {/* 连接线 */}
-              <div className="absolute top-6 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 hidden md:block" />
-              
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
-                {LEARNING_PATH_STEPS.map((item, idx) => {
-                  const Icon = item.icon;
-                  const colorMap: Record<string, string> = {
-                    blue: 'bg-blue-500',
-                    amber: 'bg-amber-500',
-                    purple: 'bg-purple-500',
-                    cyan: 'bg-cyan-500',
-                    rose: 'bg-rose-500',
-                    green: 'bg-green-500',
-                    indigo: 'bg-indigo-500',
-                  };
-                  const borderMap: Record<string, string> = {
-                    blue: 'border-blue-200 hover:border-blue-400',
-                    amber: 'border-amber-200 hover:border-amber-400',
-                    purple: 'border-purple-200 hover:border-purple-400',
-                    cyan: 'border-cyan-200 hover:border-cyan-400',
-                    rose: 'border-rose-200 hover:border-rose-400',
-                    green: 'border-green-200 hover:border-green-400',
-                    indigo: 'border-indigo-200 hover:border-indigo-400',
-                  };
-                  const textMap: Record<string, string> = {
-                    blue: 'text-blue-600',
-                    amber: 'text-amber-600',
-                    purple: 'text-purple-600',
-                    cyan: 'text-cyan-600',
-                    rose: 'text-rose-600',
-                    green: 'text-green-600',
-                    indigo: 'text-indigo-600',
-                  };
-                  
-                  return (
-                    <div
-                      key={item.key}
-                      className={`relative flex flex-col items-center text-center p-3 rounded-xl bg-white border-2 ${borderMap[item.color]} hover:shadow-lg transition-all cursor-pointer group`}
-                      onClick={() => router.push(`/learn/history/unit/unit1`)}
-                    >
-                      {/* 步骤编号 */}
-                      <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full ${colorMap[item.color]} flex items-center justify-center text-white text-xs font-bold shadow-md group-hover:scale-110 transition-transform`}>
-                        {item.step}
-                      </div>
-                      
-                      {/* 图标 */}
-                      <div className={`w-10 h-10 rounded-lg ${colorMap[item.color]} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-                      
-                      {/* 标签 */}
-                      <span className={`text-xs font-semibold ${textMap[item.color]}`}>{item.label}</span>
-                      <span className="text-[10px] text-slate-400 mt-0.5">{item.desc}</span>
-                      
-                      {/* 箭头指示（桌面端） */}
-                      {idx < LEARNING_PATH_STEPS.length - 1 && (
-                        <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
-                          <ArrowRight className="h-4 w-4 text-slate-300" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* 移动端箭头 */}
-              <div className="flex md:hidden justify-center items-center py-2">
-                <ArrowDown className="h-4 w-4 text-slate-400 animate-bounce" />
-                <span className="text-xs text-slate-400 ml-2">向下滚动查看全部步骤</span>
-              </div>
-            </div>
-            
-            {/* 学习提示 */}
-            <div className="mt-4 p-3 rounded-lg bg-purple-50 border border-purple-100">
-              <div className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-purple-700">
-                  <p className="font-medium">学习建议</p>
-                  <p className="text-purple-600 mt-1">先选择单元进入学习，按①②③④⑤⑥⑦顺序完成各模块学习，最后做综合练习检验成果</p>
-                </div>
-              </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {LEARNING_PATH_STEPS.map((item) => (
+                <span key={item.key} className="text-sm text-slate-600">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-xs mr-1.5">
+                    {item.step}
+                  </span>
+                  {item.label}
+                </span>
+              ))}
             </div>
           </CardContent>
         </Card>
