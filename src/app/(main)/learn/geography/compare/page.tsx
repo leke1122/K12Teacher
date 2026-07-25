@@ -58,7 +58,7 @@ export default function GeographyComparePage() {
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4 space-y-4">
         <div className="flex items-center gap-3">
-          <Link href="/learn/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
+          <Link href="/subjects/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
           <h1 className="text-xl font-bold text-slate-800">📊 对比学习</h1>
         </div>
         <div className="flex flex-wrap gap-2">

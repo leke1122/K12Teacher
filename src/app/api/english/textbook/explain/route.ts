@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: apiProvider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini',
+        model: apiProvider === 'deepseek' ? 'deepseek-v4-flash' : 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `请讲解以下英文段落：\n\n${text}` },

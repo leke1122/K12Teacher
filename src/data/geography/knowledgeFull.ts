@@ -35,6 +35,7 @@ export interface Subsection {
 export interface KnowledgeContent {
   type: 'text' | 'table' | 'list' | 'note' | 'quote' | 'key-point';
   content: string;
+  title?: string;
   rows?: string[][];
   headers?: string[];
 }

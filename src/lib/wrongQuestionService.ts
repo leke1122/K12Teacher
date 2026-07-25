@@ -1,8 +1,9 @@
 /**
- * 错词本服务 - Supabase 数据操作
+ * 错词本服务 - Supabase + 本地存储双保险
+ * 优先使用 Supabase，如果未配置则使用本地存储
  */
 
-import { supabase as supabaseClient } from './supabase';
+import { supabase } from './supabase';
 
 export interface WrongQuestion {
   id: string;
@@ -23,14 +24,32 @@ export interface WrongQuestion {
   created_at: string;
 }
 
-// 批量题目输入类型
-export interface BatchQuestionInput {
-  question_number: number;
-  question: string;
-  correct_answer: string;
-  user_answer: string;
-  knowledge_point: string;
-  is_correct: boolean;
+// 本地存储键名
+const LOCAL_STORAGE_KEY = 'gaozhong_wrong_questions';
+
+// 本地存储操作
+function getLocalQuestions(): WrongQuestion[] {
+  if (typeof window === 'undefined') return [];
+  const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+function setLocalQuestions(questions: WrongQuestion[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(questions));
+}
+
+function addLocalQuestion(question: Omit<WrongQuestion, 'id' | 'created_at'>): string {
+  const questions = getLocalQuestions();
+  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const newQuestion: WrongQuestion = {
+    ...question,
+    id,
+    created_at: new Date().toISOString(),
+  };
+  questions.unshift(newQuestion);
+  setLocalQuestions(questions);
+  return id;
 }
 
 // 获取错词列表（按学科筛选）
@@ -39,55 +58,46 @@ export async function getWrongQuestions(
   subjectId?: string,
   id?: string
 ): Promise<WrongQuestion[]> {
-  if (!supabaseClient) return [];
+  // 优先使用 Supabase
+  if (supabase) {
+    let query = supabase
+      .from('wrong_questions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (subjectId) {
+      query = query.eq('subject_id', subjectId);
+    }
+
+    if (id) {
+      query = query.eq('id', id);
+    }
+
+    const { data, error } = await query;
+
+    if (!error && data) {
+      return data;
+    }
+    console.error('[WrongQuestionService] Supabase error, falling back to local:', error);
+  }
+
+  // 降级到本地存储
+  console.log('[WrongQuestionService] Using local storage for wrong questions');
+  let questions = getLocalQuestions();
   
-  let query = supabaseClient
-    .from('wrong_questions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
   if (subjectId) {
-    query = query.eq('subject_id', subjectId);
+    questions = questions.filter(q => q.subject_id === subjectId);
   }
-
+  
   if (id) {
-    query = query.eq('id', id);
+    questions = questions.filter(q => q.id === id);
   }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('[WrongQuestionService] getWrongQuestions error:', error);
-    return [];
-  }
-
-  return data || [];
+  
+  return questions;
 }
 
-// 获取批次内的所有题目
-export async function getBatchQuestions(
-  batchId: string,
-  userId: string = 'personal-user'
-): Promise<WrongQuestion[]> {
-  if (!supabaseClient) return [];
-
-  const { data, error } = await supabaseClient
-    .from('wrong_questions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('batch_id', batchId)
-    .order('question_number', { ascending: true });
-
-  if (error) {
-    console.error('[WrongQuestionService] getBatchQuestions error:', error);
-    return [];
-  }
-
-  return data || [];
-}
-
-// 添加错词
+// 添加错词（支持 Supabase + 本地双写）
 export async function addWrongQuestion(
   userId: string,
   subjectId: string,
@@ -101,32 +111,38 @@ export async function addWrongQuestion(
   isMastered: boolean = false,
   wrongReason: string = ''
 ): Promise<string | null> {
-  if (!supabaseClient) return null;
+  const record = {
+    user_id: userId,
+    subject_id: subjectId,
+    question,
+    correct_answer: correctAnswer,
+    user_answer: userAnswer,
+    analysis,
+    difficulty,
+    knowledge_point: knowledgePoint,
+    wrong_reason: wrongReason,
+    is_mastered: isMastered,
+  };
 
-  const { data, error } = await supabaseClient
-    .from('wrong_questions')
-    .insert({
-      user_id: userId,
-      subject_id: subjectId,
-      question,
-      correct_answer: correctAnswer,
-      user_answer: userAnswer,
-      analysis,
-      difficulty,
-      knowledge_point: knowledgePoint,
-      image_url: imageUrl,
-      remediation_status: isMastered ? 'mastered' : 'pending',
-      wrong_reason: wrongReason,
-    })
-    .select('id')
-    .single();
+  // 优先写入 Supabase
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('wrong_questions')
+      .insert(record)
+      .select('id')
+      .single();
 
-  if (error) {
-    console.error('[WrongQuestionService] addWrongQuestion error:', error);
-    return null;
+    if (!error && data?.id) {
+      console.log('[WrongQuestionService] Added to Supabase:', data.id);
+      return data.id;
+    }
+    console.error('[WrongQuestionService] Supabase add failed:', error);
   }
 
-  return data?.id || null;
+  // 降级到本地存储
+  console.log('[WrongQuestionService] Saving to local storage');
+  const localId = addLocalQuestion(record);
+  return localId;
 }
 
 // 批量添加错题
@@ -134,12 +150,17 @@ export async function addBatchQuestions(
   userId: string,
   subjectId: string,
   batchId: string,
-  questions: BatchQuestionInput[],
+  questions: Array<{
+    question_number: number;
+    question: string;
+    correct_answer: string;
+    user_answer: string;
+    knowledge_point: string;
+    is_correct: boolean;
+  }>,
   imageUrl: string = ''
 ): Promise<boolean> {
-  if (!supabaseClient) return false;
-
-  const records = questions.map((q) => ({
+  const records = questions.map((q): Omit<WrongQuestion, 'id' | 'created_at'> => ({
     user_id: userId,
     subject_id: subjectId,
     batch_id: batchId,
@@ -149,21 +170,31 @@ export async function addBatchQuestions(
     user_answer: q.user_answer,
     knowledge_point: q.knowledge_point,
     is_correct: q.is_correct,
-    image_url: imageUrl,
     remediation_status: q.is_correct ? 'mastered' : 'pending',
     difficulty: 'medium',
     analysis: '',
   }));
 
-  const { error } = await supabaseClient
-    .from('wrong_questions')
-    .insert(records);
+  // 优先使用 Supabase
+  if (supabase) {
+    const { error } = await supabase
+      .from('wrong_questions')
+      .insert(records);
 
-  if (error) {
-    console.error('[WrongQuestionService] addBatchQuestions error:', error);
-    return false;
+    if (!error) {
+      return true;
+    }
+    console.error('[WrongQuestionService] Supabase batch add failed:', error);
   }
 
+  // 降级到本地存储
+  const localQuestions = getLocalQuestions();
+  const newQuestions: WrongQuestion[] = records.map((r, i) => ({
+    ...r,
+    id: `local_${Date.now()}_${i}`,
+    created_at: new Date().toISOString(),
+  }));
+  setLocalQuestions([...newQuestions, ...localQuestions]);
   return true;
 }
 
@@ -173,19 +204,26 @@ export async function updateRemediationStatus(
   status: 'pending' | 'tutoring' | 'mastered',
   userId: string = 'personal-user'
 ): Promise<boolean> {
-  if (!supabaseClient) return false;
+  // 优先使用 Supabase
+  if (supabase) {
+    const { error } = await supabase
+      .from('wrong_questions')
+      .update({ remediation_status: status })
+      .eq('id', id)
+      .eq('user_id', userId);
 
-  const { error } = await supabaseClient
-    .from('wrong_questions')
-    .update({ remediation_status: status })
-    .eq('id', id)
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('[WrongQuestionService] updateRemediationStatus error:', error);
-    return false;
+    if (!error) {
+      return true;
+    }
+    console.error('[WrongQuestionService] Supabase update failed:', error);
   }
 
+  // 降级到本地存储
+  const questions = getLocalQuestions();
+  const updated = questions.map(q => 
+    q.id === id ? { ...q, remediation_status: status } : q
+  );
+  setLocalQuestions(updated);
   return true;
 }
 
@@ -194,19 +232,23 @@ export async function deleteWrongQuestion(
   id: string,
   userId: string = 'personal-user'
 ): Promise<boolean> {
-  if (!supabaseClient) return false;
+  // 优先使用 Supabase
+  if (supabase) {
+    const { error } = await supabase
+      .from('wrong_questions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
 
-  const { error } = await supabaseClient
-    .from('wrong_questions')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('[WrongQuestionService] deleteWrongQuestion error:', error);
-    return false;
+    if (!error) {
+      return true;
+    }
+    console.error('[WrongQuestionService] Supabase delete failed:', error);
   }
 
+  // 降级到本地存储
+  const questions = getLocalQuestions();
+  setLocalQuestions(questions.filter(q => q.id !== id));
   return true;
 }
 
@@ -215,24 +257,32 @@ export async function clearWrongQuestions(
   userId: string = 'personal-user',
   subjectId?: string
 ): Promise<boolean> {
-  if (!supabaseClient) return false;
+  // 优先使用 Supabase
+  if (supabase) {
+    let query = supabase
+      .from('wrong_questions')
+      .delete()
+      .eq('user_id', userId);
 
-  let query = supabaseClient
-    .from('wrong_questions')
-    .delete()
-    .eq('user_id', userId);
+    if (subjectId) {
+      query = query.eq('subject_id', subjectId);
+    }
 
+    const { error } = await query;
+
+    if (!error) {
+      return true;
+    }
+    console.error('[WrongQuestionService] Supabase clear failed:', error);
+  }
+
+  // 降级到本地存储
   if (subjectId) {
-    query = query.eq('subject_id', subjectId);
+    const questions = getLocalQuestions();
+    setLocalQuestions(questions.filter(q => q.subject_id !== subjectId));
+  } else {
+    setLocalQuestions([]);
   }
-
-  const { error } = await query;
-
-  if (error) {
-    console.error('[WrongQuestionService] clearWrongQuestions error:', error);
-    return false;
-  }
-
   return true;
 }
 
@@ -241,59 +291,14 @@ export async function getWrongQuestionCount(
   userId: string = 'personal-user',
   subjectId?: string
 ): Promise<number> {
-  if (!supabaseClient) return 0;
-
-  let query = supabaseClient
-    .from('wrong_questions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId);
-
-  if (subjectId) {
-    query = query.eq('subject_id', subjectId);
-  }
-
-  const { count, error } = await query;
-
-  if (error) {
-    console.error('[WrongQuestionService] getWrongQuestionCount error:', error);
-    return 0;
-  }
-
-  return count || 0;
+  const questions = await getWrongQuestions(userId, subjectId);
+  return questions.length;
 }
 
 // 获取待纠正的错题
 export async function getPendingRemediationQuestions(
   userId: string = 'personal-user'
 ): Promise<WrongQuestion[]> {
-  if (!supabaseClient) return [];
-
-  const { data, error } = await supabaseClient
-    .from('wrong_questions')
-    .select('*')
-    .eq('user_id', userId)
-    .neq('remediation_status', 'mastered')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('[WrongQuestionService] getPendingRemediationQuestions error:', error);
-    return [];
-  }
-
-  return data || [];
-}
-
-// 获取批次统计信息
-export async function getBatchStats(
-  batchId: string,
-  userId: string = 'personal-user'
-): Promise<{ total: number; correct: number; wrong: number; accuracy: number }> {
-  const questions = await getBatchQuestions(batchId, userId);
-  
-  const total = questions.length;
-  const correct = questions.filter(q => q.is_correct).length;
-  const wrong = total - correct;
-  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-
-  return { total, correct, wrong, accuracy };
+  const questions = await getWrongQuestions(userId);
+  return questions.filter(q => q.remediation_status !== 'mastered');
 }

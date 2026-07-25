@@ -117,7 +117,7 @@ ${grammarPoint.explanation.analogy}
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'deepseek-chat',
+          model: 'deepseek-v4-flash',
           messages: fullMessages,
           temperature: 0.7,
           max_tokens: 2000,

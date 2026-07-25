@@ -8,13 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { 
-  ArrowLeft, Loader2, Sparkles, Layers, Clock, BookOpen, 
-  Star, GitFork, CalendarDays, Brain, BookMarked, CheckCircle2
+  ArrowLeft, Loader2, Sparkles, GitFork, Brain, BookOpen, CheckCircle2, Star
 } from 'lucide-react';
 import Link from 'next/link';
 import GeographyGuidedLearning from '@/components/geography/GuidedLearning';
 import { GEOGRAPHY_CHAPTER1, GEOGRAPHY_CHAPTER1_MUST_KNOW } from '@/data/geography/chapter1_data';
 import type { Concept, TimelineEvent, CausalLink, GeographySection, GeographyMustKnowItem } from '@/lib/geographyDocxParser';
+import { useScrollHide } from '@/hooks/useScrollHide';
 
 type KnowledgePayload = {
   unitTitle: string;
@@ -28,7 +28,6 @@ type KnowledgePayload = {
   summary: string;
 };
 
-// 重要性星星
 const importanceStars: Record<number, string> = {
   5: '⭐⭐⭐⭐⭐',
   4: '⭐⭐⭐⭐',
@@ -55,7 +54,8 @@ export default function GeographyKnowledgePage() {
   const [importanceFilter, setImportanceFilter] = useState<number | null>(null);
   const [learnedItems, setLearnedItems] = useState<Set<string>>(new Set());
 
-  // 加载数据
+  const headerHidden = useScrollHide({ threshold: 50, sensitivity: 3, hideDelay: 100 });
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -65,12 +65,10 @@ export default function GeographyKnowledgePage() {
         if (json.success) {
           setData(json);
         } else {
-          // 使用内置数据
           setData(GEOGRAPHY_CHAPTER1 as unknown as KnowledgePayload);
         }
       } catch (e) {
         console.error(e);
-        // 使用内置数据
         setData(GEOGRAPHY_CHAPTER1 as unknown as KnowledgePayload);
       } finally {
         setLoading(false);
@@ -85,16 +83,13 @@ export default function GeographyKnowledgePage() {
   const sections = useMemo(() => data?.sections || [], [data?.sections]);
   const tables = useMemo(() => data?.tables || [], [data?.tables]);
 
-  // 使用内置的必背清单
   const mustKnowItems = GEOGRAPHY_CHAPTER1_MUST_KNOW;
 
-  // 筛选必背清单
   const filteredMustKnow = useMemo(() => {
     if (importanceFilter === null) return mustKnowItems;
     return mustKnowItems.filter(item => item.importance === importanceFilter);
   }, [importanceFilter]);
 
-  // 切换已学习状态
   const toggleLearned = useCallback((id: string) => {
     setLearnedItems(prev => {
       const next = new Set(prev);
@@ -107,46 +102,50 @@ export default function GeographyKnowledgePage() {
     });
   }, []);
 
-  // 学习进度
   const progress = Math.round((learnedItems.size / mustKnowItems.length) * 100);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
-      {/* 固定页头 */}
-      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/40">
+      {/* Auto-hide Header */}
+      <header
+        className={`
+          sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b shadow-sm
+          transition-all duration-300 ease-out
+          ${headerHidden ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}
+        `}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+          <Link href="/subjects/geography">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-1" /> 返回
+            </Button>
+          </Link>
           <div className="flex items-center gap-3">
-            <Link href="/learn/geography">
-              <Button variant="ghost" size="sm" className="gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-            </Link>
-            <Badge variant="outline" className="ml-auto bg-emerald-50">
+            <span className="text-xs text-muted-foreground">
               {learnedItems.size}/{mustKnowItems.length} 已学习
-            </Badge>
+            </span>
+            <Progress value={progress} className="w-20 h-1.5" />
           </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
-
+      <div className="max-w-4xl mx-auto px-4 py-3 space-y-4">
         {/* 高考重点提示 */}
         {data?.examFocus && data.examFocus.length > 0 && (
-          <Card className="mb-4 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+          <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="h-4 w-4 text-amber-600" />
-                <span className="font-medium text-amber-800">高考重点</span>
+                <span className="font-medium text-amber-800 text-sm">高考重点</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {data.examFocus.slice(0, 6).map((focus, idx) => (
                   <Badge
                     key={idx}
                     variant={focus.frequency === '必考' ? 'default' : 'outline'}
-                    className={focus.frequency === '必考' ? 'bg-red-500' : ''}
+                    className={`text-xs ${focus.frequency === '必考' ? 'bg-red-500' : ''}`}
                   >
-                    {focus.conceptName} · {focus.frequency}
+                    {focus.conceptName}
                   </Badge>
                 ))}
               </div>
@@ -174,69 +173,55 @@ export default function GeographyKnowledgePage() {
                 <BookOpen className="h-4 w-4" />
                 知识图谱
               </TabsTrigger>
-              <TabsTrigger value="sections" className="gap-1">
-                <Layers className="h-4 w-4" />
-                章节结构
-              </TabsTrigger>
-              <TabsTrigger value="concepts" className="gap-1">
-                <BookMarked className="h-4 w-4" />
-                概念词典
-              </TabsTrigger>
             </TabsList>
 
             {/* 必背清单 */}
             <TabsContent value="mustKnow">
               <Card>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Star className="h-5 w-5 text-amber-500" />
                       必背知识点清单
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">学习进度</span>
-                      <Progress value={progress} className="w-24 h-2" />
-                      <span className="text-xs font-medium">{progress}%</span>
+                    {/* 重要性筛选 */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        size="sm"
+                        variant={importanceFilter === null ? 'default' : 'outline'}
+                        className="h-6 text-xs px-2"
+                        onClick={() => setImportanceFilter(null)}
+                      >
+                        全部
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={importanceFilter === 5 ? 'default' : 'outline'}
+                        className={`h-6 text-xs px-2 ${importanceFilter === 5 ? 'bg-red-500' : ''}`}
+                        onClick={() => setImportanceFilter(5)}
+                      >
+                        ⭐5
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={importanceFilter === 4 ? 'default' : 'outline'}
+                        className={`h-6 text-xs px-2 ${importanceFilter === 4 ? 'bg-amber-500' : ''}`}
+                        onClick={() => setImportanceFilter(4)}
+                      >
+                        ⭐4
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={importanceFilter === 3 ? 'default' : 'outline'}
+                        className="h-6 text-xs px-2"
+                        onClick={() => setImportanceFilter(3)}
+                      >
+                        ⭐3
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* 重要性筛选 */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <Button
-                      size="sm"
-                      variant={importanceFilter === null ? 'default' : 'outline'}
-                      className="h-7 text-xs"
-                      onClick={() => setImportanceFilter(null)}
-                    >
-                      全部 ({mustKnowItems.length})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={importanceFilter === 5 ? 'default' : 'outline'}
-                      className={`h-7 text-xs ${importanceFilter === 5 ? 'bg-red-500' : ''}`}
-                      onClick={() => setImportanceFilter(5)}
-                    >
-                      ⭐⭐⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 5).length})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={importanceFilter === 4 ? 'default' : 'outline'}
-                      className={`h-7 text-xs ${importanceFilter === 4 ? 'bg-amber-500' : ''}`}
-                      onClick={() => setImportanceFilter(4)}
-                    >
-                      ⭐⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 4).length})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={importanceFilter === 3 ? 'default' : 'outline'}
-                      className="h-7 text-xs"
-                      onClick={() => setImportanceFilter(3)}
-                    >
-                      ⭐⭐⭐ ({mustKnowItems.filter(i => i.importance === 3).length})
-                    </Button>
-                  </div>
-
                   {/* 知识点列表 */}
                   <div className="space-y-3">
                     {filteredMustKnow.map((item) => {
@@ -247,7 +232,7 @@ export default function GeographyKnowledgePage() {
                       return (
                         <div
                           key={item.id}
-                          className={`rounded-lg border-l-4 p-4 transition-all ${color} ${isLearned ? 'opacity-60' : ''}`}
+                          className={`rounded-lg border-l-4 p-3 transition-all ${color} ${isLearned ? 'opacity-60' : ''}`}
                         >
                           <div className="flex items-start gap-3">
                             <Button
@@ -265,22 +250,22 @@ export default function GeographyKnowledgePage() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 {item.year && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0">
                                     {item.year}
                                   </Badge>
                                 )}
                                 <span className="text-xs">{stars}</span>
                                 {item.importance >= 4 && (
-                                  <Badge className="text-xs bg-red-100 text-red-600">重要考点</Badge>
+                                  <Badge className="text-[10px] px-1 py-0 bg-red-100 text-red-600">重要</Badge>
                                 )}
                               </div>
-                              <h3 className={`font-semibold text-slate-800 ${isLearned ? 'line-through' : ''}`}>
+                              <h3 className={`font-semibold text-sm text-slate-800 ${isLearned ? 'line-through' : ''}`}>
                                 {item.title}
                               </h3>
-                              <p className="mt-2 text-sm text-slate-600">{item.content}</p>
+                              <p className="mt-1.5 text-xs text-slate-600">{item.content}</p>
                               {item.gaokaoFocus && (
-                                <p className="mt-2 text-xs text-indigo-600 font-medium">
-                                  🎯 {item.gaokaoFocus}
+                                <p className="mt-1.5 text-[10px] text-indigo-600 font-medium">
+                                  {item.gaokaoFocus}
                                 </p>
                               )}
                             </div>
@@ -354,93 +339,12 @@ export default function GeographyKnowledgePage() {
                           ))}
                         </div>
                         {selectedConcept.gaokaoFocus && (
-                          <p className="mt-2 text-xs text-amber-600">📌 {selectedConcept.gaokaoFocus}</p>
+                          <p className="mt-2 text-xs text-amber-600">{selectedConcept.gaokaoFocus}</p>
                         )}
                       </div>
                     )}
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
-
-            {/* 章节结构 */}
-            <TabsContent value="sections">
-              <div className="grid gap-4 md:grid-cols-2">
-                {sections.map(section => (
-                  <Card key={section.id}>
-                    <CardHeader>
-                      <CardTitle className="text-base">{section.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {section.content.map(item => (
-                          <Badge key={item} variant="outline" className="text-xs">{item}</Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* 重要表格 */}
-              {tables.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold mb-3">核心知识表格</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {tables.slice(0, 6).map((table, idx) => (
-                      <Card key={`table-${idx}`}>
-                        <CardHeader>
-                          <CardTitle className="text-base">{table.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="border-b bg-slate-50">
-                                  {table.headers.map(h => (
-                                    <th key={h} className="text-left py-2 px-2 font-medium">{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {table.rows.map((row, i) => (
-                                  <tr key={i} className="border-b last:border-b-0 hover:bg-slate-50">
-                                    {row.map((cell, j) => (
-                                      <td key={j} className="py-2 px-2 text-slate-600">{cell}</td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* 概念词典 */}
-            <TabsContent value="concepts">
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {concepts.map(concept => (
-                  <Card key={concept.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs">{concept.category}</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {importanceStars[concept.importance]}
-                        </span>
-                      </div>
-                      <h3 className="font-semibold text-slate-800 mb-2">{concept.name}</h3>
-                      <p className="text-xs text-slate-600 line-clamp-3">{concept.definition}</p>
-                      {concept.gaokaoFocus && (
-                        <p className="mt-2 text-xs text-amber-600">{concept.gaokaoFocus}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
               </div>
             </TabsContent>
           </Tabs>

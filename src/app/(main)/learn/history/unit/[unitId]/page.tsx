@@ -12,8 +12,10 @@ import {
   Sparkles, Loader2
 } from 'lucide-react';
 import { releasedUnits } from '@/data/history/units';
+import { getUnitQuizData } from '@/data/history/quiz-data';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 interface ConceptItem {
   id: string;
@@ -114,8 +116,8 @@ export default function UnitLearningPage() {
   });
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [loading, setLoading] = useState(true);
-  
   const unit = releasedUnits.find(u => u.id === unitId);
+  const quizData = unit ? getUnitQuizData(unit.id) : undefined;
 
   // 从Supabase加载数据
   useEffect(() => {
@@ -232,7 +234,7 @@ export default function UnitLearningPage() {
           
           {/* 学习功能Tab栏 - 单行显示 */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-7 w-full bg-slate-100/50 h-auto">
+            <TabsList className="grid grid-cols-8 w-full bg-slate-100/50 h-auto">
               <TabsTrigger value="overview" className="text-xs py-1.5">
                 <BookMarked className="h-3.5 w-3.5 mr-1" /> 总览
               </TabsTrigger>
@@ -250,6 +252,9 @@ export default function UnitLearningPage() {
               </TabsTrigger>
               <TabsTrigger value="cards" className="text-xs py-1.5">
                 <Layers className="h-3.5 w-3.5 mr-1" /> 卡牌
+              </TabsTrigger>
+              <TabsTrigger value="guided" className="text-xs py-1.5" onClick={() => router.push(`/learn/history/guided?unit=${unitId}`)}>
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> 引导
               </TabsTrigger>
               <TabsTrigger value="practice" className="text-xs py-1.5">
                 <FileQuestion className="h-3.5 w-3.5 mr-1" /> 练习
@@ -349,17 +354,44 @@ export default function UnitLearningPage() {
                   </CardContent>
                 </Card>
 
-                {/* 开始练习 */}
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-                  <CardContent className="p-6 text-center">
-                    <Play className="h-10 w-10 mx-auto mb-3 text-green-600" />
-                    <h3 className="font-bold text-lg text-green-800 mb-2">开始综合练习</h3>
-                    <p className="text-sm text-green-600 mb-4">检验学习成果 · 高考真题</p>
-                    <Button className="bg-green-500 hover:bg-green-600" onClick={() => router.push(`/learn/history/practice`)}>
-                      进入练习
-                    </Button>
+{/* 引导式学习入口 */}
+              {quizData && (
+                <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                          <Brain className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-green-800">引导式学习</h3>
+                          <p className="text-sm text-green-600">
+                            {quizData.knowledgePoints.length}个知识点
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        className="bg-green-500 hover:bg-green-600"
+                        onClick={() => router.push(`/learn/history/guided?unit=${unitId}`)}
+                      >
+                        开始学习
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* 开始练习 */}
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                <CardContent className="p-6 text-center">
+                  <Play className="h-10 w-10 mx-auto mb-3 text-green-600" />
+                  <h3 className="font-bold text-lg text-green-800 mb-2">开始综合练习</h3>
+                  <p className="text-sm text-green-600 mb-4">检验学习成果 · 高考真题</p>
+                  <Button className="bg-green-500 hover:bg-green-600" onClick={() => router.push(`/learn/history/practice`)}>
+                    进入练习
+                  </Button>
+                </CardContent>
+              </Card>
               </div>
             </TabsContent>
 

@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${deepseekKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个严格输出JSON的英语语法出题助手，必须只返回JSON数组。' },
           { role: 'user', content: prompt },

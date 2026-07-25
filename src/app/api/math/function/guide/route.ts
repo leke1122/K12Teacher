@@ -273,7 +273,7 @@ async function analyzeAnswer(
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'deepseek-chat',
+          model: 'deepseek-v4-flash',
           messages: [{
             role: 'user',
             content: `作为数学学习评估助手，分析学生对以下知识点的回答质量。

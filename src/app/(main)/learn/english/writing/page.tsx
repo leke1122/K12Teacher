@@ -158,7 +158,7 @@ function WritingContent() {
           Authorization: `Bearer ${settings.deepseekKey}`,
         },
         body: JSON.stringify({
-          model: settings.apiProvider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini',
+          model: settings.apiProvider === 'deepseek' ? 'deepseek-v4-flash' : 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: `请批改以下作文：

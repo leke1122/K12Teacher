@@ -124,7 +124,7 @@ ${text}
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个严格输出 JSON 的历史课本讲解助手，必须只返回 JSON 数组。内容必须基于教材原文，不编造任何信息，不使用类比。' },
           { role: 'user', content: prompt }

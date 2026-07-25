@@ -46,7 +46,7 @@ ${(poem.exam_points || []).join('；') || '诗歌鉴赏、语言表达、手法�
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

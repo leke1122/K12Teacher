@@ -14,6 +14,7 @@ import { POETRY_LIST } from '@/lib/poetry';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTTS } from '@/hooks/useTTS';
 import { toast } from 'sonner';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 type Question = {
   id: string;
@@ -144,8 +145,8 @@ useEffect(() => {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-rose-50/30 dark:from-slate-900 dark:to-rose-950/30">
-      <header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/learn/chinese/poetry">
@@ -160,9 +161,9 @@ useEffect(() => {
             </Badge>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左侧：原文 */}
           <Card className="border-0 shadow">

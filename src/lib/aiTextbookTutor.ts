@@ -52,7 +52,7 @@ ${paragraph}`;
         Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个只会输出标准 JSON 的数学辅导助手。' },
           { role: 'user', content: prompt }

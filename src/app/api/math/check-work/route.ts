@@ -45,7 +45,7 @@ ${correctAnswer || '请根据题目判断对错'}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { 
             role: 'system', 

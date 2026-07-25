@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: messages.map(m => ({
           role: m.role,
           content: m.role === 'assistant' && m.content.length > 500 ? m.content.slice(0, 500) : m.content,

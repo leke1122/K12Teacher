@@ -364,7 +364,17 @@ function PracticeMode({
           question: word.meaning,
           correctAnswer: word.word,
           userAnswer: input.trim(),
+          knowledgePoint: '单词拼写',
+          wrongReason: '拼写错误',
         }),
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          console.log('错词已记录到错题本:', data.id);
+        } else {
+          console.error('记录错词失败:', data.error);
+        }
+      }).catch(err => {
+        console.error('记录错词请求失败:', err);
       });
     }
   }, [input, result, word, practiceIndex, words.length, results, onComplete]);
@@ -780,6 +790,7 @@ export default function WordsPage() {
   const [showMastered, setShowMastered] = useState(false);
   const [masteredWords, setMasteredWords] = useState<WordRecord[]>([]);
   const [masteredLoading, setMasteredLoading] = useState(false);
+  const [masteredWrongCounts, setMasteredWrongCounts] = useState<Record<string, number>>({});
   
   const [studyTime, setStudyTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -899,6 +910,20 @@ export default function WordsPage() {
     }
   };
 
+  // 获取单词错误次数（从错题本中）
+  const getWordWrongCount = (word: string): number => {
+    const historyKey = 'word_practice_wrong_history';
+    const saved = localStorage.getItem(historyKey);
+    if (!saved) return 0;
+    
+    try {
+      const history: { word: string; meaning: string; timestamp: string }[] = JSON.parse(saved);
+      return history.filter(h => h.word.toLowerCase() === word.toLowerCase()).length;
+    } catch {
+      return 0;
+    }
+  };
+
   // 加载已掌握单词列表
   const fetchMasteredWords = useCallback(async () => {
     setMasteredLoading(true);
@@ -906,7 +931,18 @@ export default function WordsPage() {
       const res = await fetch('/api/words/list?status=mastered&limit=999');
       const data = await res.json();
       if (data.success) {
-        setMasteredWords(data.words || []);
+        const words = data.words || [];
+        setMasteredWords(words);
+
+        // 获取每个已掌握单词的错误次数
+        if (words.length > 0) {
+          const wordsParam = words.map((w: WordRecord) => w.word).join(',');
+          const countRes = await fetch(`/api/words/wrong-count?words=${wordsParam}`);
+          const countData = await countRes.json();
+          if (countData.success) {
+            setMasteredWrongCounts(countData.counts || {});
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch mastered words:', err);
@@ -1352,22 +1388,35 @@ export default function WordsPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {masteredWords.map((word) => (
-                    <Card key={word.id} className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-lg text-slate-800">{word.word}</h3>
-                            {word.phonetic && (
-                              <p className="text-sm text-slate-500">{word.phonetic}</p>
-                            )}
+                  {masteredWords
+                    .map((word) => ({
+                      word,
+                      wrongCount: masteredWrongCounts[word.word.toLowerCase()] || 0,
+                    }))
+                    .sort((a, b) => b.wrongCount - a.wrongCount)
+                    .map(({ word, wrongCount }) => (
+                      <Card key={word.id} className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-bold text-lg text-slate-800">{word.word}</h3>
+                              {word.phonetic && (
+                                <p className="text-sm text-slate-500">{word.phonetic}</p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge className="bg-green-100 text-green-700">已掌握</Badge>
+                              {wrongCount > 0 && (
+                                <Badge variant="destructive" className="text-xs">
+                                  错 {wrongCount} 次
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <Badge className="bg-green-100 text-green-700">已掌握</Badge>
-                        </div>
-                        <p className="text-sm text-slate-600 mt-2 line-clamp-2">{word.meaning}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          <p className="text-sm text-slate-600 mt-2 line-clamp-2">{word.meaning}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               )}
             </div>

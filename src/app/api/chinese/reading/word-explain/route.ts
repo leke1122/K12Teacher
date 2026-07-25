@@ -53,7 +53,7 @@ ${context || '无特定上下文'}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一位专业的古汉语词典专家，解释准确、详尽。' },
           { role: 'user', content: prompt },

@@ -115,7 +115,7 @@ ${pdfContext ? `相关上下文：${pdfContext.substring(0, 500)}` : ''}
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个耐心、温和的高中数学老师，善于鼓励学生。' },
           { role: 'user', content: prompt }

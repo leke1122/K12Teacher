@@ -12,6 +12,7 @@ import { updateStepProgress } from '@/lib/historyProgress';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTextbooks } from '@/hooks/useTextbooks';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 // 历史知识点类型
 interface HistoryKnowledgePoint {
@@ -222,8 +223,8 @@ function KnowledgePageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-amber-50/30">
       {/* 固定页头 */}
-      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           {/* 顶部 */}
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
@@ -242,9 +243,9 @@ function KnowledgePageContent() {
             </Button>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
 
         {knowledgeItems.length === 0 ? (
           <Card>

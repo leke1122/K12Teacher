@@ -22,6 +22,7 @@ import { LearningRecord, saveLearningRecord, deleteLearningRecord } from '@/serv
 import { addWrongQuestion, type WrongQuestion } from '@/services/practiceService';
 import { storage, StorageKeys } from '@/lib/storage';
 import { startLearning, endLearning } from '@/lib/learningService';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 interface PDFData {
   full_text?: string;
@@ -693,7 +694,7 @@ function TextbookPageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950">
       {/* Header */}
-      <header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <AutoHideHeader><header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -723,7 +724,7 @@ function TextbookPageContent() {
             </div>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
       {/* 进度条 */}
       <div className="container mx-auto px-4 py-3">
@@ -751,7 +752,7 @@ function TextbookPageContent() {
         </div>
       </div>
 
-      <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
+      <main className="container mx-auto px-4 py-6 max-w-[1400px] space-y-6">
         {currentSection && (
           <>
             {/* 课本原文 */}

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, BookOpen, Sparkles, Languages, FileText, RotateCcw } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 const classicalTexts = [
   {
@@ -111,7 +112,7 @@ export default function ClassicalTextListPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950">
       {/* 顶部导航 */}
-      <header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
+      <AutoHideHeader><header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -125,7 +126,7 @@ export default function ClassicalTextListPage() {
             </div>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
       <div className="container mx-auto px-4 py-6">
         {/* 筛选 */}

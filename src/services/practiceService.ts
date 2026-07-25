@@ -195,14 +195,32 @@ export function getWrongQuestionsSync(): WrongQuestion[] {
 export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
   if (typeof window === 'undefined') return;
 
+  // 确保 ID 是 UUID 格式（Supabase 需要），否则生成新的 UUID
+  let finalQuestion = q;
+  if (!isValidUUID(q.id)) {
+    const newId = generateUUID();
+    finalQuestion = { ...q, id: newId };
+  }
+
   // 【关键修复】先同步写 localStorage，确保页面关闭也不会丢
   try {
     const local = getWrongQuestionsFromLocal();
-    const existingIdx = local.findIndex(w => w.id === q.id);
+    // 也检查是否有相同题目内容的错题（防止同一题目重复记录）
+    const existingByContent = local.findIndex(w => 
+      w.subjectId === finalQuestion.subjectId && 
+      w.chapterId === finalQuestion.chapterId &&
+      w.question === finalQuestion.question
+    );
+    if (existingByContent >= 0) {
+      // 已有相同题目，跳过记录
+      console.log('[PracticeService] 题目已在错题本中，跳过:', finalQuestion.question.substring(0, 50));
+      return;
+    }
+    const existingIdx = local.findIndex(w => w.id === finalQuestion.id);
     if (existingIdx >= 0) {
-      local[existingIdx] = q;
+      local[existingIdx] = finalQuestion;
     } else {
-      local.unshift(q);
+      local.unshift(finalQuestion);
     }
     localStorage.setItem(WRONG_QUESTIONS_KEY, JSON.stringify(local.slice(0, 500)));
   } catch (localErr) {
@@ -211,7 +229,7 @@ export async function addWrongQuestion(q: WrongQuestion): Promise<void> {
 
   // 异步写 Supabase，失败不影响（已在 localStorage）
   try {
-    await syncWrongQuestionsToSupabase(q);
+    await syncWrongQuestionsToSupabase(finalQuestion);
   } catch (err) {
     console.warn('[PracticeService] Supabase sync failed (data saved in localStorage):', err);
   }

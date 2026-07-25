@@ -18,8 +18,7 @@ function GeographyHubContent() {
   const historyProgress = useHistoryProgress('history', 'modern-china');
 
   const steps = [
-    { key: 'textbook' as StepKey, label: '课本还原', description: '理解教材内容', href: '/learn/geography/textbook/compulsory-1', icon: <BookOpen className="h-5 w-5" /> },
-    { key: 'knowledge' as StepKey, label: '知识点学习', description: '提取核心概念', href: '/learn/geography/knowledge/compulsory-1', icon: <Brain className="h-5 w-5" /> },
+    { key: 'knowledge' as StepKey, label: '知识点学习', description: '提取核心概念', href: '/learn/geography/knowledge-full/chapter1', icon: <Brain className="h-5 w-5" /> },
     { key: 'map' as StepKey, label: '交互地图', description: '可视化定位', href: '/learn/geography/map', icon: <Map className="h-5 w-5" /> },
     { key: 'compare' as StepKey, label: '区域对比', description: '区域特征比较', href: '/learn/geography/compare', icon: <GitCompare className="h-5 w-5" /> },
     { key: 'cards' as StepKey, label: '地理卡牌', description: '巩固记忆', href: '/learn/geography/cards', icon: <CreditCard className="h-5 w-5" /> },
@@ -114,8 +113,8 @@ function GeographyHubContent() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              本路径适配人教版（2019版）高中地理教材和辽宁省自主命题高考地理。建议按顺序完成七步学习：
-              课本还原 → 知识点学习 → 交互地图 → 区域对比 → 地理卡牌 → 区位分析 → 综合题训练。
+              本路径适配人教版（2019版）高中地理教材和辽宁省自主命题高考地理。建议按顺序完成六步学习：
+              知识点学习 → 交互地图 → 区域对比 → 地理卡牌 → 区位分析 → 综合题训练。
               每完成一步会自动解锁下一步。
             </p>
           </CardContent>

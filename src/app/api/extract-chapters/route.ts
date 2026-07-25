@@ -326,7 +326,7 @@ ${text.slice(0, 40000)}
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       messages: [
         { role: 'system', content: '你是一个严格输出 JSON 的历史教材目录解析助手，必须只返回 JSON 对象，不要包含任何其他文字。' },
         { role: 'user', content: prompt }
@@ -634,7 +634,7 @@ ${textContent.slice(0, 40000)}
 4. 目录有多少项就提取多少项，禁止概括、合并、省略。`;
 
     const { text: result } = await generateText({
-      model: openai('deepseek-chat'),
+      model: openai('deepseek-v4-flash'),
       prompt,
       temperature: 0,
       maxTokens: 20000,

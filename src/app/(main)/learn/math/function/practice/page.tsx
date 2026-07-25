@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { functionGraphNodes, FunctionGraphNode } from '@/data/math/functionKnowledgeGraph';
 import { startLearning, endLearning } from '@/lib/learningService';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 interface Question {
   id: string;
@@ -220,8 +221,8 @@ export default function FunctionPracticePage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-indigo-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
       {/* 顶部导航 */}
-      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-4xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push('/learn/math/function')} className="gap-1">
               <ArrowLeft className="h-4 w-4" />
@@ -229,9 +230,9 @@ export default function FunctionPracticePage() {
             </Button>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-[1400px] mx-auto px-4 py-6 space-y-6">
         {!selectedNodeId ? (
           // 节点选择
           <div className="space-y-4">

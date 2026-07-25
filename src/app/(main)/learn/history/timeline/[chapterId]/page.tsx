@@ -21,16 +21,15 @@ import {
   X,
   RefreshCw,
   BookOpen,
-  GraduationCap,
   Send,
   ChevronDown,
   AlertCircle,
   Star,
   Brain,
+  GraduationCap,
 } from 'lucide-react';
 import CausalGraph, { CausalGraphLegend } from '@/components/history/CausalGraph';
 import Drawer from '@/components/history/Drawer';
-import { DocxImportButton } from '@/components/history/DocxImportButton';
 import { HistoryMustKnowList } from '@/components/history/HistoryMustKnowList';
 import { HistoryGuidedLearning } from '@/components/history/HistoryGuidedLearning';
 import type { TimelineEvent } from '@/types/history';
@@ -446,24 +445,6 @@ function Unit1TimelinePage() {
               <MessageCircle className="h-4 w-4" />
               AI 助教
             </Button>
-
-            <DocxImportButton
-              size="sm"
-              variant="outline"
-              onImportSuccess={(result) => {
-                setKnowledgeData({
-                  timelineEvents: [],
-                  causalLinks: [],
-                  concepts: [],
-                  examFocus: [],
-                  summary: result.summary || '',
-                  unitTitle: result.unitTitle,
-                  pageRange: result.pageRange,
-                });
-                setDataSource('docx');
-                loadKnowledgeData(selectedUnitId, true);
-              }}
-            />
           </div>
         </div>
 

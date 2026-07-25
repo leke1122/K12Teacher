@@ -224,6 +224,7 @@ export interface GeographyChapter {
   category: 'natural' | 'human' | 'regional' | 'resource';
   categoryName: string;
   chapterLabel: string;
+  knowledgeChapterId?: string;
 }
 
 export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
@@ -233,6 +234,7 @@ export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
     category: 'natural',
     categoryName: '自然地理',
     chapterLabel: '必修第一册',
+    knowledgeChapterId: 'chapter1',
   },
   {
     id: 'compulsory-2',
@@ -240,6 +242,7 @@ export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
     category: 'human',
     categoryName: '人文地理',
     chapterLabel: '必修第二册',
+    knowledgeChapterId: 'chapter2',
   },
   {
     id: 'selective-1',
@@ -247,6 +250,7 @@ export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
     category: 'natural',
     categoryName: '自然地理进阶',
     chapterLabel: '选择性必修一',
+    knowledgeChapterId: 'chapter3',
   },
   {
     id: 'selective-2',
@@ -254,6 +258,7 @@ export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
     category: 'regional',
     categoryName: '区域发展',
     chapterLabel: '选择性必修二',
+    knowledgeChapterId: 'chapter4',
   },
   {
     id: 'selective-3',
@@ -261,6 +266,7 @@ export const GEOGRAPHY_CHAPTERS: GeographyChapter[] = [
     category: 'resource',
     categoryName: '资源环境与国家安全',
     chapterLabel: '选择性必修三',
+    knowledgeChapterId: 'chapter5',
   },
 ];
 

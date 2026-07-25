@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { storage, StorageKeys } from '@/lib/storage';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 interface KnowledgePoint {
   title: string;
@@ -139,8 +140,8 @@ function LearnPageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800">
       {/* 顶部导航 */}
-      <header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <AutoHideHeader><header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Link href={`/subjects/${subjectId}`}>
@@ -177,9 +178,9 @@ function LearnPageContent() {
             </div>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid gap-6 lg:grid-cols-12">
           {/* 左侧 - 知识点列表 */}
           <div className="lg:col-span-4 xl:col-span-3">

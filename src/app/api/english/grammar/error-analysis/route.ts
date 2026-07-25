@@ -74,7 +74,7 @@ ${correctAnswer || '无正确答案'}
         'Authorization': `Bearer ${deepseekKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个严谨的英语语法错题分析助手，必须严格输出JSON对象。' },
           { role: 'user', content: prompt },

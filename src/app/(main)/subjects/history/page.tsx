@@ -1,19 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   BookOpen, ArrowRight, Lock,
-  Clock, Layers, Link2, GitCompare, Brain, FileText, 
+  Clock, Layers, Link2, GitCompare, Brain, FileText,
   MapPin, GitFork, Target, Zap, FileQuestion,
   BarChart3, Brain as BrainIcon, GraduationCap, BookMarked,
+  Trophy
 } from 'lucide-react';
 import { historyBooks } from '@/data/history/books';
 import { releasedUnits } from '@/data/history/units';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
 // 学习路径步骤配置
 const LEARNING_PATH_STEPS = [
@@ -56,6 +56,29 @@ function HistorySubjectContent() {
           <p className="text-muted-foreground">辽宁省高考历史 · 中外历史纲要上册</p>
         </div>
 
+        {/* ====== 高分知识框架（独立入口）====== */}
+        <Card 
+          className="border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/learn/history/framework')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white">
+                  <Trophy className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-amber-800">🏆 高分知识框架</h3>
+                  <p className="text-sm text-amber-600">2026辽宁高考 · 通史时间轴满分体系 · 10时期·引导式闭环</p>
+                </div>
+              </div>
+              <Button variant="outline" className="border-amber-300 text-amber-600">
+                进入 <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ====== 学习路径步骤 ====== */}
         <Card className="border border-slate-200">
           <CardHeader className="pb-2">
@@ -72,41 +95,6 @@ function HistorySubjectContent() {
                 </span>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 教材切换 */}
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="h-5 w-5 text-blue-600" />
-              <span className="font-semibold">📖 教材</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {historyBooks.map((book) => {
-                const isActive = book.id === activeBookId;
-                const isReleased = book.status === 'released';
-                return (
-                  <Button
-                    key={book.id}
-                    variant={isActive ? 'default' : 'outline'}
-                    size="sm"
-                    disabled={!isReleased}
-                    onClick={() => router.push(`/subjects/history?book=${book.id}`)}
-                    className={isReleased ? '' : 'opacity-50 cursor-not-allowed'}
-                    style={isActive ? { backgroundColor: book.color } : {}}
-                  >
-                    {book.shortName}
-                    {!isReleased && <Lock className="h-3 w-3 ml-1" />}
-                  </Button>
-                );
-              })}
-            </div>
-            {currentBook && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {currentBook.name} · {currentBook.grade}
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -151,29 +139,6 @@ function HistorySubjectContent() {
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
-
-        {/* ====== 教材还原（独立入口）====== */}
-        <Card 
-          className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 cursor-pointer hover:shadow-md transition-all"
-          onClick={() => router.push('/learn/history/textbook')}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white">
-                  <BookOpen className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-blue-800">📖 教材还原学习</h3>
-                  <p className="text-sm text-blue-600">上传PDF教材，AI智能还原课本内容</p>
-                </div>
-              </div>
-              <Button variant="outline" className="border-blue-300 text-blue-600">
-                进入 <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
 

@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
               'Authorization': `Bearer ${effectiveApiKey}`,
             },
             body: JSON.stringify({
-              model: 'deepseek-chat',
+              model: 'deepseek-v4-flash',
               messages: [
                 { role: 'system', content: subjectPrompt.system },
                 { role: 'user', content: subjectPrompt.user },
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
                       'Authorization': `Bearer ${effectiveApiKey}`,
                     },
                     body: JSON.stringify({
-                      model: 'deepseek-chat',
+                      model: 'deepseek-v4-flash',
                       messages: [
                         { role: 'system', content: retryPrompt.system },
                         { role: 'user', content: retryPrompt.user },
@@ -287,6 +287,9 @@ function buildSubjectPrompt(
   }
   if (subjectId === 'english') {
     return buildEnglishPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
+  }
+  if (subjectId === 'geography') {
+    return buildGeographyPrompt(difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
   }
   // 默认通用模板
   return buildGenericPrompt(subjectId, difficulty, diffLabel, typeList, seed, currentStr, previousStr, forbiddenKnowledge, pdfContext);
@@ -744,6 +747,101 @@ ${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题' : t 
       "knowledgePoint": "知识点名称",
       "source": "current|previous",
       "question": "题目内容",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "correctAnswer": "正确答案",
+      "explanation": "解题思路",
+      "steps": ["第1步：...", "第2步：..."]
+    }
+  ]
+}`;
+
+  return { system: systemPrompt, user: userPrompt };
+}
+
+function buildGeographyPrompt(
+  difficulty: string,
+  diffLabel: string,
+  typeList: QuestionType[],
+  seed: number,
+  currentStr: string,
+  previousStr: string,
+  forbiddenKnowledge: string[],
+  pdfContext: string
+): { system: string; user: string } {
+  const systemPrompt = `你是一位资深高中地理教师，精通辽宁高考地理出题规律，擅长设计原创练习题。
+
+【核心原则】
+1. 绝对原创：题目必须是你原创设计的，严禁复制任何已有题目
+2. 不超纲：只考察当前及之前学过的知识点
+3. 不重复：通过改变情境、数据、设问角度实现题目差异化
+4. 注重读图：地理题常有图表信息
+
+【禁止超纲 - 严格遵守！】
+以下知识点禁止在题目中出现：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
+【辽宁高考特色】
+1. 喜欢用真实情境（时事新闻、生活实例）创设题目
+2. 注重概念辨析（如：天体vs天体系统、太阳辐射vs太阳活动）
+3. 读图能力要求高（等值线图、统计图、示意图）
+4. 常考：太阳活动影响、圈层结构、天体系统、地球运动
+5. 选择题为主，很少出大题
+
+【难度标准】
+- 简单：直接考察概念或规律，1步判断
+- 中等：需要理解分析，1-2步推理
+- 困难：综合性强，需多知识点融合
+
+【题型要求】
+- 选择题：4个选项，图文结合，考察概念理解和判断能力
+- 填空题：考察地理事物的特征、分布等
+
+【地理符号规范】
+- 方位：N/S/E/W（北/南/东/西）
+- 温度：℃（摄氏度）
+- 比例尺：1:XXX 或 图上1cm代表实际XXXkm`;
+
+  const userPrompt = `请生成一套高中地理章节练习题。
+
+### 基本信息
+- 学科：高中地理
+- 难度：${diffLabel}（全部为${diffLabel}难度）
+- 随机种子：${seed}（确保每次题目不同）
+- 题目数量：${typeList.length}道
+
+### 出题范围（严格遵守！）
+当前小节知识点（60%）：
+${currentStr}
+
+之前小节知识点（40%，用于复习巩固）：
+${previousStr}
+
+### 【重要】禁止使用的知识点
+以下知识点属于后续章节内容，**绝对不能使用**：
+${forbiddenKnowledge.length > 0 ? forbiddenKnowledge.map(k => `- ${k}`).join('\n') : '- （无）'}
+
+${pdfContext ? `### 教材内容参考\n${pdfContext.substring(0, 2000)}\n` : ''}
+
+### 题型分配（共${typeList.length}题）
+${typeList.map((t, i) => `  第${i + 1}题：${t === 'choice' ? '选择题（4个选项）' : '填空题'}`).join('\n')}
+
+### 出题规则
+1. 题目必须只使用"允许使用的知识点"中的内容
+2. **严格禁止使用禁止列表中的知识点**
+3. 每道题不同，不能重复或高度相似
+4. 选择题要有图或表作为信息载体（用文字描述图的主要内容）
+5. 设问要有梯度，从易到难
+
+### 格式要求（严格JSON）
+{
+  "questions": [
+    {
+      "id": 1,
+      "type": "choice|fill",
+      "difficulty": "${difficulty}",
+      "knowledgePoint": "知识点名称",
+      "source": "current|previous",
+      "question": "题目内容（选择题要有情境或图表信息）",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correctAnswer": "正确答案",
       "explanation": "解题思路",

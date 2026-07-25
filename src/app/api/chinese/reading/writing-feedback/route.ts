@@ -62,7 +62,7 @@ ${content}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一位专业的语文写作指导老师，点评精准、有建设性。' },
           { role: 'user', content: prompt },

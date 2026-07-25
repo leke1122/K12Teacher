@@ -16,6 +16,7 @@ import {
 import { FunctionGraphVisualization } from '@/components/math/function/FunctionGraphVisualization';
 import { FunctionTutorChat } from '@/components/math/function/FunctionTutorChat';
 import { getNodeById, FunctionGraphNode } from '@/data/math/functionKnowledgeGraph';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 export default function FunctionLearningPage() {
   const router = useRouter();
@@ -78,8 +79,8 @@ export default function FunctionLearningPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-indigo-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
       {/* 顶部导航 */}
-      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push('/subjects/math')} className="gap-1">
               <ArrowLeft className="h-4 w-4" />
@@ -91,9 +92,9 @@ export default function FunctionLearningPage() {
             </Badge>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 py-6">
         {isLearning && selectedNode ? (
           // 学习模式
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 export default function MathConclusionsPage() {
   const { settings } = useSettingsStore();
@@ -241,7 +242,7 @@ export default function MathConclusionsPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
       {/* 顶部导航 */}
-      <header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
+      <AutoHideHeader><header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <Link href="/subjects/math">
@@ -253,7 +254,7 @@ export default function MathConclusionsPage() {
             <Badge variant="outline" className="ml-auto text-xs">{mathSecondLevelConclusions.length}条结论</Badge>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="space-y-4">

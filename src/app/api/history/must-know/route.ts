@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: "deepseek-chat",
+              model: "deepseek-v4-flash",
               messages: [
                 {
                   role: "system",

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
+            model: 'deepseek-v4-flash',
             messages: [
               {
                 role: 'system',
@@ -166,7 +166,7 @@ ${context || '无'}
             'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
+            model: 'deepseek-v4-flash',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
@@ -317,7 +317,7 @@ ${explanation}
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

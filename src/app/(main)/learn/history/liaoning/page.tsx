@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import type { LiaoningExam, ExamTrend } from '@/types/history';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 export default function LiaoningPage() {
   const [activeTab, setActiveTab] = useState('exams');

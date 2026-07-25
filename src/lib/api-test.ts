@@ -22,7 +22,7 @@ export async function testDeepSeekConnection(apiKey: string): Promise<TestResult
         "Authorization": `Bearer ${apiKey.trim()}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-v4-flash",
         messages: [
           { role: "user", content: "你好" }
         ],
@@ -32,6 +32,7 @@ export async function testDeepSeekConnection(apiKey: string): Promise<TestResult
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error("[DeepSeek Test] Error response:", response.status, errorData);
       
       if (response.status === 401 || response.status === 403) {
         return { success: false, message: "API Key 无效或已过期" };
@@ -40,12 +41,13 @@ export async function testDeepSeekConnection(apiKey: string): Promise<TestResult
         return { success: false, message: "请求过于频繁，请稍后重试" };
       }
       if (response.status === 400) {
-        return { success: false, message: "请求参数错误" };
+        const errorMsg = errorData.error?.message || errorData.message || "请求参数错误";
+        return { success: false, message: errorMsg };
       }
       
       return { 
         success: false, 
-        message: errorData.error?.message || `请求失败 (${response.status})` 
+        message: errorData.error?.message || errorData.message || `请求失败 (${response.status})` 
       };
     }
 

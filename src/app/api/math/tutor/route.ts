@@ -197,7 +197,7 @@ async function callDeepSeek(systemPrompt: string, userMessage: string, apiKey: s
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },

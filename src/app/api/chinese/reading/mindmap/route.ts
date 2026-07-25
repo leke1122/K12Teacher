@@ -57,7 +57,7 @@ ${text.slice(0, 8000)}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一位专业的语文教学专家。' },
           { role: 'user', content: prompt },

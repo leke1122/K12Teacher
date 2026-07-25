@@ -81,8 +81,31 @@ export function GrammarPractice({ grammarPoint, onComplete, onAddToWordBook }: G
     setAnswers(next);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const correct = userAnswer.trim().toLowerCase() === question?.answer.trim().toLowerCase();
     setSubmitted(true);
+    
+    // 检查是否错误，错误则记录到错题本
+    if (!correct && question) {
+      try {
+        await fetch('/api/wrong-questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subjectId: 'english',
+            question: question.question,
+            correctAnswer: question.answer,
+            userAnswer: userAnswer,
+            analysis: question.explanation || '',
+            knowledgePoint: grammarPoint.name,
+            wrongReason: '语法练习错误',
+          }),
+        });
+        console.log('语法错题已记录');
+      } catch (err) {
+        console.error('记录语法错题失败:', err);
+      }
+    }
   };
 
   const handleNext = () => {

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一位专业的高中数学教师，擅长根据二级结论出题。' },
           { role: 'user', content: prompt },

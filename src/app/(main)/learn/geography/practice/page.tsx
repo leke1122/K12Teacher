@@ -64,7 +64,7 @@ export default function GeographyPracticePage() {
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4">
         <div className="flex items-center gap-3 mb-4">
-          <Link href="/learn/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
+          <Link href="/subjects/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
           <div>
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2"><FileQuestion className="h-5 w-5 text-emerald-500" />地理综合练习</h1>
             <p className="text-xs text-slate-500">高中地理 · {questions.length} 道练习题</p>
@@ -90,7 +90,7 @@ export default function GeographyPracticePage() {
               <p className="text-slate-500 mb-4">你已完成全部题目，建议继续下一模块。</p>
               <div className="flex gap-3 justify-center">
                 <Button variant="outline" onClick={() => setShowResult(false)}>继续查看</Button>
-                <Link href="/learn/geography"><Button>返回学习</Button></Link>
+                <Link href="/subjects/geography"><Button>返回学习</Button></Link>
               </div>
             </CardContent>
           </Card>

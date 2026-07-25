@@ -100,7 +100,7 @@ ${textbookText ? textbookText.slice(0, 4000) : '暂无教材原文，请仅基�
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是一个严格输出 JSON 的历史命题助手，只能返回 JSON 数组。' },
           { role: 'user', content: prompt },

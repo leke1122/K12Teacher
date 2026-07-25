@@ -10,6 +10,7 @@ import { GeogebraContainer } from '@/components/geogebra/GeogebraContainer';
 import { ControlPanel } from '@/components/geogebra/ControlPanel';
 import { GuideExplainer } from '@/components/geogebra/GuideExplainer';
 import { GEO_MODELS, type GeoGebraModelConfig, resolveModelIdFromShapeType, resolveShapeLabel } from '@/lib/geogebraModels';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 type TopicMode = 'model' | 'question';
 
@@ -83,8 +84,8 @@ function ModelDetailPageContent() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-indigo-50/40 dark:from-slate-900 dark:to-slate-900">
-      <header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <AutoHideHeader><header className="z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
               <ArrowLeft className="h-4 w-4" />
@@ -100,9 +101,9 @@ function ModelDetailPageContent() {
             </Button>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
         <div className="grid lg:grid-cols-4 gap-4">
           <div className="lg:col-span-3 space-y-4">
             <GeogebraContainer

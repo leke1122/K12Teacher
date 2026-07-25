@@ -108,7 +108,7 @@ export default function GeographyCardsPage() {
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-emerald-50/40">
       <div className="w-full px-4 py-4 space-y-4">
           <div className="flex items-center gap-3">
-            <Link href="/learn/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
+            <Link href="/subjects/geography"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />返回</Button></Link>
             <div className="ml-auto">
               <Button variant="outline" size="sm" className="gap-1" onClick={handleGenerate} disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}

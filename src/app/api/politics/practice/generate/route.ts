@@ -106,7 +106,7 @@ ${JSON.stringify({ concepts, events, focuses }, null, 2)}
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: '你是政治命题助手，只能返回 JSON 数组。' },
           { role: 'user', content: prompt },

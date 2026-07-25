@@ -4,27 +4,27 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Sparkles,
-  BookOpen, BookMarked, FileQuestion, Star
+  FileQuestion, Star
 } from 'lucide-react';
 import Link from 'next/link';
 import GuidedLearning from '@/components/politics/GuidedLearning';
 import { PoliticsMustKnowList } from '@/components/politics/PoliticsMustKnowList';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 export default function PoliticsKnowledgePage() {
   const params = useParams();
   const chapterId = params.chapterId as string;
-  const [activeTab, setActiveTab] = useState('guided');
+  const [activeTab, setActiveTab] = useState('mustKnow');
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-pink-50 via-slate-50 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/30">
       {/* 固定页头 */}
-      <header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           {/* 学习模式选择卡片 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setActiveTab('mustKnow')}
               className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-xs ${
@@ -50,18 +50,6 @@ export default function PoliticsKnowledgePage() {
             </button>
 
             <button
-              onClick={() => setActiveTab('textbook')}
-              className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-xs ${
-                activeTab === 'textbook'
-                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-amber-300'
-              }`}
-            >
-              <BookMarked className="h-4 w-4 text-amber-500" />
-              <span className="font-medium">课本还原</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('practice')}
               className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-xs ${
                 activeTab === 'practice'
@@ -74,37 +62,15 @@ export default function PoliticsKnowledgePage() {
             </button>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
       {/* 内容区 */}
-      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
         {activeTab === 'mustKnow' && <PoliticsMustKnowList chapterId={chapterId} />}
         {activeTab === 'guided' && <GuidedLearning />}
-        {activeTab === 'textbook' && <TextbookPreview />}
         {activeTab === 'practice' && <PracticePreview chapterId={chapterId} />}
       </div>
     </div>
-  );
-}
-
-// 课本还原预览入口
-function TextbookPreview() {
-  return (
-    <Card>
-      <CardContent className="p-6 text-center">
-        <BookMarked className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">课本还原</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          逐段讲解课本内容，选择教材和单元章节，引导对话思考回答。
-        </p>
-        <Link href="/learn/politics/textbook">
-          <Button className="gap-1 bg-amber-500 hover:bg-amber-600 text-white">
-            <BookOpen className="h-4 w-4" />
-            进入课本还原
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Search, BookOpen, Filter } from 'lucide-react';
 import { POETRY_LIST } from '@/lib/poetry';
+import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
 
 const FILTERS = ['全部', '必修上册', '必修下册', '选择性必修上册', '选择性必修中册', '选择性必修下册'] as const;
 
@@ -25,8 +26,8 @@ export default function PoetryListPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 to-rose-50/30 dark:from-slate-900 dark:to-rose-950/30">
-      <header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <AutoHideHeader><header className="z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/subjects/chinese">
@@ -39,9 +40,9 @@ export default function PoetryListPage() {
             <Badge variant="outline" className="text-xs">{POETRY_LIST.length} 首</Badge>
           </div>
         </div>
-      </header>
+      </header></AutoHideHeader>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 py-6">
         {/* 筛选栏 */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <div className="flex items-center gap-2 text-xs text-slate-500">

@@ -70,7 +70,7 @@ export async function callDeepSeek(apiKey: string, prompt: string, temperature: 
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       messages: [
         { role: 'system', content: '你是一个严格输出 JSON 的教材目录解析助手，必须只返回 JSON 对象，不要包含任何其他文字。' },
         { role: 'user', content: prompt },
