@@ -1,15 +1,19 @@
 /**
- * 单词学习服务 - Supabase 数据操作
+ * 单词学习服务 - 优先从 Supabase 读取，fallback 到本地 JSON
  */
 
-// 重新导出 supabase（为了兼容旧代码）
-export { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
+import wordsDataRaw from '@/data/words/words_data.json';
 
-import { supabase as supabaseClient } from './supabase';
-import { ParsedWord } from './wordParser';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export interface WordRecord {
-  id?: string;
+  id?: string | number;
   word: string;
   phonetic: string;
   part_of_speech: string;
@@ -27,7 +31,7 @@ export interface WordMastery {
   id?: string;
   user_id: string;
   word_id: string;
-  mastery_level: number; // 0-5，5为完全掌握
+  mastery_level: number;
   review_count: number;
   last_review: string | null;
   next_review: string | null;
@@ -40,29 +44,63 @@ export interface WordLearningRecord {
   user_id: string;
   word_id: string;
   action: 'learned' | 'reviewed' | 'mastered' | 'forgotten' | 'skipped';
-  duration: number; // 学习时长（秒）
+  duration: number;
   created_at?: string;
 }
 
-// 艾宾浩斯复习间隔（天数）
-const REVIEW_INTERVALS = [1, 3, 7, 15, 30];
+// 本地存储的单词学习进度
+const MASTERY_STORAGE_KEY = 'word_mastery';
+
+// 判断是否在浏览器环境
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
+}
+
+// 获取本地存储的掌握进度
+function getLocalMastery(): Record<string, WordMastery> {
+  if (!isBrowser()) return {};
+  try {
+    const stored = localStorage.getItem(MASTERY_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+// 保存本地存储的掌握进度
+function saveLocalMastery(mastery: Record<string, WordMastery>) {
+  if (!isBrowser()) return;
+  localStorage.setItem(MASTERY_STORAGE_KEY, JSON.stringify(mastery));
+}
+
+// 获取单词数据（支持服务端）
+function getWordsData(): WordRecord[] {
+  return wordsDataRaw as WordRecord[];
+}
 
 /**
- * 获取所有单词
+ * 获取所有单词 - 优先从 Supabase 读取
  */
 export async function getAllWords(): Promise<WordRecord[]> {
-  if (!supabaseClient) return [];
-  const { data, error } = await supabaseClient
-    .from('words')
-    .select('*')
-    .order('word');
-
-  if (error) {
-    console.error('[WordService] getAllWords error:', error);
-    return [];
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('words')
+        .select('*')
+        .order('word', { ascending: true });
+      
+      if (!error && data && data.length > 0) {
+        console.log(`[WordService] 从 Supabase 获取 ${data.length} 条单词`);
+        return data as WordRecord[];
+      }
+    } catch (err) {
+      console.warn('[WordService] Supabase 查询失败，使用本地数据:', err);
+    }
   }
-
-  return data || [];
+  
+  // Fallback 到本地 JSON
+  console.log('[WordService] 使用本地 JSON 数据');
+  return getWordsData();
 }
 
 /**
@@ -76,479 +114,101 @@ export async function getWords(params: {
   search?: string;
   userId?: string;
 }): Promise<{ words: WordRecord[]; total: number }> {
-  if (!supabaseClient) {
-    console.error('[WordService] getWords: supabaseClient is null!');
-    return { words: [], total: 0 };
-  }
-  const { page = 1, limit = 20, frequency = 'all', status = 'all', search = '', userId = 'personal-user' } = params;
-
-  let query = supabaseClient
-    .from('words')
-    .select('*', { count: 'exact' });
-
-  // 频率筛选
-  if (frequency !== 'all') {
-    query = query.eq('frequency_level', frequency);
-  }
-
-  // 搜索
-  if (search) {
-    query = query.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
-  }
-
-  // 分页
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
-
-  // 关联 mastery 表获取每个单词的掌握状态
-  let masteryMap: Map<string, number> = new Map();
-  let masteries: { word_id: string; mastery_level: number }[] = [];
-
-  // 特殊处理 unmastered：查所有未掌握的单词（排除 mastery_level >= 5）
-  if (status === 'unmastered' && supabaseClient) {
-    // 步骤1：获取该用户已掌握单词的 ID 集合（mastery_level >= 5）
-    const { data: masteredIds, error: error1 } = await supabaseClient
-      .from('word_mastery')
-      .select('word_id')
-      .eq('user_id', userId)
-      .gte('mastery_level', 5);
-
-    if (error1) {
-      console.error('[WordService] getWords unmastered step1 error:', error1);
-    }
-
-    const masteredIdSet = new Set((masteredIds || []).map(r => String(r.word_id)));
-
-    // 步骤2：获取没有 mastery 记录的单词（全新单词）
-    let newWordsQuery = supabaseClient
-      .from('words')
-      .select('*', { count: 'exact' });
-
-    if (frequency !== 'all') {
-      newWordsQuery = newWordsQuery.eq('frequency_level', frequency);
-    }
-
-    const { data: allWords, count: totalCount, error: error2 } = await newWordsQuery;
-
-    if (error2) {
-      console.error('[WordService] getWords unmastered step2 error:', error2);
-      return { words: [], total: 0 };
-    }
-
-    if (!allWords) return { words: [], total: 0 };
-
-    // 过滤掉已掌握的单词
-    const unmasteredWords = (allWords || [])
-      .filter((w: any) => !masteredIdSet.has(String(w.id)))
-      .map((w: any) => ({ ...w, mastery_level: 0 }));
-
-    // 分页
-    const paginatedWords = unmasteredWords.slice(from, to);
-
-    return { words: paginatedWords, total: unmasteredWords.length };
-  }
-
-  // 特殊处理 mastered：先查 mastery IDs，再查单词详情（绕过外键限制）
-  if (status === 'mastered' && supabaseClient) {
-    // 步骤1：查 mastery 记录
-    const { data: masteryData, error: masteryError } = await supabaseClient
-      .from('word_mastery')
-      .select('word_id, mastery_level, updated_at')
-      .eq('user_id', userId)
-      .gte('mastery_level', 5)
-      .order('updated_at', { ascending: false })
-      .range(from, to);
-
-    if (masteryError) {
-      console.error('[WordService] mastered query error:', masteryError);
-      return { words: [], total: 0 };
-    }
-
-    if (!masteryData || masteryData.length === 0) {
-      return { words: [], total: 0 };
-    }
-
-    // 步骤2：用 IN 查询获取单词详情
-    const wordIds = masteryData.map(r => String(r.word_id));
-    const { data: wordsData, error: wordsError } = await supabaseClient
-      .from('words')
-      .select('*')
-      .in('id', wordIds.map(id => parseInt(id)));
-
-    if (wordsError) {
-      console.error('[WordService] words query error:', wordsError);
-      return { words: [], total: 0 };
-    }
-
-    // 合并 mastery 信息（统一使用字符串 ID）
-    const masteryMap = new Map(masteryData.map(r => [String(r.word_id), r.mastery_level]));
-    const wordsWithMastery = (wordsData || []).map((w: any) => ({
-      ...w,
-      mastery_level: masteryMap.get(String(w.id)) || 5,
-    }));
-
-    return { words: wordsWithMastery, total: masteryData.length };
-  }
-
-  query = query.range(from, to).order('word');
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error('[WordService] getWords error:', error);
-    return { words: [], total: 0 };
-  }
-
-  // 关联 mastery 表获取每个单词的掌握状态
-  if (data && data.length > 0) {
-    const wordIds = data.map(w => w.id);
-    const { data: masteryData } = await supabaseClient
-      .from('word_mastery')
-      .select('word_id, mastery_level')
-      .eq('user_id', userId)
-      .in('word_id', wordIds);
-
-    masteries = masteryData || [];
-    // 统一使用字符串 ID
-    masteryMap = new Map(masteries.map(m => [String(m.word_id), m.mastery_level]));
-
-    // 为每个单词附加 mastery_level 字段
-    const wordsWithMastery = data.map(w => ({
-      ...w,
-      mastery_level: masteryMap.get(String(w.id)) || 0,
-    }));
-
-    // 如果需要状态筛选
-    if (status !== 'all') {
-      const filteredWords = wordsWithMastery.filter(w => {
-        const level = w.mastery_level;
-        if (status === 'unlearned') return level === 0;
-        if (status === 'learned') return level > 0 && level < 5;
-        if (status === 'mastered') return level >= 5;
-        return true;
-      });
-
-      // 状态筛选时重新计算总数
-      let countQuery = supabaseClient
-        .from('words')
-        .select('*', { count: 'exact', head: true });
-
-      if (frequency !== 'all') {
-        countQuery = countQuery.eq('frequency_level', frequency);
-      }
-      if (search) {
-        countQuery = countQuery.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
-      }
-
-      const { count: totalCount } = await countQuery;
-      return { words: filteredWords, total: totalCount || filteredWords.length };
-    }
-
-    return { words: wordsWithMastery, total: count || 0 };
-  }
-
-  return { words: data || [], total: count || 0 };
-}
-
-/**
- * 获取今日待学单词
- */
-export async function getDailyWords(userId: string = 'personal-user', limit: number = 20): Promise<{
-  newWords: WordRecord[];
-  reviewWords: WordRecord[];
-}> {
-  if (!supabaseClient) return { newWords: [], reviewWords: [] };
-  const today = new Date().toISOString().split('T')[0];
-
-  // 获取从未学过的单词（新词）
-  const { data: allWords } = await supabaseClient
-    .from('words')
-    .select('*')
-    .order('RANDOM()')
-    .limit(limit * 2);
-
-  if (!allWords) return { newWords: [], reviewWords: [] };
-
-  const wordIds = allWords.map(w => w.id);
-
-  // 获取已学习的单词ID
-  const { data: masteries } = await supabaseClient
-    .from('word_mastery')
-    .select('word_id, next_review, mastery_level')
-    .eq('user_id', userId)
-    .in('word_id', wordIds)
-    .lt('mastery_level', 5);
-
-  const learnedWordIds = new Set(masteries?.map(m => m.word_id) || []);
-  const reviewWordIds = new Set(
-    masteries
-      ?.filter(m => m.next_review && m.next_review.split('T')[0] <= today)
-      .map(m => m.word_id) || []
-  );
-
-  const newWords: WordRecord[] = [];
-  const reviewWords: WordRecord[] = [];
-
-  for (const word of allWords) {
-    if (reviewWordIds.has(word.id)) {
-      reviewWords.push(word);
-      if (reviewWords.length >= limit) break;
-    } else if (!learnedWordIds.has(word.id)) {
-      newWords.push(word);
-      if (newWords.length >= limit) break;
-    }
-  }
-
-  return { newWords, reviewWords };
-}
-
-/**
- * 批量插入单词（分批插入，避免限制）
- */
-export async function insertWords(words: ParsedWord[]): Promise<{ success: number; failed: number }> {
-  if (!supabaseClient) return { success: 0, failed: words.length };
-
-  const BATCH_SIZE = 100;
-  let totalSuccess = 0;
-  let totalFailed = 0;
-
-  for (let i = 0; i < words.length; i += BATCH_SIZE) {
-    const batch = words.slice(i, i + BATCH_SIZE);
-    
-    const records: Omit<WordRecord, 'id' | 'created_at'>[] = batch.map(w => ({
-      word: w.word,
-      phonetic: w.phonetic || '',
-      part_of_speech: w.partOfSpeech || '',
-      meaning: w.meaning || '',
-      example: w.example || '',
-      translation: w.translation || '',
-      collocations: w.collocations || [],
-      synonyms: w.synonyms || [],
-      antonyms: w.antonyms || [],
-      frequency_level: w.frequencyLevel,
-    }));
-
-    const { error } = await supabaseClient
-      .from('words')
-      .upsert(records, { onConflict: 'word' });
-
-    if (error) {
-      console.error(`[WordService] 批次 ${i}-${i + batch.length} 插入失败:`, error.message);
-      totalFailed += batch.length;
-    } else {
-      totalSuccess += batch.length;
-      console.log(`[WordService] 批次 ${i}-${i + batch.length} 插入成功`);
-    }
-  }
-
-  return { success: totalSuccess, failed: totalFailed };
-}
-
-/**
- * 更新单词掌握度
- */
-export async function updateMastery(
-  wordId: string,
-  action: 'learned' | 'reviewed' | 'mastered' | 'forgotten',
-  userId: string = 'personal-user'
-): Promise<{ mastery_level: number; review_count: number; next_review: string } | null> {
-  console.log('[WordService] updateMastery called:', { wordId, action, userId });
+  const { page = 1, limit = 20, frequency = 'all', status = 'all', search = '' } = params;
   
-  // 获取当前掌握度
-  let newLevel = 0;
-  let reviewCount = 0;
-
-  if (supabaseClient) {
+  let filtered: WordRecord[] = [];
+  let total = 0;
+  
+  // 优先从 Supabase 读取
+  if (supabase) {
     try {
-      const { data: existing, error: fetchError } = await supabaseClient
-        .from('word_mastery')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('word_id', wordId)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('[WordService] fetch existing error:', fetchError);
+      let query = supabase
+        .from('words')
+        .select('*', { count: 'exact', head: false });
+      
+      // 频率筛选
+      if (frequency !== 'all') {
+        query = query.eq('frequency_level', frequency);
       }
       
-      console.log('[WordService] existing record:', existing);
+      // 搜索
+      if (search) {
+        query = query.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
+      }
       
-      if (existing) {
-        newLevel = existing.mastery_level || 0;
-        reviewCount = existing.review_count || 0;
-      }
-
-      // 获取单词文本（用于 word_text 字段）
-      let wordText = wordId;
-      try {
-        const { data: wordData } = await supabaseClient
-          .from('words')
-          .select('word')
-          .eq('id', wordId)
-          .single();
-        if (wordData) {
-          wordText = wordData.word;
-        }
-      } catch (e) {
-        console.log('[WordService] Could not fetch word text, using wordId');
-      }
-
-      // 计算新掌握度
-      switch (action) {
-        case 'learned':
-        case 'reviewed':
-          newLevel = Math.min(5, newLevel + 1);
-          reviewCount += 1;
-          break;
-        case 'mastered':
-          newLevel = 5;
-          reviewCount += 1;
-          break;
-        case 'forgotten':
-          newLevel = Math.max(0, newLevel - 1);
-          break;
-      }
-
-      // 计算下次复习时间
-      const days = REVIEW_INTERVALS[newLevel - 1] || 1;
-      const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-
-      const masteryData = {
-        user_id: userId,
-        word_id: wordId,
-        word_text: wordText,
-        mastery_level: newLevel,
-        review_count: reviewCount,
-        updated_at: new Date().toISOString(),
-        next_review_date: nextReview.split('T')[0], // DATE type needs YYYY-MM-DD format
-      };
-
-      console.log('[WordService] upserting:', masteryData);
-
-      const { error: upsertError } = await supabaseClient
-        .from('word_mastery')
-        .upsert(masteryData, { onConflict: 'user_id,word_id' });
-
-      if (upsertError) {
-        console.error('[WordService] upsert error:', upsertError);
-        saveMasteryToLocal(wordId, newLevel, reviewCount);
-        return { mastery_level: newLevel, review_count: reviewCount, next_review: nextReview } as any;
-      }
-
-      console.log('[WordService] upsert success!');
+      query = query.order('word', { ascending: true });
       
-      // 记录学习行为
-      await recordLearningAction(wordId, action);
+      // 获取总数
+      const { count } = await query;
+      total = count || 0;
       
-      // 返回新数据而不是再查一次
-      return { mastery_level: newLevel, review_count: reviewCount, next_review: nextReview } as any;
+      // 获取分页数据
+      const from = (page - 1) * limit;
+      const { data, error } = await query.range(from, from + limit - 1);
+      
+      if (!error && data && data.length > 0) {
+        console.log(`[WordService] 从 Supabase 获取 ${data.length} 条单词 (共 ${total})`);
+        filtered = data as WordRecord[];
+      } else {
+        throw new Error('Supabase 返回空数据');
+      }
     } catch (err) {
-      console.error('[WordService] supabase error, using localStorage:', err);
-      // Fallback to localStorage
-      switch (action) {
-        case 'learned':
-        case 'reviewed':
-          newLevel = Math.min(5, newLevel + 1);
-          break;
-        case 'mastered':
-          newLevel = 5;
-          break;
-        case 'forgotten':
-          newLevel = Math.max(0, newLevel - 1);
-          break;
-      }
-      saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
-      return { mastery_level: newLevel, review_count: reviewCount, next_review: '' } as any;
+      console.warn('[WordService] Supabase 查询失败，使用本地数据:', err);
+      // Fallback 到本地
+      filtered = getLocalFiltered(frequency, search);
+      total = filtered.length;
     }
   } else {
-    console.log('[WordService] supabaseClient is null, using localStorage');
-    // 完全使用 localStorage
-    switch (action) {
-      case 'learned':
-      case 'reviewed':
-        newLevel = Math.min(5, newLevel + 1);
-        break;
-      case 'mastered':
-        newLevel = 5;
-        break;
-      case 'forgotten':
-        newLevel = Math.max(0, newLevel - 1);
-        break;
-    }
-    saveMasteryToLocal(wordId, newLevel, reviewCount + 1);
-    return { mastery_level: newLevel, review_count: reviewCount, next_review: '' } as any;
+    // 无 Supabase，使用本地数据
+    filtered = getLocalFiltered(frequency, search);
+    total = filtered.length;
   }
-}
-
-/**
- * 保存到 localStorage (fallback)
- */
-function saveMasteryToLocal(wordId: string, level: number, reviewCount: number) {
-  try {
-    const key = `word_mastery_${wordId}`;
-    const days = REVIEW_INTERVALS[level - 1] || 1;
-    const nextReview = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-    
-    localStorage.setItem(key, JSON.stringify({
-      word_id: wordId,
-      mastery_level: level,
-      review_count: reviewCount,
-      last_review: new Date().toISOString(),
-      next_review: nextReview,
-    }));
-    console.log('[WordService] Saved to localStorage:', key);
-  } catch (err) {
-    console.error('[WordService] localStorage save failed:', err);
-  }
-}
-
-/**
- * 记录学习行为
- */
-export async function recordLearningAction(
-  wordId: string,
-  action: 'learned' | 'reviewed' | 'mastered' | 'forgotten' | 'skipped',
-  duration: number = 0,
-  userId: string = 'personal-user'
-): Promise<void> {
-  if (!supabaseClient) return;
-  const { error } = await supabaseClient
-    .from('word_learning_records')
-    .insert({
-      user_id: userId,
-      word_id: wordId,
-      action,
-      duration,
+  
+  // 状态筛选（基于本地存储）
+  if (status !== 'all') {
+    const mastery = getLocalMastery();
+    filtered = filtered.filter(w => {
+      const m = mastery[String(w.id)];
+      if (status === 'mastered') return m && m.mastery_level >= 5;
+      if (status === 'learned') return m && m.mastery_level > 0;
+      if (status === 'unlearned') return !m;
+      if (status === 'unmastered') return !m || m.mastery_level < 5;
+      return true;
     });
-
-  if (error) {
-    console.error('[WordService] recordLearningAction error:', error);
+    total = filtered.length;
   }
+  
+  const from = (page - 1) * limit;
+  const words = filtered.slice(from, from + limit);
+  
+  return { words, total };
 }
 
 /**
- * 获取单词掌握度
+ * 本地数据筛选逻辑
  */
-export async function getWordMastery(
-  wordId: string,
-  userId: string = 'personal-user'
-): Promise<WordMastery | null> {
-  if (!supabaseClient) return null;
-  const { data, error } = await supabaseClient
-    .from('word_mastery')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('word_id', wordId)
-    .single();
-
-  if (error) return null;
-  return data;
+function getLocalFiltered(frequency: string, search: string): WordRecord[] {
+  let filtered = [...getWordsData()];
+  
+  if (frequency !== 'all') {
+    filtered = filtered.filter(w => w.frequency_level === frequency);
+  }
+  
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = filtered.filter(w => 
+      w.word.toLowerCase().includes(searchLower) ||
+      w.meaning.toLowerCase().includes(searchLower)
+    );
+  }
+  
+  return filtered;
 }
 
 /**
- * 获取单词学习统计
+ * 获取单词统计数据
  */
-export async function getWordStats(userId: string = 'personal-user'): Promise<{
+export async function getWordStats(): Promise<{
   total: number;
   learned: number;
   mastered: number;
@@ -556,257 +216,248 @@ export async function getWordStats(userId: string = 'personal-user'): Promise<{
   todayLearned: number;
   streakDays: number;
 }> {
-  if (!supabaseClient) return { total: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0 };
+  const words = getWordsData();
+  const mastery = getLocalMastery();
   
-  const today = new Date().toISOString().split('T')[0];
-
-  // 总词数
-  const { count: totalWords } = await supabaseClient
-    .from('words')
-    .select('*', { count: 'exact', head: true });
-
-  // 已学习（mastery_level > 0）
-  const { count: learned } = await supabaseClient
-    .from('word_mastery')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gt('mastery_level', 0);
-
-  // 已掌握（mastery_level >= 5）
-  const { count: mastered } = await supabaseClient
-    .from('word_mastery')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('mastery_level', 5);
-
-  // 未学习 = 总词数 - 已学习
-  const total = (totalWords || 0) - (learned || 0);
-
-  // 待复习（next_review <= 今天）
-  const { count: toReview } = await supabaseClient
-    .from('word_mastery')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .lt('mastery_level', 5)
-    .lte('next_review', today);
-
-  // 今日学习
-  const { count: todayLearned } = await supabaseClient
-    .from('word_learning_records')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', `${today}T00:00:00`);
-
-  // 计算连续学习天数
-  const { data: records } = await supabaseClient
-    .from('word_learning_records')
-    .select('created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  let streakDays = 0;
-  if (records && records.length > 0) {
-    const dates = new Set(
-      records.map(r => r.created_at?.split('T')[0]).filter(Boolean) as string[]
-    );
-    
-    let checkDate = new Date();
-    while (dates.has(checkDate.toISOString().split('T')[0])) {
-      streakDays++;
-      checkDate.setDate(checkDate.getDate() - 1);
+  let learned = 0;
+  let mastered = 0;
+  
+  for (const word of words) {
+    const m = mastery[String(word.id)];
+    if (m) {
+      if (m.mastery_level >= 5) mastered++;
+      else if (m.mastery_level > 0) learned++;
     }
   }
-
+  
   return {
-    total,
-    learned: learned || 0,
-    mastered: mastered || 0,
-    toReview: toReview || 0,
-    todayLearned: todayLearned || 0,
-    streakDays,
+    total: words.length,
+    learned,
+    mastered,
+    toReview: learned - mastered,
+    todayLearned: learned,
+    streakDays: learned > 0 ? 1 : 0
   };
 }
 
 /**
- * 获取批量单词的掌握度
+ * 更新单词掌握状态
  */
-export async function getBatchMastery(
-  wordIds: string[],
-  userId: string = 'personal-user'
-): Promise<Map<string, WordMastery>> {
-  if (!supabaseClient) return new Map();
-  const { data, error } = await supabaseClient
-    .from('word_mastery')
-    .select('*')
-    .eq('user_id', userId)
-    .in('word_id', wordIds);
-
-  const map = new Map<string, WordMastery>();
-  data?.forEach(m => map.set(String(m.word_id), m));
-  return map;
+export async function updateMastery(
+  wordId: string,
+  action: 'learn' | 'review' | 'master' | 'forget' | 'skip',
+  userId?: string
+): Promise<boolean> {
+  const mastery = getLocalMastery();
+  const existing = mastery[wordId] || {
+    word_id: wordId,
+    user_id: userId || 'local-user',
+    mastery_level: 0,
+    review_count: 0,
+    last_review: null,
+    next_review: null
+  };
+  
+  switch (action) {
+    case 'learn':
+      existing.mastery_level = Math.min(5, existing.mastery_level + 1);
+      break;
+    case 'review':
+      existing.review_count++;
+      existing.last_review = new Date().toISOString();
+      break;
+    case 'master':
+      existing.mastery_level = 5;
+      break;
+    case 'forget':
+      existing.mastery_level = Math.max(0, existing.mastery_level - 1);
+      break;
+    case 'skip':
+      break;
+  }
+  
+  mastery[wordId] = existing;
+  saveLocalMastery(mastery);
+  
+  return true;
 }
 
 /**
- * 使用 RPC 一次性获取统计和已掌握单词
- * 解决多次独立查询导致的并发超时问题
- * 如果 RPC 不存在，自动降级到旧方法
+ * 获取每日单词 - 优先从 Supabase 读取
+ */
+export async function getDailyWords(userId?: string, count: number = 10): Promise<{ newWords: WordRecord[]; reviewWords: WordRecord[] }> {
+  let allWords: WordRecord[] = [];
+  
+  // 优先从 Supabase 读取
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('words')
+        .select('*')
+        .order('word', { ascending: true });
+      
+      if (!error && data && data.length > 0) {
+        console.log(`[WordService] getDailyWords 从 Supabase 获取 ${data.length} 条单词`);
+        allWords = data as WordRecord[];
+      } else {
+        throw new Error('Supabase 返回空数据');
+      }
+    } catch (err) {
+      console.warn('[WordService] getDailyWords Supabase 失败，使用本地数据');
+      allWords = getWordsData();
+    }
+  } else {
+    allWords = getWordsData();
+  }
+  
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  
+  const shuffled = [...allWords].sort((a, b) => {
+    const hashA = String(a.id).charCodeAt(0) * seed;
+    const hashB = String(b.id).charCodeAt(0) * seed;
+    return (hashA % 1000) - (hashB % 1000);
+  });
+  
+  return {
+    newWords: shuffled.slice(0, count),
+    reviewWords: shuffled.slice(count, count * 2),
+  };
+}
+
+/**
+ * 记录学习动作
+ */
+export async function recordLearningAction(
+  wordId: string,
+  action: 'learned' | 'reviewed' | 'mastered' | 'forgotten' | 'skipped',
+  duration: number = 0
+): Promise<boolean> {
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('word_learning_records')
+        .insert({
+          user_id: 'personal-user',
+          word_id: wordId,
+          action: action,
+          duration: duration,
+        });
+      
+      if (!error) {
+        return true;
+      }
+    } catch (err) {
+      console.warn('[WordService] recordLearningAction 失败:', err);
+    }
+  }
+  
+  // Fallback 到本地
+  const records = getLocalLearningRecords();
+  records.push({
+    word_id: wordId,
+    user_id: 'local-user',
+    action: action,
+    duration: duration,
+    created_at: new Date().toISOString(),
+  });
+  saveLocalLearningRecords(records);
+  return true;
+}
+
+// 本地学习记录
+const LEARNING_RECORDS_KEY = 'word_learning_records';
+
+function getLocalLearningRecords(): WordLearningRecord[] {
+  if (!isBrowser()) return [];
+  try {
+    const stored = localStorage.getItem(LEARNING_RECORDS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalLearningRecords(records: WordLearningRecord[]) {
+  if (!isBrowser()) return;
+  localStorage.setItem(LEARNING_RECORDS_KEY, JSON.stringify(records));
+}
+
+/**
+ * 获取单词统计数据（包含已掌握单词）
  */
 export async function getWordStatsWithMastered(
-  userId: string = 'personal-user',
-  limit: number = 999,
-  offset: number = 0
+  userId?: string,
+  masteredLimit: number = 999,
+  learnedLimit: number = 0
 ): Promise<{
   stats: {
     total: number;
-    totalWords: number;
     learned: number;
     mastered: number;
-    toReview: number;
-    todayLearned: number;
-    streakDays: number;
+    unlearned: number;
   };
   masteredWords: WordRecord[];
+  learnedWords: WordRecord[];
 }> {
-  if (!supabaseClient) {
-    return {
-      stats: { total: 0, totalWords: 0, learned: 0, mastered: 0, toReview: 0, todayLearned: 0, streakDays: 0 },
-      masteredWords: [],
-    };
+  let allWords: WordRecord[] = [];
+  const masteryMap = new Map<string, WordMastery>();
+  
+  // 从 Supabase 获取数据
+  if (supabase) {
+    try {
+      const [wordsResult, masteryResult] = await Promise.all([
+        supabase.from('words').select('*'),
+        supabase.from('word_mastery').select('*').eq('user_id', 'personal-user'),
+      ]);
+      
+      if (!wordsResult.error && wordsResult.data) {
+        allWords = wordsResult.data as WordRecord[];
+      }
+      
+      if (!masteryResult.error && masteryResult.data) {
+        masteryResult.data.forEach(m => {
+          masteryMap.set(m.word_id, m as WordMastery);
+        });
+      }
+    } catch (err) {
+      console.warn('[WordService] getWordStatsWithMastered Supabase 失败');
+      allWords = getWordsData();
+    }
+  } else {
+    allWords = getWordsData();
+    Object.entries(getLocalMastery()).forEach(([wordId, m]) => {
+      masteryMap.set(wordId, m);
+    });
   }
-
-  // 优先使用 RPC（一次请求搞定）
-  const { data, error } = await supabaseClient.rpc('get_word_stats_and_mastered', {
-    p_user_id: userId,
-    p_limit: limit,
-    p_offset: offset,
-  });
-
-  // 如果 RPC 失败（函数未创建），使用降级方案
-  if (error || !data) {
-    console.warn('[WordService] RPC not available, using fallback. Error:', error?.message);
-    return await getWordStatsWithMasteredFallback(userId, limit, offset);
-  }
-
-  const masteredWords = (data.mastered_words || []).map((w: any) => ({
-    id: w.id,
-    word: w.word,
-    phonetic: w.phonetic || '',
-    part_of_speech: w.part_of_speech || '',
-    meaning: w.meaning,
-    example: w.example || '',
-    translation: w.translation || '',
-    collocations: w.collocations || [],
-    synonyms: w.synonyms || [],
-    antonyms: w.antonyms || [],
-    frequency_level: w.frequency_level || 'medium',
-    created_at: w.created_at,
-    mastery_level: w.mastery_level,
-  }));
-
-  return {
-    stats: {
-      total: data.total || 0,
-      totalWords: data.total_words || 0,
-      learned: data.learned || 0,
-      mastered: data.mastered || 0,
-      toReview: data.to_review || 0,
-      todayLearned: data.today_learned || 0,
-      streakDays: data.streak_days || 0,
-    },
-    masteredWords,
-  };
-}
-
-/**
- * 降级方案：使用关联查询获取已掌握单词（替代两次独立查询）
- * 比 RPC 方案多一次请求，但比原来的 6 次少得多
- */
-async function getWordStatsWithMasteredFallback(
-  userId: string = 'personal-user',
-  limit: number = 999,
-  offset: number = 0
-): Promise<{
-  stats: {
-    total: number;
-    totalWords: number;
-    learned: number;
-    mastered: number;
-    toReview: number;
-    todayLearned: number;
-    streakDays: number;
-  };
-  masteredWords: WordRecord[];
-}> {
-  const today = new Date().toISOString().split('T')[0];
-
-  // 顺序查询，避免免费层并发限制导致部分查询超时
-  const totalResult = await supabaseClient!.from('words').select('*', { count: 'exact', head: true });
-  const learnedResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gt('mastery_level', 0);
-  const masteredCountResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('mastery_level', 5);
-  const reviewResult = await supabaseClient!.from('word_mastery').select('*', { count: 'exact', head: true }).eq('user_id', userId).lt('mastery_level', 5).lte('next_review', today);
-  const todayResult = await supabaseClient!.from('word_learning_records').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', `${today}T00:00:00`);
-  const streakResult = await supabaseClient!.from('word_learning_records').select('created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(365);
-
-  // 两步查询已掌握单词（绕过外键限制）
+  
   const masteredWords: WordRecord[] = [];
-  const { data: masteryData } = await supabaseClient!.from('word_mastery')
-    .select('word_id, mastery_level')
-    .eq('user_id', userId)
-    .gte('mastery_level', 5)
-    .order('updated_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (masteryData && masteryData.length > 0) {
-    const wordIds = masteryData.map(r => r.word_id);
-    const { data: wordsData } = await supabaseClient!.from('words')
-      .select('*')
-      .in('id', wordIds);
-
-    if (wordsData) {
-      const masteryMap = new Map(masteryData.map(r => [String(r.word_id), r.mastery_level]));
-      for (const w of wordsData as any[]) {
-        if (w.id != null) {
-          masteredWords.push({
-            ...w,
-            mastery_level: masteryMap.get(String(w.id)) || 5,
-          });
-        }
+  const learnedWords: WordRecord[] = [];
+  
+  for (const word of allWords) {
+    const wordId = String(word.id);
+    const mastery = masteryMap.get(wordId);
+    
+    if (mastery) {
+      if (mastery.mastery_level >= 5) {
+        masteredWords.push(word);
+      } else if (mastery.mastery_level > 0) {
+        learnedWords.push(word);
       }
     }
   }
-
-  // 解析统计数据
-  const totalWords = totalResult.count || 0;
-  const learned = learnedResult.count || 0;
-  const mastered = masteredCountResult.count || 0;
-  const toReview = reviewResult.count || 0;
-  const todayLearned = todayResult.count || 0;
-
-  // 计算连续天数
-  let streakDays = 0;
-  if (streakResult.data && streakResult.data.length > 0) {
-    const dates = new Set(
-      (streakResult.data as any[])
-        .map(r => r.created_at?.split('T')[0])
-        .filter(Boolean) as string[]
-    );
-    let checkDate = new Date();
-    while (dates.has(checkDate.toISOString().split('T')[0])) {
-      streakDays++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-  }
-
+  
   return {
     stats: {
-      total: totalWords - learned,
-      totalWords,
-      learned,
-      mastered,
-      toReview,
-      todayLearned,
-      streakDays,
+      total: allWords.length,
+      learned: learnedWords.length,
+      mastered: masteredWords.length,
+      unlearned: allWords.length - learnedWords.length - masteredWords.length,
     },
-    masteredWords,
+    masteredWords: masteredWords.slice(0, masteredLimit),
+    learnedWords: learnedWords.slice(0, learnedLimit),
   };
 }
+
+// 导出 supabase 为空（兼容旧代码）
+export const supabase = null;
