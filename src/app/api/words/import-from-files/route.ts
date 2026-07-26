@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 import { parseAllWordFiles, countByLevel } from '@/lib/wordParser';
-import { insertWords } from '@/lib/wordService';
+import { insertParsedWords } from '@/lib/wordService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     console.log('[导入单词] 总计:', words.length);
 
     // 导入到 Supabase
-    const result = await insertWords(words);
+    const result = await insertParsedWords(words);
 
     return NextResponse.json({
       success: true,

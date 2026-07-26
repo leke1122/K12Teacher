@@ -124,32 +124,30 @@ export async function getWords(params: {
     try {
       let query = supabase
         .from('words')
-        .select('*', { count: 'exact', head: false });
+        .select('*', { count: 'exact' });
       
       // 频率筛选
       if (frequency !== 'all') {
         query = query.eq('frequency_level', frequency);
       }
       
-      // 搜索
+      // 搜索 - 使用 ilike
       if (search) {
-        query = query.or(`word.ilike.%${search}%,meaning.ilike.%${search}%`);
+        query = query.ilike('word', `%${search}%`);
       }
       
       query = query.order('word', { ascending: true });
       
-      // 获取总数
-      const { count } = await query;
-      total = count || 0;
-      
       // 获取分页数据
       const from = (page - 1) * limit;
-      const { data, error } = await query.range(from, from + limit - 1);
+      const { data, error, count } = await query.range(from, from + limit - 1);
       
       if (!error && data && data.length > 0) {
-        console.log(`[WordService] 从 Supabase 获取 ${data.length} 条单词 (共 ${total})`);
+        console.log(`[WordService] 从 Supabase 获取 ${data.length} 条单词`);
         filtered = data as WordRecord[];
+        total = count || data.length;
       } else {
+        console.warn('[WordService] Supabase 查询失败或返回空:', error?.message);
         throw new Error('Supabase 返回空数据');
       }
     } catch (err) {
@@ -247,7 +245,7 @@ export async function updateMastery(
   wordId: string,
   action: 'learn' | 'review' | 'master' | 'forget' | 'skip',
   userId?: string
-): Promise<boolean> {
+): Promise<{ mastery_level: number; review_count: number; next_review: string | null }> {
   const mastery = getLocalMastery();
   const existing = mastery[wordId] || {
     word_id: wordId,
@@ -279,7 +277,11 @@ export async function updateMastery(
   mastery[wordId] = existing;
   saveLocalMastery(mastery);
   
-  return true;
+  return {
+    mastery_level: existing.mastery_level,
+    review_count: existing.review_count,
+    next_review: existing.next_review,
+  };
 }
 
 /**
@@ -459,5 +461,126 @@ export async function getWordStatsWithMastered(
   };
 }
 
-// 导出 supabase 为空（兼容旧代码）
-export const supabase = null;
+/**
+ * 批量插入单词到 Supabase
+ */
+export async function insertWords(words: WordRecord[]): Promise<{ success: number; failed: number }> {
+  if (!supabase) {
+    console.warn('[WordService] insertWords: supabase 未配置');
+    return { success: 0, failed: words.length };
+  }
+  
+  let success = 0;
+  let failed = 0;
+  
+  for (const word of words) {
+    try {
+      const { error } = await supabase
+        .from('words')
+        .upsert({
+          word: word.word,
+          phonetic: word.phonetic || '',
+          part_of_speech: word.part_of_speech || '',
+          meaning: word.meaning,
+          example: word.example || '',
+          translation: word.translation || '',
+          collocations: word.collocations || [],
+          synonyms: word.synonyms || [],
+          antonyms: word.antonyms || [],
+          frequency_level: word.frequency_level || 'medium',
+        }, {
+          onConflict: 'word',
+        });
+      
+      if (!error) {
+        success++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+    }
+  }
+  
+  return { success, failed };
+}
+
+/**
+ * 批量插入单词到 Supabase (支持 ParsedWord 格式)
+ */
+export async function insertParsedWords(words: { word: string; phonetic?: string; partOfSpeech?: string; meaning: string; frequencyLevel?: string; example?: string; translation?: string; collocations?: string[]; synonyms?: string[]; antonyms?: string[] }[]): Promise<{ success: number; failed: number }> {
+  if (!supabase) {
+    return { success: 0, failed: words.length };
+  }
+  
+  let success = 0;
+  let failed = 0;
+  
+  for (const word of words) {
+    try {
+      const { error } = await supabase
+        .from('words')
+        .upsert({
+          word: word.word,
+          phonetic: word.phonetic || '',
+          part_of_speech: word.partOfSpeech || '',
+          meaning: word.meaning,
+          example: word.example || '',
+          translation: word.translation || '',
+          collocations: word.collocations || [],
+          synonyms: word.synonyms || [],
+          antonyms: word.antonyms || [],
+          frequency_level: word.frequencyLevel as 'high' | 'medium' | 'low' || 'medium',
+        }, {
+          onConflict: 'word',
+        });
+      
+      if (!error) {
+        success++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+    }
+  }
+  
+  return { success, failed };
+}
+
+/**
+ * 批量获取单词掌握度
+ */
+export async function getBatchMastery(wordIds: string[]): Promise<Map<string, WordMastery>> {
+  const result = new Map<string, WordMastery>();
+  
+  if (!supabase) {
+    const localMastery = getLocalMastery();
+    wordIds.forEach(id => {
+      if (localMastery[id]) {
+        result.set(id, localMastery[id]);
+      }
+    });
+    return result;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('word_mastery')
+      .select('*')
+      .eq('user_id', 'personal-user')
+      .in('word_id', wordIds);
+    
+    if (!error && data) {
+      data.forEach(m => {
+        result.set(m.word_id, m as WordMastery);
+      });
+    }
+  } catch (err) {
+    console.warn('[WordService] getBatchMastery 失败:', err);
+  }
+  
+  return result;
+}
+
+// 不需要重复导出 supabase（已在上面定义）

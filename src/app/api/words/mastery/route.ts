@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     let success = false;
     let errorMessage = '';
-    let mastery: { mastery_level: number; review_count: number; next_review: string } | null = null;
+    let mastery: { mastery_level: number; review_count: number; next_review: string | null } | null = null;
     
     if (action === 'skipped') {
       await recordLearningAction(wordId, 'skipped', duration || 0);
