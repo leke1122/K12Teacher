@@ -30,6 +30,7 @@ import { PracticeQuestion } from '@/components/practice/PracticeQuestion';
 import { PracticeResult } from '@/components/practice/PracticeResult';
 import { updateStepProgress } from '@/lib/geographyProgress';
 import { AutoHideHeader } from '@/components/ui/AutoHideHeader';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface Question {
   id: string;
@@ -56,6 +57,7 @@ export default function GeographyPracticePage() {
   const params = useParams();
   const router = useRouter();
   const chapterId = (params.chapterId as string) || 'chapter1';
+  const { settings } = useSettingsStore();
   
   const [selectedDifficulty, setSelectedDifficulty] = useState<'simple' | 'medium' | 'hard'>('medium');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -82,20 +84,25 @@ export default function GeographyPracticePage() {
     setLoading(true);
     
     try {
+      // 获取 API Key
+      const apiKey = settings.deepseekKey || settings.qwenKey || '';
+      
       const response = await fetch('/api/generate-practice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subjectId: 'geography',
           chapterId: chapterId,
+          sectionId: 'chapter',
           difficulty: selectedDifficulty,
           questionCount: 10,
+          apiKey,
         }),
       });
       
       const data = await response.json();
       
-      if (data.success && data.questions) {
+      if (data.success && data.questions && data.questions.length > 0) {
         setQuestions(data.questions);
         setCurrentIndex(0);
         setSelectedAnswers({});
@@ -104,9 +111,11 @@ export default function GeographyPracticePage() {
         setPracticeComplete(false);
       } else {
         console.error('生成失败:', data);
+        alert('生成练习题失败，请检查网络和API配置');
       }
     } catch (error) {
       console.error('生成练习题失败:', error);
+      alert('生成练习题失败，请稍后重试');
     } finally {
       setLoading(false);
       setGenerating(false);

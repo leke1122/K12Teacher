@@ -1,14 +1,14 @@
 'use client';
 
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BookOpen, CheckCircle, AlertTriangle, Lightbulb, Star } from 'lucide-react';
+import { BookOpen, CheckCircle, AlertTriangle, Lightbulb, Star, Loader2 } from 'lucide-react';
 import { GEOGRAPHY_KNOWLEDGE_CHAPTERS, KnowledgeContent } from '@/data/geography/knowledgeFull';
 import { GeographyGuidedLearning } from '@/components/geography/GeographyGuidedLearning';
-import { useState, useEffect } from 'react';
 
 function ContentRenderer({ content }: { content: KnowledgeContent }) {
   switch (content.type) {
@@ -92,6 +92,18 @@ function ContentRenderer({ content }: { content: KnowledgeContent }) {
 }
 
 export default function GeographyKnowledgePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <GeographyKnowledgeContent />
+    </Suspense>
+  );
+}
+
+function GeographyKnowledgeContent() {
   const searchParams = useSearchParams();
   const chapterId = searchParams.get('chapter') || 'chapter1';
   const mode = searchParams.get('mode') || 'guided';

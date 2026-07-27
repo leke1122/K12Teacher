@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3002",
+    "dev:3000": "next dev -p 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3002",
     "lint": "next lint"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
     "react-dom": "^18",
     "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.80.0",
+    "react-markdown": "^10.1.0",
     "react-signature-canvas": "^1.0.7",
     "reactflow": "^11.11.4",
     "sonner": "^2.0.7",
