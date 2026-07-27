@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
-  ArrowLeft, BookOpen, Target, Sparkles, AlertTriangle,
-  CheckCircle, ChevronRight, Copy, Bookmark, Play, Star, Tag
+  ArrowLeft, ArrowRight, BookOpen, Target, Sparkles, AlertTriangle,
+  CheckCircle, ChevronRight, ChevronLeft, Copy, Bookmark, Play, Star, Tag, Check
 } from 'lucide-react';
 import {
   getKnowledgeByChapter,
@@ -149,26 +149,43 @@ function MarkdownContent({ content }: { content: string }) {
 }
 
 // 知识卡片组件
-function KnowledgeCard({ item, onPractice }: { 
+function KnowledgeCard({ item, onPractice, onMarkLearned, isLearned }: { 
   item: GeographyKnowledgeItem;
   onPractice?: () => void;
+  onMarkLearned?: () => void;
+  isLearned?: boolean;
 }) {
   return (
     <Card className="border-slate-200 hover:border-emerald-300 transition-all shadow-sm hover:shadow-md">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <CardTitle className="text-base font-semibold text-slate-800 flex items-center">
+            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
               {item.title}
               <ExamFrequencyStars frequency={item.exam_frequency} />
+              {isLearned && (
+                <Badge variant="outline" className="bg-emerald-50 border-emerald-200 text-emerald-600 text-xs">
+                  <Check className="h-3 w-3 mr-1" /> 已学
+                </Badge>
+              )}
             </CardTitle>
             <KeywordTags keywords={item.keywords} />
           </div>
-          {onPractice && (
-            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={onPractice}>
-              <Sparkles className="h-3.5 w-3.5" /> 出题
+          <div className="flex gap-2">
+            <Button 
+              size="sm" 
+              variant={isLearned ? "outline" : "default"}
+              className={isLearned ? "border-emerald-300 text-emerald-600" : "bg-emerald-600 hover:bg-emerald-700"}
+              onClick={onMarkLearned}
+            >
+              <Check className="h-3.5 w-3.5" /> {isLearned ? '已学' : '标记'}
             </Button>
-          )}
+            {onPractice && (
+              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={onPractice}>
+                <Sparkles className="h-3.5 w-3.5" /> 出题
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -263,15 +280,17 @@ function KnowledgePageContent() {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('knowledge');
-
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [learnedIds, setLearnedIds] = useState<Set<string>>(new Set());
+  
   const chapterInfo = CHAPTER_INFO[chapterId] || { name: '知识点', description: '' };
 
+  // 加载数据
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       
       if (chapterId === 'framework') {
-        // 框架视图 - 不需要加载数据
         const frameworkStats = await getChapterStats();
         setStats(frameworkStats);
       } else {
@@ -281,6 +300,13 @@ function KnowledgePageContent() {
         ]);
         setItems(knowledgeData);
         setStats(allStats);
+        
+        // 从 localStorage 读取已学记录
+        const progressKey = `geography_learned_${chapterId}`;
+        const saved = localStorage.getItem(progressKey);
+        if (saved) {
+          setLearnedIds(new Set(JSON.parse(saved)));
+        }
       }
       
       setLoading(false);
@@ -288,6 +314,33 @@ function KnowledgePageContent() {
     
     loadData();
   }, [chapterId]);
+
+  // 标记已学
+  const handleMarkLearned = (itemId: string) => {
+    const newLearned = new Set(learnedIds);
+    if (newLearned.has(itemId)) {
+      newLearned.delete(itemId);
+    } else {
+      newLearned.add(itemId);
+    }
+    setLearnedIds(newLearned);
+    localStorage.setItem(`geography_learned_${chapterId}`, JSON.stringify([...newLearned]));
+  };
+
+  // 上一节/下一节
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < items.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const handlePractice = (id: string) => {
     router.push(`/learn/geography/practice/${chapterId}?point=${id}`);
@@ -359,7 +412,7 @@ function KnowledgePageContent() {
 
           {/* 知识点视图 */}
           <TabsContent value="knowledge">
-            <ScrollArea className="h-[calc(100vh-14rem)]">
+            <ScrollArea className="h-[calc(100vh-16rem)]">
               <div className="space-y-4 pr-4">
                 {items.length === 0 ? (
                   <Card className="p-8 text-center">
@@ -370,16 +423,57 @@ function KnowledgePageContent() {
                     </p>
                   </Card>
                 ) : (
-                  items.map((item) => (
-                    <KnowledgeCard
-                      key={item.id}
-                      item={item}
-                      onPractice={() => handlePractice(item.id)}
-                    />
+                  items.map((item, idx) => (
+                    <div key={item.id} id={`item-${idx}`}>
+                      <KnowledgeCard
+                        item={item}
+                        isLearned={learnedIds.has(item.id)}
+                        onMarkLearned={() => handleMarkLearned(item.id)}
+                        onPractice={() => handlePractice(item.id)}
+                      />
+                    </div>
                   ))
                 )}
               </div>
             </ScrollArea>
+            
+            {/* 底部导航 */}
+            {items.length > 0 && (
+              <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 mt-4 rounded-t-lg shadow-lg">
+                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrev}
+                    disabled={currentIndex === 0}
+                    className="gap-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" /> 上一节
+                  </Button>
+                  
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-muted-foreground">
+                      {currentIndex + 1} / {items.length}
+                    </span>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => router.push(`/learn/geography/practice/${chapterId}`)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-1" /> 生成练习
+                    </Button>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleNext}
+                    disabled={currentIndex === items.length - 1}
+                    className="gap-2"
+                  >
+                    下一节 <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* 框架图谱视图 */}

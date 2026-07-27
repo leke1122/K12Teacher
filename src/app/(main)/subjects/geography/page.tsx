@@ -1,23 +1,38 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Globe2, Brain, MapPin, FileQuestion, Sparkles, ArrowRight, Trophy
+  Globe2, Brain, MapPin, FileQuestion, Sparkles, ArrowRight, Trophy, ChevronRight,
+  BookOpen, Target, CreditCard, GitCompare
 } from 'lucide-react';
 
-// 学习步骤定义
-const LEARNING_STEPS = [
-  { id: 'knowledge', icon: Brain, name: '知识点', desc: '核心概念理解', color: 'blue', href: '/learn/geography/knowledge-full/chapter1' },
-  { id: 'practice', icon: FileQuestion, name: '练习', desc: '巩固与应用', color: 'emerald', href: '/learn/geography/practice/chapter1' },
+// 高分知识框架入口
+const HIGHSCORE_FRAMEWORK = {
+  id: 'framework',
+  icon: Trophy,
+  name: '🏆 高分知识框架',
+  desc: '2026辽宁高考满分知识体系',
+  href: '/learn/geography/framework',
+  color: 'amber',
+  badge: '核心'
+};
+
+// 学习路径定义
+const LEARNING_PATH_STEPS = [
+  { step: 1, id: 'knowledge', name: '章节知识点', desc: '核心概念精讲', icon: BookOpen, href: '/learn/geography/knowledge/ch1' },
+  { step: 2, id: 'framework', name: '满分框架', desc: '知识体系图谱', icon: Target, href: '/learn/geography/framework' },
+  { step: 3, id: 'cards', name: '记忆卡牌', desc: '巩固核心概念', icon: CreditCard, href: '/learn/geography/cards' },
+  { step: 4, id: 'practice', name: 'AI练习', desc: '检验学习效果', icon: Sparkles, href: '/learn/geography/practice' },
 ];
 
 // 辅助工具
 const TOOLS = [
-  { id: 'map', icon: MapPin, name: '交互地图', desc: '可视化空间定位', color: 'violet', href: '/learn/geography/map' },
-  { id: 'visualize', icon: Globe2, name: '可视化中心', desc: '天体/圈层/运动', color: 'cyan', href: '/learn/geography/visualize' },
+  { id: 'map', icon: MapPin, name: '交互地图', desc: '可视化空间定位', href: '/learn/geography/map', color: 'violet' },
+  { id: 'compare', icon: GitCompare, name: '区域对比', desc: '特征比较分析', href: '/learn/geography/compare', color: 'cyan' },
 ];
 
 export default function GeographyHomePage() {
@@ -36,77 +51,65 @@ export default function GeographyHomePage() {
           <p className="text-sm text-slate-500">按步骤学习，循序渐进</p>
         </div>
 
-        {/* 高分知识框架入口 */}
-        <Card 
-          className="rounded-xl shadow-sm border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:shadow-lg transition-all cursor-pointer"
-          onClick={() => router.push('/learn/geography/framework')}
-        >
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                <Trophy className="h-7 w-7 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-800">🏆 高分知识框架</h2>
-                  <Badge className="bg-red-100 text-red-700 text-xs">核心</Badge>
+        {/* 🌟 主入口：进入学习中心 */}
+        <Link href="/learn/geography">
+          <Card className="rounded-xl shadow-lg border-2 border-emerald-300 bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-xl hover:scale-[1.01] transition-all cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center">
+                    <Globe2 className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">进入地理学习中心</h2>
+                    <p className="text-emerald-100 text-sm mt-1">系统化学习路径 · 从知识点到满分框架</p>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600 mt-1">
-                  2026辽宁高考满分知识体系 · 4大模块 · 20+专题 · 引导式闭环学习
-                </p>
+                <div className="flex items-center gap-2 text-white">
+                  <span className="text-sm">开始学习</span>
+                  <ChevronRight className="h-6 w-6" />
+                </div>
               </div>
-              <ArrowRight className="h-6 w-6 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        {/* 学习路径 */}
+        {/* 四步学习路径 */}
         <Card className="rounded-xl shadow-sm border-0 overflow-hidden bg-white dark:bg-slate-800/50">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-5 w-5 text-emerald-500" />
               <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">
-                学习路径
+                四步学习闭环
               </h2>
               <Badge className="ml-auto bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 text-xs">
-                循序渐进
+                建议按顺序完成
               </Badge>
             </div>
             
-            {/* 横向流程 */}
-            <div className="flex items-center justify-center gap-2">
-              {LEARNING_STEPS.map((step, index) => {
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {LEARNING_PATH_STEPS.map((step) => {
                 const Icon = step.icon;
-                
                 return (
-                  <div key={step.id} className="flex items-center">
-                    <button
-                      onClick={() => router.push(step.href)}
-                      className="relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-300 transition-all"
-                    >
-                      <div className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <Icon className="h-7 w-7 text-blue-500" />
-                      </div>
-                      <div className="text-center">
-                        <p className="font-semibold text-slate-800 dark:text-slate-100">{step.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{step.desc}</p>
-                      </div>
-                      <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
-                        {index + 1}
-                      </span>
-                    </button>
-                    
-                    {index < LEARNING_STEPS.length - 1 && (
-                      <ArrowRight className="h-5 w-5 text-slate-300 mx-2 flex-shrink-0" />
-                    )}
-                  </div>
+                  <button
+                    key={step.id}
+                    onClick={() => router.push(step.href)}
+                    className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <Icon className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{step.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{step.desc}</p>
+                    </div>
+                    <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center">
+                      {step.step}
+                    </span>
+                  </button>
                 );
               })}
             </div>
-            
-            <p className="text-xs text-slate-400 text-center mt-6">
-              建议按顺序完成：知识点 → 练习
-            </p>
           </CardContent>
         </Card>
 
@@ -131,6 +134,29 @@ export default function GeographyHomePage() {
             );
           })}
         </div>
+
+        {/* 高分框架入口 */}
+        <Link href={HIGHSCORE_FRAMEWORK.href}>
+          <Card className="rounded-xl shadow-sm border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:shadow-lg transition-all cursor-pointer">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                  <Trophy className="h-7 w-7 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-800">{HIGHSCORE_FRAMEWORK.name}</h2>
+                    <Badge className="bg-red-100 text-red-700 text-xs">{HIGHSCORE_FRAMEWORK.badge}</Badge>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {HIGHSCORE_FRAMEWORK.desc} · 4大模块 · 20+专题
+                  </p>
+                </div>
+                <ArrowRight className="h-6 w-6 text-amber-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* 核心能力卡片 */}
         <Card className="rounded-xl shadow-sm border-0 overflow-hidden bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/20 dark:to-cyan-950/20">

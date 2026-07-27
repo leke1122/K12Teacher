@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getAvailableChapters, getChapterById, type Chapter } from '@/lib/geographyDataService';
 import { updateStepProgress } from '@/lib/geographyProgress';
+import { LearningPath, QuickActions, ChapterNav } from '@/components/geography/LearningPath';
 
 // 学习路径步骤
 const LEARNING_PATH_STEPS = [
@@ -30,6 +31,7 @@ function GeographyHubContent() {
   
   const [selectedChapter, setSelectedChapter] = useState<string>('ch1');
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [currentStep, setCurrentStep] = useState(0);
   
   const currentChapter = getChapterById(selectedChapter);
 
@@ -61,6 +63,12 @@ function GeographyHubContent() {
           </Badge>
         </div>
 
+        {/* 学习路径组件 */}
+        <LearningPath chapterId={selectedChapter} currentStep={currentStep} onStepChange={setCurrentStep} />
+
+        {/* 快捷功能入口 */}
+        <QuickActions chapterId={selectedChapter} />
+
         {/* 章节选择器 */}
         <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50/50 to-teal-50/30">
           <CardHeader className="pb-3">
@@ -70,29 +78,11 @@ function GeographyHubContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {availableChapters.map((chapter) => (
-                <Button
-                  key={chapter.id}
-                  variant={selectedChapter === chapter.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedChapter(chapter.id)}
-                  className={`gap-2 ${
-                    selectedChapter === chapter.id 
-                      ? 'bg-emerald-600 hover:bg-emerald-700' 
-                      : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                  }`}
-                >
-                  {chapter.id === 'ch1' && '🌌'}
-                  {chapter.id === 'ch2' && '🌫️'}
-                  {chapter.name}
-                </Button>
-              ))}
-              {/* 占位符 - 后续章节 */}
-              <Button variant="outline" size="sm" disabled className="opacity-50">
-                第三章（待补充）...
-              </Button>
-            </div>
+            <ChapterNav 
+              currentChapter={selectedChapter} 
+              chapters={availableChapters.map(ch => ({ id: ch.id, name: ch.name }))}
+              onChapterChange={setSelectedChapter}
+            />
           </CardContent>
         </Card>
 

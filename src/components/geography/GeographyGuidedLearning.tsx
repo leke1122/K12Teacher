@@ -173,6 +173,7 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [showNextButton, setShowNextButton] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [difficulty, setDifficulty] = useState(1);
@@ -214,6 +215,9 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
     setDifficulty(1);
     setAnsweredQuestions([]);
     setIsAiGeneration(true);
+    setShowNextButton(false);
+    setSelectedAnswer(null);
+    setShowResult(false);
     
     try {
       const questions = await generateQuizWithAI(
@@ -241,6 +245,7 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
     
     setSelectedAnswer(answerId);
     setShowResult(true);
+    setShowNextButton(true);
     
     const selectedOpt = currentQuestion.options.find(o => o.id === answerId);
     const isCorrect = selectedOpt?.isCorrect || false;
@@ -250,52 +255,9 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
       setCorrectCount(newCorrectCount);
       setTotalQuestions(prev => prev + 1);
       
-      // 答对6题，标记完成
+      // 答对6题，标记完成（但不自动跳转，等用户点击按钮）
       if (newCorrectCount >= 6) {
         setCompletedSubsections(prev => new Set([...prev, currentSubsection.subsectionId]));
-        
-        setTimeout(() => {
-          const nextIndex = subsections.findIndex((s, idx) => 
-            idx > currentSubsectionIndex && !completedSubsections.has(s.subsectionId)
-          );
-          
-          if (nextIndex !== -1) {
-            startStudy(subsections[nextIndex], nextIndex);
-          } else {
-            setView('select');
-            onComplete?.();
-          }
-        }, 2000);
-      } else {
-        // 继续出下一题，难度递增（每答对一题难度+1）
-        setTimeout(async () => {
-          setLoading(true);
-          setIsAiGeneration(true);
-          // 每答对一题难度+1，最多到3
-          const newDifficulty = Math.min(3, difficulty + 1);
-          setDifficulty(newDifficulty);
-          
-          try {
-            const questions = await generateQuizWithAI(
-              currentSubsection.subsectionTitle,
-              contentTextRef.current,
-              newDifficulty,
-              answeredQuestions
-            );
-            
-            if (questions.length > 0) {
-              setCurrentQuestion(questions[0]);
-              setTotalQuestions(prev => prev + 1);
-              setAnsweredQuestions(prev => [...prev, questions[0].question]);
-            }
-          } catch (err) {
-            console.error('生成题目失败:', err);
-          }
-          
-          setSelectedAnswer(null);
-          setShowResult(false);
-          setLoading(false);
-        }, 1500);
       }
     } else {
       // 答错
@@ -314,35 +276,65 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
         knowledgePoint: currentSubsection.subsectionTitle,
         difficulty: difficulty === 1 ? 'easy' : difficulty === 2 ? 'medium' : 'hard',
       });
-      
-      // 答错后继续出题
-      setTimeout(async () => {
-        setLoading(true);
-        setIsAiGeneration(true);
-        
-        try {
-          const questions = await generateQuizWithAI(
-            currentSubsection.subsectionTitle,
-            contentTextRef.current,
-            Math.max(1, difficulty - 1),
-            answeredQuestions
-          );
-          
-          if (questions.length > 0) {
-            setCurrentQuestion(questions[0]);
-            setTotalQuestions(prev => prev + 1);
-            setAnsweredQuestions(prev => [...prev, questions[0].question]);
-          }
-        } catch (err) {
-          console.error('生成题目失败:', err);
-        }
-        
-        setSelectedAnswer(null);
-        setShowResult(false);
-        setLoading(false);
-      }, 2000);
     }
-  }, [currentQuestion, currentSubsection, showResult, correctCount, difficulty, chapterId, completedSubsections, subsections, currentSubsectionIndex, startStudy, onComplete, answeredQuestions]);
+  }, [currentQuestion, currentSubsection, showResult, correctCount, difficulty, chapterId]);
+
+  // 进入下一题
+  const goToNextQuestion = useCallback(async () => {
+    if (!currentSubsection) return;
+    
+    setShowNextButton(false);
+    setLoading(true);
+    setIsAiGeneration(true);
+    
+    // 如果答对6题，跳转到下一个知识点
+    if (correctCount >= 6) {
+      const nextIndex = subsections.findIndex((s, idx) => 
+        idx > currentSubsectionIndex && !completedSubsections.has(s.subsectionId)
+      );
+      
+      if (nextIndex !== -1) {
+        setLoading(false);
+        startStudy(subsections[nextIndex], nextIndex);
+        return;
+      } else {
+        setView('select');
+        onComplete?.();
+        setLoading(false);
+        return;
+      }
+    }
+    
+    // 计算下一题难度
+    const selectedOpt = currentQuestion?.options.find(o => o.id === selectedAnswer);
+    const isCorrect = selectedOpt?.isCorrect || false;
+    const newDifficulty = isCorrect 
+      ? Math.min(3, difficulty + 1)  // 答对难度+1
+      : Math.max(1, difficulty - 1); // 答错难度-1
+    
+    setDifficulty(newDifficulty);
+    
+    try {
+      const questions = await generateQuizWithAI(
+        currentSubsection.subsectionTitle,
+        contentTextRef.current,
+        newDifficulty,
+        answeredQuestions
+      );
+      
+      if (questions.length > 0) {
+        setCurrentQuestion(questions[0]);
+        setTotalQuestions(prev => prev + 1);
+        setAnsweredQuestions(prev => [...prev, questions[0].question]);
+      }
+    } catch (err) {
+      console.error('生成题目失败:', err);
+    }
+    
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setLoading(false);
+  }, [currentSubsection, currentQuestion, selectedAnswer, correctCount, difficulty, currentSubsectionIndex, completedSubsections, subsections, answeredQuestions, startStudy, onComplete]);
 
   // 返回选择知识点
   const backToSelect = () => {
@@ -634,6 +626,21 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
                 </Card>
               )}
 
+              {/* 已学习，继续答题按钮 */}
+              {showNextButton && !loading && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    onClick={goToNextQuestion}
+                    size="lg"
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 px-8"
+                  >
+                    <BookOpen className="h-5 w-5" />
+                    {correctCount >= 6 ? '已完成，进入下一知识点' : '已学习，继续答题'}
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
               {/* 加载状态 */}
               {loading && (
                 <div className="flex items-center justify-center py-4">
@@ -643,7 +650,7 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
               )}
 
               {/* 完成提示 */}
-              {correctCount >= 4 && !loading && (
+              {correctCount >= 6 && !loading && showNextButton && (
                 <Card className="border-emerald-200 bg-emerald-50">
                   <CardContent className="p-6 text-center">
                     <Trophy className="h-10 w-10 mx-auto text-emerald-500 mb-2" />
@@ -652,7 +659,7 @@ export function GeographyGuidedLearning({ chapterId, onComplete }: GeographyGuid
                       掌握了「{currentSubsection?.subsectionTitle}」！
                     </p>
                     <p className="text-sm text-slate-500 mt-2">
-                      正在进入下一个知识点...
+                      点击上方按钮进入下一个知识点
                     </p>
                   </CardContent>
                 </Card>
