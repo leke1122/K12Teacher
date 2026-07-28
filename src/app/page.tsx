@@ -8,7 +8,8 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useSubjectStore, SUBJECTS } from "@/stores/subjectStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookMarked, BarChart3, ListChecks, Link2, Ruler, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight, BookMarked, BarChart3, ListChecks, Link2, Ruler, Sparkles, Settings, Brain } from "lucide-react";
 
 const LearningStatsCard = dynamic(
   () => import('@/components/dashboard/LearningStatsCard').then(mod => mod.LearningStatsCard),
@@ -55,7 +56,15 @@ export default function Home() {
   const hasApiKey = settings?.deepseekKey && settings?.qwenKey;
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 relative">
+      {/* Settings Icon - Top Right */}
+      <Link
+        href="/settings"
+        className="absolute top-4 right-4 sm:top-6 sm:right-6 lg:top-8 lg:right-8 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors z-10"
+      >
+        <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-slate-600 dark:text-slate-400" />
+      </Link>
+
       {/* Hero Section */}
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -91,6 +100,37 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      {/* 政史地核心训练入口 */}
+      <Link href="/learn/thinking">
+        <div className="group relative overflow-hidden rounded-xl border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 via-slate-50 to-blue-50 dark:from-purple-950/50 dark:via-slate-900 dark:to-blue-950/50 p-5 sm:p-6 hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all duration-300 cursor-pointer">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 p-3 sm:p-4 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Brain className="h-6 w-6 sm:h-8 sm:w-8" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
+                政史地核心训练
+              </h3>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                思维导图 · 解题思维 · 答题模板
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">AI动态出题</Badge>
+              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">三级递进</Badge>
+              <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">政史地全覆盖</Badge>
+            </div>
+            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500 group-hover:translate-x-2 transition-transform duration-300" />
+          </div>
+          {/* Mobile badges */}
+          <div className="flex sm:hidden flex-wrap gap-2 mt-3">
+            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">AI动态出题</Badge>
+            <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">三级递进</Badge>
+            <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">政史地全覆盖</Badge>
+          </div>
+        </div>
+      </Link>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
