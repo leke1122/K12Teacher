@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   Database,
   Volume2,
+  Home,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -687,7 +688,13 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">设置</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-3xl font-bold">设置</h1>
+        <Button variant="outline" size="sm" onClick={() => window.location.href = '/'}>
+          <Home className="w-4 h-4 mr-2" />
+          返回首页
+        </Button>
+      </div>
 
       {/* 年级选择 */}
       <Card>
