@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import type { Settings } from "@/types/settings";
 import { settingsSchema } from "@/lib/validations";
-import { testDeepSeekConnection, testQwenConnection } from "@/lib/api-test";
 import { localFallback } from "@/lib/localFallback";
 import { useDataSync } from "@/hooks/useDataSync";
 import { Button } from "@/components/ui/button";
@@ -482,17 +481,39 @@ export default function SettingsPage() {
   const handleTestDeepSeek = async () => {
     setTestStatus((prev) => ({ ...prev, deepseek: "testing" }));
     setTestMessage((prev) => ({ ...prev, deepseek: "" }));
-    const result = await testDeepSeekConnection(formData.deepseekKey);
-    setTestStatus((prev) => ({ ...prev, deepseek: result.success ? "success" : "error" }));
-    setTestMessage((prev) => ({ ...prev, deepseek: result.message }));
+    
+    try {
+      const response = await fetch("/api/test-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: formData.deepseekKey, type: "deepseek" }),
+      });
+      const result = await response.json();
+      setTestStatus((prev) => ({ ...prev, deepseek: result.success ? "success" : "error" }));
+      setTestMessage((prev) => ({ ...prev, deepseek: result.message }));
+    } catch {
+      setTestStatus((prev) => ({ ...prev, deepseek: "error" }));
+      setTestMessage((prev) => ({ ...prev, deepseek: "网络请求失败" }));
+    }
   };
 
   const handleTestQwen = async () => {
     setTestStatus((prev) => ({ ...prev, qwen: "testing" }));
     setTestMessage((prev) => ({ ...prev, qwen: "" }));
-    const result = await testQwenConnection(formData.qwenKey);
-    setTestStatus((prev) => ({ ...prev, qwen: result.success ? "success" : "error" }));
-    setTestMessage((prev) => ({ ...prev, qwen: result.message }));
+    
+    try {
+      const response = await fetch("/api/test-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: formData.qwenKey, type: "qwen" }),
+      });
+      const result = await response.json();
+      setTestStatus((prev) => ({ ...prev, qwen: result.success ? "success" : "error" }));
+      setTestMessage((prev) => ({ ...prev, qwen: result.message }));
+    } catch {
+      setTestStatus((prev) => ({ ...prev, qwen: "error" }));
+      setTestMessage((prev) => ({ ...prev, qwen: "网络请求失败" }));
+    }
   };
 
   const handleTestAliyunTts = async () => {
