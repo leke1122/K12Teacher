@@ -199,7 +199,7 @@ function CardsHubContent() {
         {/* 顶部导航 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/learn/geography">
+            <Link href="/subjects/geography">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> 返回
               </Button>

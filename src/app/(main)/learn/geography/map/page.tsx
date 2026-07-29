@@ -417,10 +417,12 @@ function MapPageContent() {
       <div className="w-full px-4 py-4 space-y-4">
         {/* 顶部导航 */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="gap-1" onClick={() => window.history.back()}>
-            <ArrowLeft className="h-4 w-4" />
-            返回
-          </Button>
+          <Link href="/subjects/geography">
+            <Button variant="ghost" size="sm" className="gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              返回
+            </Button>
+          </Link>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <Globe className="h-5 w-5 text-emerald-500" />
