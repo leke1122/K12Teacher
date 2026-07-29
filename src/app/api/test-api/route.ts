@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
-const QWEN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -13,7 +10,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: "请先输入 DeepSeek API Key" });
       }
 
-      const response = await fetch(DEEPSEEK_API_URL, {
+      const response = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -21,34 +18,27 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           model: "deepseek-v4-flash",
-          messages: [{ role: "user", content: "你好" }],
-          max_tokens: 50,
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 100,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
         if (response.status === 401 || response.status === 403) {
           return NextResponse.json({ success: false, message: "API Key 无效或已过期" });
         }
         if (response.status === 429) {
           return NextResponse.json({ success: false, message: "请求过于频繁，请稍后重试" });
         }
-        if (response.status === 400) {
-          const errorMsg = errorData.error?.message || errorData.message || "请求参数错误";
-          return NextResponse.json({ success: false, message: errorMsg });
-        }
-        
         return NextResponse.json({ 
           success: false, 
-          message: errorData.error?.message || errorData.message || `请求失败 (${response.status})` 
+          message: data.error?.message || data.message || `请求失败 (${response.status})` 
         });
       }
 
-      const data = await response.json();
-      
-      if (data.choices && data.choices[0]?.message?.content) {
+      if (data.choices && data.choices[0]?.message) {
         return NextResponse.json({ success: true, message: "连接成功！" });
       }
       
@@ -60,7 +50,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: "请先输入 Qwen-VL API Key" });
       }
 
-      const response = await fetch(QWEN_API_URL, {
+      const response = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,30 +58,27 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           model: "qwen-vl-plus",
-          messages: [{ role: "user", content: [{ type: "text", text: "你好" }] }],
-          max_tokens: 50,
+          messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+          max_tokens: 100,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
         if (response.status === 401 || response.status === 403) {
           return NextResponse.json({ success: false, message: "API Key 无效或已过期" });
         }
         if (response.status === 429) {
           return NextResponse.json({ success: false, message: "请求过于频繁，请稍后重试" });
         }
-        
         return NextResponse.json({ 
           success: false, 
-          message: errorData.error?.message || `请求失败 (${response.status})` 
+          message: data.error?.message || `请求失败 (${response.status})` 
         });
       }
 
-      const data = await response.json();
-      
-      if (data.choices && data.choices[0]?.message?.content) {
+      if (data.choices && data.choices[0]?.message) {
         return NextResponse.json({ success: true, message: "连接成功！" });
       }
       
@@ -100,7 +87,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, message: "未知的测试类型" });
   } catch (error) {
-    console.error('[API Test Error]', error);
     return NextResponse.json({ 
       success: false, 
       message: `测试失败: ${error instanceof Error ? error.message : "未知错误"}` 
