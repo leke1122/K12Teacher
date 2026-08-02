@@ -115,11 +115,13 @@ function SpeakButton({ text, className }: { text: string; className?: string }) 
 // 横向双栏单词卡片组件
 function WordCard({
   word,
+  frequency,
   onMaster,
   onSkip,
   isMastering,
 }: {
   word: WordRecord;
+  frequency: string;
   onMaster: () => void;
   onSkip: () => void;
   isMastering?: boolean;
@@ -192,7 +194,7 @@ function WordCard({
               </div>
             )}
 
-            {word.collocations.length > 0 && (
+            {word.collocations && word.collocations.length > 0 && (
               <div>
                 <p className="text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
                   <span className="text-indigo-500">🔗</span> 常用搭配
@@ -228,7 +230,7 @@ function WordCard({
             </div>
 
             <div className="space-y-3">
-              {word.synonyms.length > 0 && (
+              {word.synonyms && word.synonyms.length > 0 && (
                 <div>
                   <p className="text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
                     <span className="text-green-500">同</span> 同义词
@@ -243,7 +245,7 @@ function WordCard({
                 </div>
               )}
 
-              {word.antonyms.length > 0 && (
+              {word.antonyms && word.antonyms.length > 0 && (
                 <div>
                   <p className="text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
                     <span className="text-red-500">反</span> 反义词
@@ -778,7 +780,7 @@ export default function WordsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [frequency, setFrequency] = useState<'high' | 'medium' | 'low' | 'all'>('high');
+  const [frequency, setFrequency] = useState<'high' | 'medium' | 'low' | 'all' | 'required'>('high');
   const [mode, setMode] = useState<'learn' | 'practice'>('learn');
   const [reviewWords, setReviewWords] = useState<WordRecord[]>([]);
   const [dailyGoal, setDailyGoal] = useState(20);
@@ -1306,6 +1308,15 @@ export default function WordsPage() {
       <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex-shrink-0">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.href = '/'}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              首页
+            </Button>
             <BookOpen className="h-6 w-6 text-indigo-500" />
             <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">单词学习</h1>
             {mode === 'learn' && !loading && studyTime > 0 && (
@@ -1325,10 +1336,11 @@ export default function WordsPage() {
               setFrequency(v); 
               setCurrentIndex(0); 
             }}>
-              <SelectTrigger className="w-32 h-8 text-sm">
+              <SelectTrigger className="w-36 h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="required">教材必背</SelectItem>
                 <SelectItem value="high">高频核心词</SelectItem>
                 <SelectItem value="medium">中频词</SelectItem>
                 <SelectItem value="low">低频词</SelectItem>
@@ -1446,6 +1458,7 @@ export default function WordsPage() {
               <div className="space-y-4">
               <WordCard
                 word={currentWord}
+                frequency={frequency}
                 onMaster={handleMaster}
                 onSkip={handleSkip}
                 isMastering={isMastering}
